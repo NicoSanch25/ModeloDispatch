@@ -28,6 +28,7 @@ import { MatchModal } from './src/components/modals/MatchModal';
 import { StaffModal } from './src/components/modals/StaffModal';
 import { AmbulanceModal } from './src/components/modals/AmbulanceModal';
 import { LocationModal } from './src/components/modals/LocationModal';
+import { LocationDetailModal } from './src/components/modals/LocationDetailModal';
 import { ClientModal } from './src/components/modals/ClientModal';
 import { FleetStatusWidget } from './src/components/FleetStatusWidget';
 import { DashboardClock } from './src/components/DashboardClock';
@@ -2331,7 +2332,7 @@ function MainApp({ session }: { session: any }) {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {locations.map(l => (
-                      <div key={l.id} onClick={() => { setEditingLocation(l); setIsLocationModalOpen(true); }} className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 hover:shadow-md transition-shadow cursor-pointer">
+                      <div key={l.id} onClick={() => setViewingLocation(l)} className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 hover:shadow-md transition-shadow cursor-pointer">
                         <h4 className="font-bold text-slate-800 flex items-center gap-2"><MapPin className="w-4 h-4 text-slate-400" /> {l.name}</h4>
                         {l.contactName && <p className="text-sm text-slate-600 mt-2">Contacto: {l.contactName}</p>}
                       </div>
@@ -2437,6 +2438,19 @@ function MainApp({ session }: { session: any }) {
         onSaveSuccess={loadData}
         editingLocation={editingLocation}
       />
+
+      <LocationDetailModal
+        isOpen={!!viewingLocation}
+        onClose={() => setViewingLocation(null)}
+        location={viewingLocation}
+        matches={matches}
+        onEdit={(loc) => {
+          setEditingLocation(loc);
+          setIsLocationModalOpen(true);
+        }}
+      />
+
+
 
       <ClientModal
         isOpen={isClientModalOpen}
