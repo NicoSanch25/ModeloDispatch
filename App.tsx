@@ -29,6 +29,7 @@ import { StaffModal } from './src/components/modals/StaffModal';
 import { AmbulanceModal } from './src/components/modals/AmbulanceModal';
 import { LocationModal } from './src/components/modals/LocationModal';
 import { LocationDetailModal } from './src/components/modals/LocationDetailModal';
+import { AmbulanceDetailModal } from './src/components/modals/AmbulanceDetailModal';
 import { ClientModal } from './src/components/modals/ClientModal';
 import { FleetStatusWidget } from './src/components/FleetStatusWidget';
 import { DashboardClock } from './src/components/DashboardClock';
@@ -356,8 +357,8 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
       <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full">
         <div className="flex justify-center mb-6">
-          <div className="bg-indigo-600 p-3 rounded-xl">
-            <Ambulance className="w-10 h-10 text-white" />
+          <div className="p-2">
+            <img src="/logo.png" alt="Logo" className="h-28 w-auto object-contain drop-shadow-md" />
           </div>
         </div>
         <h2 className="text-2xl font-bold text-center text-slate-800 mb-2">Modelo Dispatch</h2>
@@ -428,18 +429,13 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
             <button
               onClick={() => handleAuth(false)}
               disabled={loading}
-              className="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold hover:bg-indigo-700 transition-colors flex justify-center items-center gap-2"
+              className="w-full bg-emerald-700 text-white py-3 rounded-lg font-bold hover:bg-emerald-800 transition-colors flex justify-center items-center gap-2"
             >
               {loading ? <Loader2 className="animate-spin w-5 h-5" /> : 'Ingresar'}
             </button>
-
-            <button
-              onClick={() => handleAuth(true)}
-              disabled={loading}
-              className="w-full bg-white border border-slate-300 text-slate-600 py-3 rounded-lg font-medium hover:bg-slate-50 transition-colors text-sm"
-            >
-              ¿Usuario nuevo? Registrarse
-            </button>
+            <p className="text-center text-xs text-slate-400 mt-4">
+              Sistema privado. Si necesita acceso, contacte al administrador.
+            </p>
           </div>
         </div>
       </div>
@@ -632,8 +628,12 @@ function MainApp({ session }: { session: any }) {
     await supabase.auth.signOut();
   };
 
-  const handleChangePassword = async (newPassword: string) => {
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
+  const handleChangePassword = async (newPassword: string, newUsername?: string) => {
+    const updates: any = {};
+    if (newPassword) updates.password = newPassword;
+    if (newUsername) updates.data = { username: newUsername };
+
+    const { error } = await supabase.auth.updateUser(updates);
     if (error) throw error;
   };
 
@@ -1562,31 +1562,38 @@ function MainApp({ session }: { session: any }) {
     );
   };
 
+
   const ChangePasswordModal = () => {
-    // ... [No changes needed]
     const [newPass, setNewPass] = useState('');
     const [confirmPass, setConfirmPass] = useState('');
+    const [newUsername, setNewUsername] = useState('');
     const [loading, setLoading] = useState(false);
     const [msg, setMsg] = useState('');
     const [isError, setIsError] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
-      if (newPass !== confirmPass) {
+      if (newPass && newPass !== confirmPass) {
         setMsg('Las contraseñas no coinciden');
         setIsError(true);
         return;
       }
-      if (newPass.length < 6) {
+      if (newPass && newPass.length < 6) {
         setMsg('La contraseña debe tener al menos 6 caracteres');
         setIsError(true);
         return;
       }
+      if (!newPass && !newUsername) {
+        setMsg('Ingrese al menos un dato para actualizar (Usuario o Contraseña)');
+        setIsError(true);
+        return;
+      }
+
       setLoading(true);
       setMsg('');
       try {
-        await handleChangePassword(newPass);
-        setMsg('Contraseña actualizada correctamente');
+        await handleChangePassword(newPass, newUsername);
+        setMsg('Datos actualizados correctamente');
         setIsError(false);
         setTimeout(() => setIsChangePasswordOpen(false), 2000);
       } catch (err: any) {
@@ -1603,7 +1610,7 @@ function MainApp({ session }: { session: any }) {
           <form onSubmit={handleSubmit} className="flex flex-col">
             <div className="p-4 border-b flex justify-between items-center bg-slate-50 rounded-t-xl">
               <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                <Key className="w-5 h-5 text-indigo-600" /> Cambiar Contraseña
+                <Key className="w-5 h-5 text-indigo-600" /> Perfil de Usuario
               </h3>
               <button type="button" onClick={() => setIsChangePasswordOpen(false)}><X className="w-5 h-5 text-slate-400" /></button>
             </div>
@@ -1614,13 +1621,23 @@ function MainApp({ session }: { session: any }) {
                 </div>
               )}
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nueva Contraseña</label>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre de Usuario</label>
+                <input
+                  type="text"
+                  value={newUsername}
+                  onChange={e => setNewUsername(e.target.value)}
+                  className="w-full p-2 border rounded focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Nuevo nombre de usuario"
+                />
+              </div>
+              <div className="border-t border-slate-100 my-2 pt-2">
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nueva Contraseña (Opcional)</label>
                 <input
                   type="password"
                   value={newPass}
                   onChange={e => setNewPass(e.target.value)}
                   className="w-full p-2 border rounded focus:ring-2 focus:ring-indigo-500"
-                  required
+                  placeholder="Dejar vacía para no cambiar"
                 />
               </div>
               <div>
@@ -1660,9 +1677,7 @@ function MainApp({ session }: { session: any }) {
       <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-white transform transition-transform duration-200 ease-in-out lg:relative lg:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-6 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="bg-indigo-600 p-2 rounded-lg">
-              <Ambulance className="w-6 h-6 text-white" />
-            </div>
+            <img src="/logo.png" alt="Logo" className="h-10 w-auto object-contain bg-white/10 rounded-lg p-1" />
             <h1 className="text-xl font-bold tracking-tight">Modelo Dispatch</h1>
           </div>
           <button onClick={() => setIsMobileMenuOpen(false)} className="lg:hidden text-slate-400 hover:text-white">
@@ -1758,41 +1773,41 @@ function MainApp({ session }: { session: any }) {
                     <DashboardClock />
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center gap-4">
-                      <div className="p-3 bg-blue-50 text-blue-600 rounded-lg">
-                        <ClipboardCheck className="w-6 h-6" />
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+                    <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-100 flex flex-col md:flex-row items-center md:items-start md:gap-4 text-center md:text-left">
+                      <div className="p-2 md:p-3 bg-blue-50 text-blue-600 rounded-lg mb-2 md:mb-0">
+                        <ClipboardCheck className="w-5 h-5 md:w-6 md:h-6" />
                       </div>
                       <div>
-                        <p className="text-sm text-slate-500 font-medium">Coberturas Pendientes</p>
-                        <p className="text-2xl font-bold text-slate-800">{futureMatches.length}</p>
+                        <p className="text-xs md:text-sm text-slate-500 font-medium whitespace-nowrap">Pendientes</p>
+                        <p className="text-xl md:text-2xl font-bold text-slate-800">{futureMatches.length}</p>
                       </div>
                     </div>
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center gap-4">
-                      <div className="p-3 bg-emerald-50 text-emerald-600 rounded-lg">
-                        <Users className="w-6 h-6" />
+                    <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-100 flex flex-col md:flex-row items-center md:items-start md:gap-4 text-center md:text-left">
+                      <div className="p-2 md:p-3 bg-emerald-50 text-emerald-600 rounded-lg mb-2 md:mb-0">
+                        <Users className="w-5 h-5 md:w-6 md:h-6" />
                       </div>
                       <div>
-                        <p className="text-sm text-slate-500 font-medium">Personal Activo</p>
-                        <p className="text-2xl font-bold text-slate-800">{staff.length}</p>
+                        <p className="text-xs md:text-sm text-slate-500 font-medium whitespace-nowrap">Personal</p>
+                        <p className="text-xl md:text-2xl font-bold text-slate-800">{staff.length}</p>
                       </div>
                     </div>
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center gap-4">
-                      <div className="p-3 bg-violet-50 text-violet-600 rounded-lg">
-                        <Ambulance className="w-6 h-6" />
+                    <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-100 flex flex-col md:flex-row items-center md:items-start md:gap-4 text-center md:text-left">
+                      <div className="p-2 md:p-3 bg-violet-50 text-violet-600 rounded-lg mb-2 md:mb-0">
+                        <Ambulance className="w-5 h-5 md:w-6 md:h-6" />
                       </div>
                       <div>
-                        <p className="text-sm text-slate-500 font-medium">Móviles Disponibles</p>
-                        <p className="text-2xl font-bold text-slate-800">{ambulances.filter(a => a.maintenance?.status === 'Active').length}</p>
+                        <p className="text-xs md:text-sm text-slate-500 font-medium whitespace-nowrap">Móviles</p>
+                        <p className="text-xl md:text-2xl font-bold text-slate-800">{ambulances.filter(a => a.maintenance?.status === 'Active').length}</p>
                       </div>
                     </div>
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center gap-4">
-                      <div className={`p-3 rounded-lg ${superpositionCount > 0 ? 'bg-amber-50 text-amber-600' : 'bg-slate-50 text-slate-400'}`}>
-                        <AlertTriangle className="w-6 h-6" />
+                    <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-100 flex flex-col md:flex-row items-center md:items-start md:gap-4 text-center md:text-left">
+                      <div className={`p-2 md:p-3 rounded-lg mb-2 md:mb-0 ${superpositionCount > 0 ? 'bg-amber-50 text-amber-600' : 'bg-slate-50 text-slate-400'}`}>
+                        <AlertTriangle className="w-5 h-5 md:w-6 md:h-6" />
                       </div>
                       <div>
-                        <p className="text-sm text-slate-500 font-medium">Superposiciones</p>
-                        <p className={`text-2xl font-bold ${superpositionCount > 0 ? 'text-amber-600' : 'text-slate-800'}`}>{superpositionCount}</p>
+                        <p className="text-xs md:text-sm text-slate-500 font-medium whitespace-nowrap">Conflictos</p>
+                        <p className={`text-xl md:text-2xl font-bold ${superpositionCount > 0 ? 'text-amber-600' : 'text-slate-800'}`}>{superpositionCount}</p>
                       </div>
                     </div>
                   </div>
@@ -2260,7 +2275,15 @@ function MainApp({ session }: { session: any }) {
       {isBatchFuelModalOpen && <FuelBatchModal />}
       {isChangePasswordOpen && <ChangePasswordModal />}
       {viewingStaff && <StaffHistoryModal />}
-      {viewingAmbulance && <AmbulanceDetailModal />}
+      {viewingAmbulance && (
+        <AmbulanceDetailModal
+          isOpen={!!viewingAmbulance}
+          onClose={() => setViewingAmbulance(null)}
+          ambulance={viewingAmbulance}
+          matches={matches}
+          fuelRecords={fuelRecords}
+        />
+      )}
       <StaffModal
         isOpen={isStaffModalOpen}
         onClose={() => setIsStaffModalOpen(false)}

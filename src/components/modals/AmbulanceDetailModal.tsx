@@ -1,6 +1,6 @@
 import React from 'react';
-import { Ambulance, Match } from '../../types';
-import { Truck, X, Wrench, Gauge, Activity, FileText, Check, Shield, ClipboardCheck, Hash, AlertCircle } from 'lucide-react';
+import { Ambulance, Match, FuelRecord } from '../../types';
+import { Truck, X, Wrench, Gauge, Activity, FileText, Check, Shield, ClipboardCheck, Hash, AlertCircle, Fuel } from 'lucide-react';
 import { matchHelpers } from '../../services/matches';
 import { formatDateAR, formatTime24 } from '../../utils/formatters';
 
@@ -9,12 +9,24 @@ interface AmbulanceDetailModalProps {
     onClose: () => void;
     ambulance: Ambulance | null;
     matches: Match[];
+    fuelRecords?: FuelRecord[];
 }
 
-export const AmbulanceDetailModal: React.FC<AmbulanceDetailModalProps> = ({ isOpen, onClose, ambulance, matches }) => {
+export const AmbulanceDetailModal: React.FC<AmbulanceDetailModalProps> = ({ isOpen, onClose, ambulance, matches, fuelRecords = [] }) => {
     if (!isOpen || !ambulance) return null;
 
     const history = matchHelpers.getAmbulanceHistory(ambulance.id, matches);
+
+    // Calculate current month's fuel consumption
+    const currentMonthFuel = fuelRecords
+        .filter(r => {
+            const recordDate = new Date(r.date);
+            const now = new Date();
+            return r.ambulanceId === ambulance.id &&
+                recordDate.getMonth() === now.getMonth() &&
+                recordDate.getFullYear() === now.getFullYear();
+        })
+        .reduce((sum, r) => sum + r.liters, 0);
 
     // Status badge helper
     const renderStatus = (status: string) => {
@@ -32,7 +44,7 @@ export const AmbulanceDetailModal: React.FC<AmbulanceDetailModalProps> = ({ isOp
     );
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
             <div className="bg-white rounded-xl shadow-2xl max-w-5xl w-full flex flex-col max-h-[90vh]">
                 <div className="p-4 border-b flex justify-between items-center bg-slate-50 rounded-t-xl">
                     <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
@@ -74,6 +86,13 @@ export const AmbulanceDetailModal: React.FC<AmbulanceDetailModalProps> = ({ isOp
                                     <div className="flex justify-between items-center bg-slate-50 p-2 rounded">
                                         <span className="text-slate-500">Kilometraje</span>
                                         <span className="font-mono font-bold text-indigo-600 text-lg">{ambulance.maintenance?.mileage || 0} km</span>
+                                    </div>
+                                    <div className="flex justify-between border-b border-slate-50 pb-1">
+                                        <span className="text-slate-500">Combustible (Mes)</span>
+                                        <span className="font-bold text-slate-700 flex items-center gap-1">
+                                            <Fuel className="w-3 h-3 text-slate-400" />
+                                            {currentMonthFuel > 0 ? `${currentMonthFuel} L` : '--'}
+                                        </span>
                                     </div>
                                     <div className="flex justify-between border-b border-slate-50 pb-1">
                                         <span className="text-slate-500">VTV</span>
@@ -138,8 +157,8 @@ export const AmbulanceDetailModal: React.FC<AmbulanceDetailModalProps> = ({ isOp
                                                 </td>
                                                 <td className="p-3">
                                                     <span className={`text-xs font-bold px-2 py-1 rounded inline-block ${m.status === 'Completed' ? 'bg-green-100 text-green-700' :
-                                                            m.status === 'Suspended' ? 'bg-red-100 text-red-700' :
-                                                                'bg-slate-100 text-slate-600'
+                                                        m.status === 'Suspended' ? 'bg-red-100 text-red-700' :
+                                                            'bg-slate-100 text-slate-600'
                                                         }`}>
                                                         {m.status}
                                                     </span>
