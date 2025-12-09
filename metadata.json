@@ -1,0 +1,8 @@
+{
+  "name": "Modelo Dispatch",
+  "description": "Comprehensive ambulance and medical staff management system",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
