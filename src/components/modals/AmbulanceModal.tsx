@@ -33,7 +33,7 @@ export const AmbulanceModal: React.FC<AmbulanceModalProps> = ({ isOpen, onClose,
             id: editingAmbulance?.id,
             number: formData.get('number') as string,
             plate: formData.get('plate') as string,
-            year: Number(formData.get('year')),
+            year: formData.get('year') ? Number(formData.get('year')) : null,
             vehicleType: formData.get('vehicleType') as string,
             coachBuilder: formData.get('coachBuilder') as string,
             isOutsourced: showOutsourced, // formData.get('isOutsourced') === 'on'
@@ -108,8 +108,7 @@ export const AmbulanceModal: React.FC<AmbulanceModalProps> = ({ isOpen, onClose,
                                         <input
                                             name="year"
                                             type="number"
-                                            min="1900"
-                                            max={new Date().getFullYear() + 1}
+                                            placeholder="Ej: 2023"
                                             defaultValue={editingAmbulance?.year}
                                             className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
                                         />
