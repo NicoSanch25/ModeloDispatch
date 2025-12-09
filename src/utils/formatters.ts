@@ -18,3 +18,28 @@ export const formatTime24 = (timeStr?: string) => {
     }
     return timeStr;
 };
+
+export const timeToMinutes = (timeStr?: string) => {
+    if (!timeStr) return 0;
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    return (hours || 0) * 60 + (minutes || 0);
+};
+
+export const minutesToTime = (totalMinutes: number) => {
+    const h = Math.floor(totalMinutes / 60) % 24;
+    const m = totalMinutes % 60;
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+};
+
+export const calculateEndTime = (timeStr: string, durationMin: number, extensionMin: number = 0) => {
+    const start = timeToMinutes(timeStr);
+    const end = start + durationMin + extensionMin;
+    return minutesToTime(end);
+};
+
+export const subtractTime = (timeStr: string, minutesToSubtract: number) => {
+    const start = timeToMinutes(timeStr);
+    let newTime = start - minutesToSubtract;
+    if (newTime < 0) newTime += 24 * 60;
+    return minutesToTime(newTime);
+};
