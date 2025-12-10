@@ -1,6 +1,6 @@
 import React from 'react';
 import { Ambulance, Match, FuelRecord } from '../../types';
-import { Truck, X, Wrench, Gauge, Activity, FileText, Check, Shield, ClipboardCheck, Hash, AlertCircle, Fuel } from 'lucide-react';
+import { Truck, X, Wrench, Gauge, Activity, FileText, Check, Shield, ClipboardCheck, Hash, AlertCircle, Fuel, Edit2 } from 'lucide-react';
 import { matchHelpers } from '../../services/matches';
 import { formatDateAR, formatTime24 } from '../../utils/formatters';
 
@@ -10,9 +10,10 @@ interface AmbulanceDetailModalProps {
     ambulance: Ambulance | null;
     matches: Match[];
     fuelRecords?: FuelRecord[];
+    onEdit?: (ambulance: Ambulance) => void;
 }
 
-export const AmbulanceDetailModal: React.FC<AmbulanceDetailModalProps> = ({ isOpen, onClose, ambulance, matches, fuelRecords = [] }) => {
+export const AmbulanceDetailModal: React.FC<AmbulanceDetailModalProps> = ({ isOpen, onClose, ambulance, matches, fuelRecords = [], onEdit }) => {
     if (!isOpen || !ambulance) return null;
 
     const history = matchHelpers.getAmbulanceHistory(ambulance.id, matches);
@@ -50,7 +51,17 @@ export const AmbulanceDetailModal: React.FC<AmbulanceDetailModalProps> = ({ isOp
                     <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                         <Truck className="w-5 h-5 text-indigo-600" /> Detalle del Móvil {ambulance.number}
                     </h3>
-                    <button onClick={onClose}><X className="w-6 h-6 text-slate-400 hover:text-red-500" /></button>
+                    <div className="flex items-center gap-2">
+                        {onEdit && (
+                            <button
+                                onClick={() => { onEdit(ambulance); onClose(); }}
+                                className="flex items-center gap-1 px-3 py-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors text-sm font-medium"
+                            >
+                                <Edit2 className="w-4 h-4" /> Editar
+                            </button>
+                        )}
+                        <button onClick={onClose}><X className="w-6 h-6 text-slate-400 hover:text-red-500" /></button>
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 flex-1 overflow-hidden">

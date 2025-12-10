@@ -1360,6 +1360,81 @@ function MainApp({ session }: { session: any }) {
     );
   };
 
+  // Modal de Reporte de Incidente
+  const IncidentModal = () => {
+    if (!isIncidentModalOpen || !reportingMatch) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full">
+          <div className="p-4 border-b flex justify-between items-center bg-slate-50 rounded-t-xl">
+            <h3 className="font-bold text-slate-800 flex items-center gap-2">
+              <ClipboardList className="w-5 h-5 text-indigo-600" /> Reporte de Cobertura
+            </h3>
+            <button onClick={() => { setIsIncidentModalOpen(false); setReportingMatch(null); }}>
+              <X className="w-6 h-6 text-slate-400 hover:text-red-500" />
+            </button>
+          </div>
+          <div className="p-6 space-y-4">
+            <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+              <p className="text-sm text-slate-600">
+                <strong>{reportingMatch.location}</strong> - {formatDateAR(reportingMatch.date)} {formatTime24(reportingMatch.time)} hs
+              </p>
+              <p className="text-xs text-slate-500 mt-1">{reportingMatch.type}</p>
+            </div>
+
+            <div className="space-y-3">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={incidentForm.hasIncident}
+                  onChange={(e) => setIncidentForm(prev => ({ ...prev, hasIncident: e.target.checked }))}
+                  className="w-5 h-5 rounded border-slate-300 text-red-600 focus:ring-red-500"
+                />
+                <span className="text-sm font-medium text-slate-700">¿Hubo incidente/emergencia?</span>
+              </label>
+
+              {incidentForm.hasIncident && (
+                <label className="flex items-center gap-3 cursor-pointer ml-8">
+                  <input
+                    type="checkbox"
+                    checked={incidentForm.wasTransferred}
+                    onChange={(e) => setIncidentForm(prev => ({ ...prev, wasTransferred: e.target.checked }))}
+                    className="w-5 h-5 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+                  />
+                  <span className="text-sm font-medium text-slate-700">¿Fue trasladado?</span>
+                </label>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Observaciones / Detalles</label>
+              <textarea
+                value={incidentForm.details}
+                onChange={(e) => setIncidentForm(prev => ({ ...prev, details: e.target.value }))}
+                className="w-full p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none h-24"
+                placeholder="Descripción del incidente, observaciones sobre la cobertura, etc..."
+              />
+            </div>
+          </div>
+          <div className="p-4 border-t bg-slate-50 rounded-b-xl flex justify-end gap-3">
+            <button
+              onClick={() => { setIsIncidentModalOpen(false); setReportingMatch(null); }}
+              className="px-4 py-2 text-slate-600 hover:text-slate-800"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleSaveReport}
+              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium flex items-center gap-2"
+            >
+              <Check className="w-4 h-4" /> Completar Cobertura
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const ChangePasswordModal = () => {
     const [newPass, setNewPass] = useState('');
@@ -2054,7 +2129,9 @@ function MainApp({ session }: { session: any }) {
         ambulances={ambulances}
       />
 
+
       {isAuditModalOpen && <AuditModal />}
+      {isIncidentModalOpen && <IncidentModal />}
       {isDailyAgendaOpen && <DailyAgendaModal />}
       {isQuickAddModalOpen && (
         <QuickAddModal
@@ -2068,6 +2145,7 @@ function MainApp({ session }: { session: any }) {
           locations={locations}
           ambulances={ambulances}
           staff={staff}
+          existingMatches={matches}
         />
       )}
       {isBatchFuelModalOpen && <FuelBatchModal />}
@@ -2080,6 +2158,10 @@ function MainApp({ session }: { session: any }) {
           ambulance={viewingAmbulance}
           matches={matches}
           fuelRecords={fuelRecords}
+          onEdit={(amb) => {
+            setEditingAmbulance(amb);
+            setIsAmbulanceModalOpen(true);
+          }}
         />
       )}
       <StaffModal

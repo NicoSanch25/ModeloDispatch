@@ -1,6 +1,6 @@
-import React from 'react';
-import { MatchType, Location, Ambulance, Staff } from '../../types';
-import { Zap, X, Plus } from 'lucide-react';
+import React, { useMemo } from 'react';
+import { MatchType, Location, Ambulance, Staff, Match } from '../../types';
+import { Zap, X, Plus, AlertTriangle } from 'lucide-react';
 
 interface QuickAddRow {
     id: string;
@@ -24,12 +24,82 @@ interface QuickAddModalProps {
     locations: Location[];
     ambulances: Ambulance[];
     staff: Staff[];
+    existingMatches?: Match[]; // Matches that already exist in the system
 }
 
+// Helper to convert time to minutes
+const timeToMinutes = (timeStr?: string) => {
+    if (!timeStr) return 0;
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    return (hours || 0) * 60 + (minutes || 0);
+};
+
 export const QuickAddModal: React.FC<QuickAddModalProps> = ({
-    isOpen, onClose, date, setDate, rows, setRows, onSave, locations, ambulances, staff
+    isOpen, onClose, date, setDate, rows, setRows, onSave, locations, ambulances, staff, existingMatches = []
 }) => {
     if (!isOpen) return null;
+
+    // Calculate conflicts between rows themselves and with existing matches
+    const conflicts = useMemo(() => {
+        const conflictMap: Record<string, { field: string; conflictWith: string }[]> = {};
+
+        // Filter existing matches for the same date
+        const sameDayMatches = existingMatches.filter(m => m.date === date && m.status !== 'Suspended');
+
+        rows.forEach((row, idx) => {
+            const rowConflicts: { field: string; conflictWith: string }[] = [];
+            const rowStart = timeToMinutes(row.time);
+            const rowEnd = rowStart + 90 + 15; // 90 min default + 15 buffer
+
+            // Check conflicts with OTHER rows in the quick add
+            rows.forEach((other, otherIdx) => {
+                if (idx >= otherIdx) return; // Only check forward to avoid duplicates
+
+                const otherStart = timeToMinutes(other.time);
+                const otherEnd = otherStart + 90 + 15;
+
+                // Check for time overlap
+                const overlaps = !(rowEnd <= otherStart || rowStart >= otherEnd);
+                if (!overlaps) return;
+
+                // Check for resource conflicts
+                if (row.ambulanceId && row.ambulanceId === other.ambulanceId) {
+                    rowConflicts.push({ field: 'ambulanceId', conflictWith: `Fila ${otherIdx + 1}` });
+                }
+                if (row.driverId && row.driverId === other.driverId) {
+                    rowConflicts.push({ field: 'driverId', conflictWith: `Fila ${otherIdx + 1}` });
+                }
+                if (row.nurseId && row.nurseId === other.nurseId) {
+                    rowConflicts.push({ field: 'nurseId', conflictWith: `Fila ${otherIdx + 1}` });
+                }
+            });
+
+            // Check conflicts with EXISTING matches in the system
+            sameDayMatches.forEach(existing => {
+                const existingStart = timeToMinutes(existing.time);
+                const existingEnd = existingStart + (existing.durationMinutes || 90) + 15;
+
+                const overlaps = !(rowEnd <= existingStart || rowStart >= existingEnd);
+                if (!overlaps) return;
+
+                if (row.ambulanceId && row.ambulanceId === existing.ambulanceId) {
+                    rowConflicts.push({ field: 'ambulanceId', conflictWith: `${existing.location} (existente)` });
+                }
+                if (row.driverId && row.driverId === existing.driverId) {
+                    rowConflicts.push({ field: 'driverId', conflictWith: `${existing.location} (existente)` });
+                }
+                if (row.nurseId && row.nurseId === existing.nurseId) {
+                    rowConflicts.push({ field: 'nurseId', conflictWith: `${existing.location} (existente)` });
+                }
+            });
+
+            if (rowConflicts.length > 0) {
+                conflictMap[row.id] = rowConflicts;
+            }
+        });
+
+        return conflictMap;
+    }, [rows, date, existingMatches]);
 
     const updateQuickRow = (id: string, field: keyof QuickAddRow, value: string) => {
         setRows(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
@@ -54,6 +124,18 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
             setRows(prev => prev.filter(r => r.id !== id));
         }
     };
+
+    // Helper to check if a specific field has a conflict
+    const hasFieldConflict = (rowId: string, field: string) => {
+        return conflicts[rowId]?.some(c => c.field === field);
+    };
+
+    const getFieldConflictTooltip = (rowId: string, field: string) => {
+        const fieldConflicts = conflicts[rowId]?.filter(c => c.field === field);
+        if (!fieldConflicts || fieldConflicts.length === 0) return '';
+        return `Conflicto con: ${fieldConflicts.map(c => c.conflictWith).join(', ')}`;
+    };
+
 
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -139,34 +221,52 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
                                         </select>
                                     </td>
                                     <td className="p-2">
-                                        <select
-                                            value={row.ambulanceId}
-                                            onChange={(e) => updateQuickRow(row.id, 'ambulanceId', e.target.value)}
-                                            className="w-full border rounded p-1 bg-white text-xs"
-                                        >
-                                            <option value="">--</option>
-                                            {ambulances.map(a => <option key={a.id} value={a.id}>{a.number}</option>)}
-                                        </select>
+                                        <div className="relative">
+                                            <select
+                                                value={row.ambulanceId}
+                                                onChange={(e) => updateQuickRow(row.id, 'ambulanceId', e.target.value)}
+                                                className={`w-full border rounded p-1 bg-white text-xs ${hasFieldConflict(row.id, 'ambulanceId') ? 'border-red-500 border-2 bg-red-50' : ''}`}
+                                                title={getFieldConflictTooltip(row.id, 'ambulanceId')}
+                                            >
+                                                <option value="">--</option>
+                                                {ambulances.map(a => <option key={a.id} value={a.id}>{a.number}</option>)}
+                                            </select>
+                                            {hasFieldConflict(row.id, 'ambulanceId') && (
+                                                <AlertTriangle className="w-4 h-4 text-red-500 absolute -right-1 -top-1" />
+                                            )}
+                                        </div>
                                     </td>
                                     <td className="p-2">
-                                        <select
-                                            value={row.driverId}
-                                            onChange={(e) => updateQuickRow(row.id, 'driverId', e.target.value)}
-                                            className="w-full border rounded p-1 bg-white text-xs"
-                                        >
-                                            <option value="">--</option>
-                                            {staff.filter(s => s.role === 'Chofer').map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                                        </select>
+                                        <div className="relative">
+                                            <select
+                                                value={row.driverId}
+                                                onChange={(e) => updateQuickRow(row.id, 'driverId', e.target.value)}
+                                                className={`w-full border rounded p-1 bg-white text-xs ${hasFieldConflict(row.id, 'driverId') ? 'border-red-500 border-2 bg-red-50' : ''}`}
+                                                title={getFieldConflictTooltip(row.id, 'driverId')}
+                                            >
+                                                <option value="">--</option>
+                                                {staff.filter(s => s.role === 'Chofer').map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                            </select>
+                                            {hasFieldConflict(row.id, 'driverId') && (
+                                                <AlertTriangle className="w-4 h-4 text-red-500 absolute -right-1 -top-1" />
+                                            )}
+                                        </div>
                                     </td>
                                     <td className="p-2">
-                                        <select
-                                            value={row.nurseId}
-                                            onChange={(e) => updateQuickRow(row.id, 'nurseId', e.target.value)}
-                                            className="w-full border rounded p-1 bg-white text-xs"
-                                        >
-                                            <option value="">--</option>
-                                            {staff.filter(s => s.role === 'Enfermero/a').map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                                        </select>
+                                        <div className="relative">
+                                            <select
+                                                value={row.nurseId}
+                                                onChange={(e) => updateQuickRow(row.id, 'nurseId', e.target.value)}
+                                                className={`w-full border rounded p-1 bg-white text-xs ${hasFieldConflict(row.id, 'nurseId') ? 'border-red-500 border-2 bg-red-50' : ''}`}
+                                                title={getFieldConflictTooltip(row.id, 'nurseId')}
+                                            >
+                                                <option value="">--</option>
+                                                {staff.filter(s => s.role === 'Enfermero/a').map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                            </select>
+                                            {hasFieldConflict(row.id, 'nurseId') && (
+                                                <AlertTriangle className="w-4 h-4 text-red-500 absolute -right-1 -top-1" />
+                                            )}
+                                        </div>
                                     </td>
                                     <td className="p-2 text-center">
                                         <button onClick={() => removeQuickRow(row.id)} className="text-slate-400 hover:text-red-500">
