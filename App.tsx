@@ -357,8 +357,8 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
       <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full">
         <div className="flex justify-center mb-6">
-          <div className="p-2">
-            <img src="/logo.png" alt="Logo" className="h-28 w-auto object-contain drop-shadow-md" />
+          <div className="bg-white rounded-xl p-4">
+            <img src="/logo.png" alt="Logo" className="h-24 w-auto object-contain" />
           </div>
         </div>
         <h2 className="text-2xl font-bold text-center text-slate-800 mb-2">Modelo Dispatch</h2>
@@ -1475,7 +1475,7 @@ function MainApp({ session }: { session: any }) {
       <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-white transform transition-transform duration-200 ease-in-out lg:relative lg:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-6 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="Logo" className="h-10 w-auto object-contain bg-white/10 rounded-lg p-1" />
+            <img src="/logo.png" alt="Logo" className="h-10 w-auto object-contain bg-white rounded-lg p-1.5" />
             <h1 className="text-xl font-bold tracking-tight">Modelo Dispatch</h1>
           </div>
           <button onClick={() => setIsMobileMenuOpen(false)} className="lg:hidden text-slate-400 hover:text-white">
