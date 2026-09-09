@@ -1700,40 +1700,55 @@ function MainApp({ session }: { session: any }) {
                   </div>
 
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-                    <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-100 flex flex-col md:flex-row items-center md:items-start md:gap-4 text-center md:text-left">
-                      <div className="p-2 md:p-3 bg-blue-50 text-blue-600 rounded-lg mb-2 md:mb-0">
+                    <div className="bg-white p-3 md:p-5 rounded-xl shadow-sm border border-slate-100 flex items-center gap-3 md:gap-4">
+                      <div className="p-2 md:p-3 bg-blue-50 text-blue-600 rounded-lg shrink-0">
                         <ClipboardCheck className="w-5 h-5 md:w-6 md:h-6" />
                       </div>
-                      <div>
-                        <p className="text-xs md:text-sm text-slate-500 font-medium whitespace-nowrap">Pendientes</p>
-                        <p className="text-xl md:text-2xl font-bold text-slate-800">{futureMatches.length}</p>
+                      <div className="min-w-0">
+                        <p className="text-xs md:text-sm text-slate-500 font-medium truncate">Pendientes</p>
+                        <div className="flex flex-col md:flex-row md:items-baseline md:gap-2">
+                          <p className="text-lg md:text-2xl font-bold text-slate-800 leading-none mt-1 md:mt-0">{futureMatches.length}</p>
+                          <span className="text-[10px] md:text-xs text-slate-400 font-medium truncate mt-0.5 md:mt-0">Hoy: {futureMatches.filter(m => m.date === new Date().toISOString().split('T')[0]).length}</span>
+                        </div>
                       </div>
                     </div>
-                    <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-100 flex flex-col md:flex-row items-center md:items-start md:gap-4 text-center md:text-left">
-                      <div className="p-2 md:p-3 bg-emerald-50 text-emerald-600 rounded-lg mb-2 md:mb-0">
+                    
+                    <div className="bg-white p-3 md:p-5 rounded-xl shadow-sm border border-slate-100 flex items-center gap-3 md:gap-4">
+                      <div className="p-2 md:p-3 bg-emerald-50 text-emerald-600 rounded-lg shrink-0">
                         <Users className="w-5 h-5 md:w-6 md:h-6" />
                       </div>
-                      <div>
-                        <p className="text-xs md:text-sm text-slate-500 font-medium whitespace-nowrap">Personal</p>
-                        <p className="text-xl md:text-2xl font-bold text-slate-800">{staff.length}</p>
+                      <div className="min-w-0">
+                        <p className="text-xs md:text-sm text-slate-500 font-medium truncate">Personal</p>
+                        <div className="flex flex-col md:flex-row md:items-baseline md:gap-2">
+                          <p className="text-lg md:text-2xl font-bold text-slate-800 leading-none mt-1 md:mt-0">{staff.length}</p>
+                          <span className="text-[10px] md:text-xs text-slate-400 font-medium truncate mt-0.5 md:mt-0">{staff.filter(s => s.role === 'Chofer').length} Chof / {staff.filter(s => s.role === 'Enfermero/a').length} Enf</span>
+                        </div>
                       </div>
                     </div>
-                    <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-100 flex flex-col md:flex-row items-center md:items-start md:gap-4 text-center md:text-left">
-                      <div className="p-2 md:p-3 bg-violet-50 text-violet-600 rounded-lg mb-2 md:mb-0">
+                    
+                    <div className="bg-white p-3 md:p-5 rounded-xl shadow-sm border border-slate-100 flex items-center gap-3 md:gap-4">
+                      <div className="p-2 md:p-3 bg-indigo-50 text-indigo-600 rounded-lg shrink-0">
                         <Ambulance className="w-5 h-5 md:w-6 md:h-6" />
                       </div>
-                      <div>
-                        <p className="text-xs md:text-sm text-slate-500 font-medium whitespace-nowrap">Móviles</p>
-                        <p className="text-xl md:text-2xl font-bold text-slate-800">{ambulances.filter(a => a.maintenance?.status === 'Active').length}</p>
+                      <div className="min-w-0">
+                        <p className="text-xs md:text-sm text-slate-500 font-medium truncate">Móviles</p>
+                        <div className="flex flex-col md:flex-row md:items-baseline md:gap-2">
+                          <p className="text-lg md:text-2xl font-bold text-slate-800 leading-none mt-1 md:mt-0">{ambulances.length}</p>
+                          <span className="text-[10px] md:text-xs text-slate-400 font-medium truncate mt-0.5 md:mt-0">{ambulances.filter(a => a.maintenance?.status === 'Active').length} activos</span>
+                        </div>
                       </div>
                     </div>
-                    <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-100 flex flex-col md:flex-row items-center md:items-start md:gap-4 text-center md:text-left">
-                      <div className={`p-2 md:p-3 rounded-lg mb-2 md:mb-0 ${superpositionCount > 0 ? 'bg-amber-50 text-amber-600' : 'bg-slate-50 text-slate-400'}`}>
+
+                    <div className="bg-white p-3 md:p-5 rounded-xl shadow-sm border border-slate-100 flex items-center gap-3 md:gap-4">
+                      <div className={`p-2 md:p-3 rounded-lg shrink-0 ${superpositionCount > 0 ? 'bg-amber-50 text-amber-600' : 'bg-slate-50 text-slate-400'}`}>
                         <AlertTriangle className="w-5 h-5 md:w-6 md:h-6" />
                       </div>
-                      <div>
-                        <p className="text-xs md:text-sm text-slate-500 font-medium whitespace-nowrap">Conflictos</p>
-                        <p className={`text-xl md:text-2xl font-bold ${superpositionCount > 0 ? 'text-amber-600' : 'text-slate-800'}`}>{superpositionCount}</p>
+                      <div className="min-w-0">
+                        <p className="text-xs md:text-sm text-slate-500 font-medium truncate">Conflictos</p>
+                        <div className="flex flex-col md:flex-row md:items-baseline md:gap-2">
+                          <p className={`text-lg md:text-2xl font-bold leading-none mt-1 md:mt-0 ${superpositionCount > 0 ? 'text-amber-600' : 'text-slate-800'}`}>{superpositionCount}</p>
+                          <span className={`text-[10px] md:text-xs font-medium truncate mt-0.5 md:mt-0 ${superpositionCount > 0 ? 'text-amber-500' : 'text-slate-400'}`}>{superpositionCount > 0 ? 'Requieren atención' : 'Todo en orden'}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
