@@ -23,7 +23,7 @@ import {
   Client as ClientModel
 } from './src/types';
 import { supabase } from './src/lib/supabase';
-import { GeminiImageEditor } from './components/GeminiImageEditor';
+
 import { MatchModal } from './src/components/modals/MatchModal';
 import { StaffModal } from './src/components/modals/StaffModal';
 import { AmbulanceModal } from './src/components/modals/AmbulanceModal';
