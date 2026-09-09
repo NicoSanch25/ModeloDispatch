@@ -6,7 +6,7 @@ import {
   Wrench, Gauge, Activity, FileText, Shield, ClipboardCheck, Hash, AlertCircle,
   ArrowRightCircle, ClipboardList, Briefcase, History as HistoryIcon, ArrowRight,
   Fuel, Droplet, ListPlus, Copy, FileStack, UserPlus, Clock4, BatteryCharging, Disc, Share2,
-  AlertOctagon, Save, Building, FileSpreadsheet, Download, Ban, CalendarDays, Zap,
+  AlertOctagon, Save, Building, FileSpreadsheet, Download, Ban, CalendarDays, Zap, Mail,
   Lock, Unlock, LogIn, Loader2, Key, Eye, EyeOff, HelpCircle
 } from 'lucide-react';
 import {
@@ -663,6 +663,57 @@ function MainApp({ session }: { session: any }) {
     downloadCSV([headers, ...rows], `reporte_dispatch_${new Date().toISOString().split('T')[0]}.csv`);
   };
 
+  const handleToggleNotified = async (matchId: string, role: 'driver' | 'nurse' | 'third', currentVal: boolean) => {
+    const field = role === 'driver' ? 'driver_notified' : role === 'nurse' ? 'nurse_notified' : 'third_crew_notified';
+    try {
+      // Optimistic update
+      setMatches(prev => prev.map(m => {
+        if (m.id === matchId) {
+          if (role === 'driver') return { ...m, driverNotified: !currentVal };
+          if (role === 'nurse') return { ...m, nurseNotified: !currentVal };
+        }
+        return m;
+      }));
+      const { error } = await supabase.from('matches').update({ [field]: !currentVal }).eq('id', matchId);
+      if (error) {
+        // Revert on error
+        await loadData();
+        throw error;
+      }
+    } catch (err: any) {
+      alert("Error actualizando estado de aviso: " + err.message);
+    }
+  };
+
+  const handleMarkStaffNotifiedForDay = async (staffId: string, dayMatchesToUpdate: MatchModel[]) => {
+    try {
+      // Optimistic update
+      setMatches(prev => prev.map(m => {
+        const isTargetMatch = dayMatchesToUpdate.find(dm => dm.id === m.id);
+        if (!isTargetMatch) return m;
+        return {
+          ...m,
+          driverNotified: m.driverId === staffId ? true : m.driverNotified,
+          nurseNotified: m.nurseId === staffId ? true : m.nurseNotified
+        };
+      }));
+
+      // Update in DB (one by one or bulk, let's do one by one since it's just a few usually)
+      for (const m of dayMatchesToUpdate) {
+        if (m.driverId === staffId) {
+          await supabase.from('matches').update({ driver_notified: true }).eq('id', m.id);
+        }
+        if (m.nurseId === staffId) {
+          await supabase.from('matches').update({ nurse_notified: true }).eq('id', m.id);
+        }
+      }
+      // Re-fetch just in case
+      await loadData();
+    } catch (err: any) {
+      console.error("Error marking as notified:", err);
+    }
+  };
+
   const handleSaveMatch = async (matchData: Partial<MatchModel>) => {
     const isPolo = matchData.type?.includes('Polo');
     const finalData = {
@@ -1024,7 +1075,7 @@ function MainApp({ session }: { session: any }) {
     const [citationTimes, setCitationTimes] = useState<Record<string, string>>({});
     const [useCitation, setUseCitation] = useState<Record<string, boolean>>({});
 
-    const dayMatches = matches.filter(m => m.date === dailyAgendaDate && m.status !== 'Suspended').sort((a, b) => a.time.localeCompare(b.time));
+    const dayMatches = matches.filter(m => m.date === dailyAgendaDate && m.status !== 'Suspended' && m.status !== 'Completed').sort((a, b) => a.time.localeCompare(b.time));
     const activeStaffIds: string[] = Array.from(new Set(dayMatches.flatMap(m => [m.driverId, m.nurseId, m.thirdCrewId].filter((id): id is string => !!id))));
 
     useEffect(() => {
@@ -1113,6 +1164,8 @@ function MainApp({ session }: { session: any }) {
                   const cleanPhone = s.phone.replace(/[^0-9]/g, '');
                   const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`;
 
+                  const staffDayMatches = dayMatches.filter(m => m.driverId === sid || m.nurseId === sid || m.thirdCrewId === sid);
+
                   return (
                     <div key={sid} className="bg-white rounded-lg shadow-sm border border-slate-200 p-4 flex flex-col">
                       <div className="flex justify-between items-start mb-3">
@@ -1147,7 +1200,7 @@ function MainApp({ session }: { session: any }) {
                         {msg}
                       </div>
                       <div className="flex gap-2">
-                        <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="flex-1 py-2 bg-green-500 text-white hover:bg-green-600 rounded-lg font-medium flex items-center justify-center gap-2 text-sm transition-colors shadow-sm shadow-green-200">
+                        <a href={whatsappUrl} onClick={() => handleMarkStaffNotifiedForDay(sid, staffDayMatches)} target="_blank" rel="noopener noreferrer" className="flex-1 py-2 bg-green-500 text-white hover:bg-green-600 rounded-lg font-medium flex items-center justify-center gap-2 text-sm transition-colors shadow-sm shadow-green-200">
                           <Send className="w-4 h-4" /> Enviar WhatsApp
                         </a>
                         <button onClick={() => { navigator.clipboard.writeText(msg); }} className="px-3 py-2 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors">
@@ -1687,9 +1740,11 @@ function MainApp({ session }: { session: any }) {
 
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-100 p-6">
-                      <h3 className="text-lg font-bold mb-4">Próximas Coberturas</h3>
+                      <h3 className="text-lg font-bold mb-4">Coberturas Pendientes</h3>
                       <div className="space-y-3">
-                        {futureMatches.filter(m => m.status !== 'Suspended').slice(0, 5).map(match => (
+                        {futureMatches.filter(m => m.status !== 'Suspended').slice(0, 5).map(match => {
+                          const matchConflicts = getConflicts(match, matches).hard;
+                          return (
                           <div key={match.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
                             <div className="flex items-center gap-3">
                               <div className="flex flex-col items-center justify-center bg-white border border-slate-200 w-12 h-12 rounded-lg text-xs font-bold text-slate-700 shadow-sm">
@@ -1697,19 +1752,35 @@ function MainApp({ session }: { session: any }) {
                                 <span className="text-[10px] uppercase">{new Date(match.date).toLocaleString('es-AR', { month: 'short' })}</span>
                               </div>
                               <div>
-                                <p className="font-semibold text-slate-800">{match.location} {match.fieldNumber && <span className="text-slate-500 font-normal">- {match.fieldNumber}</span>}</p>
+                                <p className="font-semibold text-slate-800 flex items-center gap-2">
+                                  {match.location} {match.fieldNumber && <span className="text-slate-500 font-normal">- {match.fieldNumber}</span>}
+                                  {matchConflicts.length > 0 && (
+                                    <span title={`Superposición de ${matchConflicts.map(c => `${c.resources.join(', ')} con el partido en ${c.match.location} (${c.match.time})`).join(' | ')}`} className="text-red-500 flex items-center cursor-help">
+                                      <AlertTriangle className="w-4 h-4" />
+                                    </span>
+                                  )}
+                                </p>
                                 <p className="text-sm text-slate-500">{formatTime24(match.time)} hs - {match.type}</p>
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
                               <span className="text-xs font-medium px-2 py-1 bg-blue-100 text-blue-700 rounded-full">{match.status === 'Pending' ? 'Pendiente' : 'Confirmado'}</span>
+                              <button onClick={(e) => { 
+                                e.stopPropagation(); 
+                                setReportingMatch(match); 
+                                setIncidentForm(match.incidentReport || { hasIncident: false, wasTransferred: false, details: '' }); 
+                                setIsIncidentModalOpen(true); 
+                              }} className="text-indigo-600 hover:text-indigo-800 p-1 bg-indigo-50 rounded-full" title="Completar Cobertura / Reportar Incidente">
+                                <ClipboardCheck className="w-4 h-4" />
+                              </button>
                               <button onClick={(e) => { e.stopPropagation(); handleDeleteMatch(match.id); }} className="text-slate-400 hover:text-red-500 p-1">
                                 <Trash2 className="w-4 h-4" />
                               </button>
                             </div>
                           </div>
-                        ))}
-                        {futureMatches.length === 0 && <p className="text-slate-400 text-center py-4">No hay coberturas próximas.</p>}
+                          );
+                        })}
+                        {futureMatches.length === 0 && <p className="text-slate-400 text-center py-4">No hay coberturas pendientes.</p>}
                       </div>
                     </div>
 
@@ -1898,22 +1969,41 @@ function MainApp({ session }: { session: any }) {
                                   <div className="flex flex-col sm:flex-row gap-4 text-sm text-slate-600">
                                     <div className="flex items-center gap-2 min-w-[140px]">
                                       {getAmbulanceIcon(amb?.vehicleType, "w-4 h-4 text-slate-400")}
-                                      <span className={amb ? '' : 'text-slate-400 italic'}>
-                                        {amb ? `Móvil ${amb.number} ${amb.isOutsourced ? `(${amb.plate || 'Ext'})` : ''}` : 'Sin Asignar'}
+                                      <span className={amb ? '' : 'text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200 text-xs inline-flex items-center gap-1'}>
+                                        {amb ? `Móvil ${amb.number} ${amb.isOutsourced ? `(${amb.plate || 'Ext'})` : ''}` : 'Falta Móvil'}
                                       </span>
                                     </div>
                                     <div className="flex items-center gap-2">
                                       <Users className="w-4 h-4 text-slate-400" />
-                                      <div className="flex gap-2">
+                                      <div className="flex gap-2 items-center">
                                         {match.isSingleCrew ? (
                                           <span className="text-indigo-600 font-medium bg-indigo-50 px-2 rounded-full text-xs flex items-center">
                                             {driver?.name || nurse?.name || 'S/D'} <span className="ml-1 text-xs opacity-75">(Trip. Simple)</span>
+                                            {(driver || nurse) && (
+                                              <button onClick={(e) => { e.stopPropagation(); handleToggleNotified(match.id, driver ? 'driver' : 'nurse', driver ? !!match.driverNotified : !!match.nurseNotified); }} className="ml-1.5 focus:outline-none" title="Alternar estado de aviso">
+                                                <Check className={`w-3.5 h-3.5 ${(driver ? match.driverNotified : match.nurseNotified) ? 'text-green-500' : 'text-slate-300 hover:text-green-400'}`} />
+                                              </button>
+                                            )}
                                           </span>
                                         ) : (
                                           <>
-                                            <span className={driver ? '' : 'text-slate-400 italic'}>{driver?.name || 'Chofer --'}</span>
+                                            <span className={driver ? 'flex items-center' : 'text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200 text-xs inline-flex items-center gap-1'}>
+                                              {driver?.name || 'Falta Chofer'}
+                                              {driver && (
+                                                <button onClick={(e) => { e.stopPropagation(); handleToggleNotified(match.id, 'driver', !!match.driverNotified); }} className="ml-1 focus:outline-none" title={match.driverNotified ? "Chofer avisado" : "Marcar chofer como avisado"}>
+                                                  <Check className={`w-3.5 h-3.5 ${match.driverNotified ? 'text-green-500' : 'text-slate-300 hover:text-green-400'}`} />
+                                                </button>
+                                              )}
+                                            </span>
                                             <span className="text-slate-300">/</span>
-                                            <span className={nurse ? '' : 'text-slate-400 italic'}>{nurse?.name || 'Enfermero --'}</span>
+                                            <span className={nurse ? 'flex items-center' : 'text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200 text-xs inline-flex items-center gap-1'}>
+                                              {nurse?.name || 'Falta Enf.'}
+                                              {nurse && (
+                                                <button onClick={(e) => { e.stopPropagation(); handleToggleNotified(match.id, 'nurse', !!match.nurseNotified); }} className="ml-1 focus:outline-none" title={match.nurseNotified ? "Enfermero/a avisado" : "Marcar enfermero/a como avisado"}>
+                                                  <Check className={`w-3.5 h-3.5 ${match.nurseNotified ? 'text-green-500' : 'text-slate-300 hover:text-green-400'}`} />
+                                                </button>
+                                              )}
+                                            </span>
                                             {third && (
                                               <>
                                                 <span className="text-slate-300">/</span>
@@ -2067,11 +2157,28 @@ function MainApp({ session }: { session: any }) {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {clients.map(c => (
-                      <div key={c.id} onClick={() => setViewingClient(c)} className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 hover:shadow-md transition-shadow cursor-pointer group">
+                      <div key={c.id} onClick={() => setViewingClient(viewingClient?.id === c.id ? null : c)} className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 hover:shadow-md transition-shadow cursor-pointer group relative">
                         <div className="flex justify-between items-start">
                           <h4 className="font-bold text-slate-800 text-lg">{c.name}</h4>
                           <button onClick={(e) => { e.stopPropagation(); setEditingClient(c); setIsClientModalOpen(true); }} className="text-slate-300 hover:text-indigo-600"><Edit2 className="w-4 h-4" /></button>
                         </div>
+                        {viewingClient?.id === c.id && (c.contactName || c.contactPhone || c.email) && (
+                          <div className="mt-3 pt-3 border-t border-slate-100 text-sm text-slate-600 space-y-1" onClick={e => e.stopPropagation()}>
+                            {c.contactName && <p className="flex items-center gap-2"><User className="w-4 h-4 text-slate-400" /> {c.contactName}</p>}
+                            {c.contactPhone && <p className="flex items-center gap-2"><Phone className="w-4 h-4 text-slate-400" /> {c.contactPhone}</p>}
+                            {c.email && <p className="flex items-center gap-2"><Mail className="w-4 h-4 text-slate-400" /> {c.email}</p>}
+                            {c.contactPhone && (
+                              <div className="flex items-center gap-2 mt-3 pt-2">
+                                <a href={`tel:${c.contactPhone.replace(/[^0-9+]/g, '')}`} className="flex-1 flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 py-1.5 rounded-lg font-medium transition-colors border border-slate-200">
+                                  <Phone className="w-4 h-4" /> Llamar
+                                </a>
+                                <a href={`https://wa.me/${c.contactPhone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-2 bg-green-50 hover:bg-green-100 text-green-700 py-1.5 rounded-lg font-medium transition-colors border border-green-200">
+                                  <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg> WhatsApp
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

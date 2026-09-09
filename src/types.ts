@@ -60,7 +60,7 @@ export interface Location {
   contactPhone?: string;
 }
 
-export type MatchType = 'Partido de Polo' | 'Práctica de Polo' | 'Triangular de Polo' | 'Partido de Fútbol' | 'Evento';
+export type MatchType = 'Partido de Polo' | 'Práctica de Polo' | 'Triangular de Polo' | 'Partido de Fútbol' | 'Evento' | string;
 
 export interface IncidentReport {
   hasIncident: boolean;

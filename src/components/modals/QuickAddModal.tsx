@@ -20,7 +20,7 @@ interface QuickAddModalProps {
     setDate: (date: string) => void;
     rows: QuickAddRow[];
     setRows: React.Dispatch<React.SetStateAction<QuickAddRow[]>>;
-    onSave: () => void;
+    onSave: () => Promise<void> | void;
     locations: Location[];
     ambulances: Ambulance[];
     staff: Staff[];
@@ -37,6 +37,8 @@ const timeToMinutes = (timeStr?: string) => {
 export const QuickAddModal: React.FC<QuickAddModalProps> = ({
     isOpen, onClose, date, setDate, rows, setRows, onSave, locations, ambulances, staff, existingMatches = []
 }) => {
+    const [isSaving, setIsSaving] = React.useState(false);
+
     if (!isOpen) return null;
 
     // Calculate conflicts between rows themselves and with existing matches
@@ -225,15 +227,12 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
                                             <select
                                                 value={row.ambulanceId}
                                                 onChange={(e) => updateQuickRow(row.id, 'ambulanceId', e.target.value)}
-                                                className={`w-full border rounded p-1 bg-white text-xs ${hasFieldConflict(row.id, 'ambulanceId') ? 'border-red-500 border-2 bg-red-50' : ''}`}
+                                                className={`w-full border rounded p-1 text-xs ${hasFieldConflict(row.id, 'ambulanceId') ? 'border-red-500 border-2 bg-red-50 text-red-700' : 'bg-white'}`}
                                                 title={getFieldConflictTooltip(row.id, 'ambulanceId')}
                                             >
                                                 <option value="">--</option>
                                                 {ambulances.map(a => <option key={a.id} value={a.id}>{a.number}</option>)}
                                             </select>
-                                            {hasFieldConflict(row.id, 'ambulanceId') && (
-                                                <AlertTriangle className="w-4 h-4 text-red-500 absolute -right-1 -top-1" />
-                                            )}
                                         </div>
                                     </td>
                                     <td className="p-2">
@@ -241,15 +240,12 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
                                             <select
                                                 value={row.driverId}
                                                 onChange={(e) => updateQuickRow(row.id, 'driverId', e.target.value)}
-                                                className={`w-full border rounded p-1 bg-white text-xs ${hasFieldConflict(row.id, 'driverId') ? 'border-red-500 border-2 bg-red-50' : ''}`}
+                                                className={`w-full border rounded p-1 text-xs ${hasFieldConflict(row.id, 'driverId') ? 'border-red-500 border-2 bg-red-50 text-red-700' : 'bg-white'}`}
                                                 title={getFieldConflictTooltip(row.id, 'driverId')}
                                             >
                                                 <option value="">--</option>
                                                 {staff.filter(s => s.role === 'Chofer').map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                                             </select>
-                                            {hasFieldConflict(row.id, 'driverId') && (
-                                                <AlertTriangle className="w-4 h-4 text-red-500 absolute -right-1 -top-1" />
-                                            )}
                                         </div>
                                     </td>
                                     <td className="p-2">
@@ -257,15 +253,12 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
                                             <select
                                                 value={row.nurseId}
                                                 onChange={(e) => updateQuickRow(row.id, 'nurseId', e.target.value)}
-                                                className={`w-full border rounded p-1 bg-white text-xs ${hasFieldConflict(row.id, 'nurseId') ? 'border-red-500 border-2 bg-red-50' : ''}`}
+                                                className={`w-full border rounded p-1 text-xs ${hasFieldConflict(row.id, 'nurseId') ? 'border-red-500 border-2 bg-red-50 text-red-700' : 'bg-white'}`}
                                                 title={getFieldConflictTooltip(row.id, 'nurseId')}
                                             >
                                                 <option value="">--</option>
                                                 {staff.filter(s => s.role === 'Enfermero/a').map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                                             </select>
-                                            {hasFieldConflict(row.id, 'nurseId') && (
-                                                <AlertTriangle className="w-4 h-4 text-red-500 absolute -right-1 -top-1" />
-                                            )}
                                         </div>
                                     </td>
                                     <td className="p-2 text-center">
@@ -284,9 +277,20 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
                 </div>
 
                 <div className="p-4 border-t bg-slate-50 rounded-b-xl flex justify-end gap-3">
-                    <button onClick={onClose} className="px-4 py-2 text-slate-600">Cancelar</button>
-                    <button onClick={onSave} className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium shadow-sm">
-                        Guardar Todas
+                    <button onClick={onClose} disabled={isSaving} className="px-4 py-2 text-slate-600 disabled:opacity-50">Cancelar</button>
+                    <button 
+                        onClick={async () => {
+                            setIsSaving(true);
+                            try {
+                                await onSave();
+                            } finally {
+                                setIsSaving(false);
+                            }
+                        }} 
+                        disabled={isSaving}
+                        className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium shadow-sm disabled:opacity-50 flex items-center gap-2"
+                    >
+                        {isSaving ? <span className="animate-pulse">Guardando...</span> : 'Guardar Todas'}
                     </button>
                 </div>
             </div>

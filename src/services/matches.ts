@@ -2,13 +2,26 @@ import { supabase } from '../lib/supabase';
 import { Match, MatchType } from '../types';
 
 // --- MAPPERS ---
-const mapMatchFromDB = (data: any): Match => ({
-    id: data.id,
-    date: data.date,
-    time: data.time?.substring(0, 5), // Remove seconds if present
-    location: data.location,
-    fieldNumber: data.field_number,
-    type: data.type,
+const mapMatchFromDB = (data: any): Match => {
+    let type = data.type;
+    let location = data.location;
+    
+    // Decode custom type if it was packed into location
+    if (type === 'Evento' && location && location.startsWith('[')) {
+        const match = location.match(/^\[(.*?)\] (.*)$/);
+        if (match) {
+            type = match[1];
+            location = match[2];
+        }
+    }
+
+    return {
+        id: data.id,
+        date: data.date,
+        time: data.time?.substring(0, 5), // Remove seconds if present
+        location: location,
+        fieldNumber: data.field_number,
+        type: type,
     durationMinutes: data.duration_minutes,
     extensionMinutes: data.extension_minutes,
     chukkers: data.chukkers,
@@ -37,7 +50,8 @@ const mapMatchFromDB = (data: any): Match => ({
         date: log.date,
         changes: log.changes
     }))
-});
+    };
+};
 
 // --- HELPERS ---
 export const timeUtils = {
@@ -159,12 +173,22 @@ export const matchesService = {
             chukkers: isPolo ? matchData.chukkers : null
         };
 
+        let dbType = finalData.type;
+        let dbLocation = finalData.location;
+        const validTypes = ['Partido de Polo', 'Práctica de Polo', 'Triangular de Polo', 'Partido de Fútbol', 'Evento'];
+        
+        if (dbType && !validTypes.includes(dbType)) {
+            // Encode custom type into the location field to bypass Supabase ENUM constraint
+            dbLocation = `[${dbType}] ${dbLocation}`;
+            dbType = 'Evento';
+        }
+
         const payload: any = {
             date: finalData.date,
             time: finalData.time,
-            location: finalData.location,
+            location: dbLocation,
             field_number: finalData.fieldNumber,
-            type: finalData.type,
+            type: dbType,
             duration_minutes: finalData.durationMinutes,
             extension_minutes: finalData.extensionMinutes,
             chukkers: finalData.chukkers,

@@ -124,10 +124,28 @@ export const MatchModal: React.FC<MatchModalProps> = ({
         }
     };
 
+    const [isCustomType, setIsCustomType] = useState(false);
+
+    useEffect(() => {
+        if (editingMatch && editingMatch.type) {
+            const predefined = ['Partido de Polo', 'Práctica de Polo', 'Triangular de Polo', 'Partido de Fútbol', 'Evento'];
+            if (!predefined.includes(editingMatch.type)) {
+                setIsCustomType(true);
+            }
+        }
+    }, [editingMatch]);
+
     const handleTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const val = e.target.value as MatchType;
-        setTypeValue(val);
-        setShowChukkers(val.includes('Polo'));
+        const val = e.target.value;
+        if (val === 'Otro') {
+            setIsCustomType(true);
+            setTypeValue('');
+            setShowChukkers(false);
+        } else {
+            setIsCustomType(false);
+            setTypeValue(val);
+            setShowChukkers(val.includes('Polo'));
+        }
     };
 
     const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -170,13 +188,36 @@ export const MatchModal: React.FC<MatchModalProps> = ({
                             </div>
                             <div className="md:col-span-1">
                                 <label className="block text-sm font-medium text-slate-700 mb-1">Tipo</label>
-                                <select name="type" value={typeValue} onChange={handleTypeChange} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
-                                    <option value="Partido de Polo">Partido de Polo</option>
-                                    <option value="Práctica de Polo">Práctica de Polo</option>
-                                    <option value="Triangular de Polo">Triangular de Polo</option>
-                                    <option value="Partido de Fútbol">Partido de Fútbol</option>
-                                    <option value="Evento">Evento</option>
-                                </select>
+                                {isCustomType ? (
+                                    <div className="flex gap-2">
+                                        <input 
+                                            name="type" 
+                                            type="text" 
+                                            required 
+                                            value={typeValue} 
+                                            onChange={(e) => setTypeValue(e.target.value)} 
+                                            placeholder="Especifique el tipo..."
+                                            className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" 
+                                        />
+                                        <button 
+                                            type="button" 
+                                            onClick={() => { setIsCustomType(false); setTypeValue('Partido de Polo'); setShowChukkers(true); }}
+                                            className="p-2 border rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-500"
+                                            title="Volver a la lista"
+                                        >
+                                            ✕
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <select name="type" value={typeValue} onChange={handleTypeChange} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                                        <option value="Partido de Polo">Partido de Polo</option>
+                                        <option value="Práctica de Polo">Práctica de Polo</option>
+                                        <option value="Triangular de Polo">Triangular de Polo</option>
+                                        <option value="Partido de Fútbol">Partido de Fútbol</option>
+                                        <option value="Evento">Evento</option>
+                                        <option value="Otro">Otro...</option>
+                                    </select>
+                                )}
                             </div>
                             <div className="md:col-span-1">
                                 <label className="block text-sm font-bold text-slate-700 mb-1">Estado</label>
