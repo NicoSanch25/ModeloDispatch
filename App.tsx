@@ -463,7 +463,12 @@ export default function App() {
 
   if (isLoadingSession) return <div className="min-h-screen flex items-center justify-center bg-slate-100"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
 
-  if (!session) return <LoginScreen onLogin={() => { }} />;
+  if (!session) return <LoginScreen onLogin={() => { 
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) setSession(session);
+      else window.location.reload();
+    });
+  }} />;
 
   return <MainApp session={session} />;
 }
