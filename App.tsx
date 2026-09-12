@@ -2258,17 +2258,6 @@ function MainApp({ session }: { session: any }) {
         </div>
       </main>
 
-      {/* Global Floating Action Button (Mobile) */}
-      <button
-        onClick={() => {
-          setEditingMatch({ date: new Date().toISOString().split('T')[0] });
-          setIsMatchModalOpen(true);
-        }}
-        className="lg:hidden fixed bottom-6 right-6 w-14 h-14 bg-indigo-600 text-white rounded-full shadow-xl shadow-indigo-600/30 flex items-center justify-center hover:bg-indigo-700 active:scale-95 transition-all z-40"
-      >
-        <Plus className="w-6 h-6" />
-      </button>
-
       {/* Modals */}
       <MatchModal
         isOpen={isMatchModalOpen}

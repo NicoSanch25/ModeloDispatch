@@ -107,13 +107,13 @@ export const DailyAgendaModal: React.FC<DailyAgendaModalProps> = ({
                     </h3>
                     <button onClick={onClose}><X className="w-6 h-6 text-slate-400" /></button>
                 </div>
-                <div className="p-4 border-b bg-white">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Seleccionar Fecha</label>
+                <div className="p-4 border-b border-slate-200 bg-white">
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Seleccionar Fecha</label>
                     <input
                         type="date"
                         value={date}
                         onChange={(e) => setDate(e.target.value)}
-                        className="w-full md:w-64 p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
+                        className="w-full md:w-64 p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 shadow-sm text-slate-700 appearance-none"
                     />
                 </div>
                 <div className="p-6 overflow-y-auto bg-slate-100 flex-1">
