@@ -1694,8 +1694,8 @@ function MainApp({ session }: { session: any }) {
             <>
               {/* DASHBOARD */}
               {activeTab === 'dashboard' && (
-                <>
-                    <div className="flex justify-between items-end mb-4 px-1">
+                  <>
+                    <div className="mb-4 px-1">
                       <h2 className="text-lg md:text-xl font-bold text-slate-800">Resumen Operativo</h2>
                       <DashboardClock />
                     </div>
@@ -1722,7 +1722,10 @@ function MainApp({ session }: { session: any }) {
                           <p className="text-xs text-slate-500 font-medium truncate">Personal</p>
                           <div className="flex flex-col md:flex-row md:items-baseline md:gap-2">
                             <p className="text-lg md:text-xl font-bold text-slate-800 leading-none mt-0.5">{staff.length}</p>
-                            <span className="text-[10px] text-slate-400 font-medium truncate mt-0.5">{staff.filter(s => s.role === 'Chofer').length} Ch / {staff.filter(s => s.role === 'Enfermero/a').length} Enf</span>
+                            <span className="text-[10px] text-slate-400 font-medium truncate mt-0.5 flex items-center gap-1.5">
+                              <span className="flex items-center gap-0.5" title="Choferes"><Car className="w-3 h-3" /> {staff.filter(s => s.role === 'Chofer').length}</span>
+                              <span className="flex items-center gap-0.5" title="Enfermeros"><Stethoscope className="w-3 h-3" /> {staff.filter(s => s.role === 'Enfermero/a').length}</span>
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -2254,6 +2257,17 @@ function MainApp({ session }: { session: any }) {
 
         </div>
       </main>
+
+      {/* Global Floating Action Button (Mobile) */}
+      <button
+        onClick={() => {
+          setEditingMatch({ date: new Date().toISOString().split('T')[0] });
+          setIsMatchModalOpen(true);
+        }}
+        className="lg:hidden fixed bottom-6 right-6 w-14 h-14 bg-indigo-600 text-white rounded-full shadow-xl shadow-indigo-600/30 flex items-center justify-center hover:bg-indigo-700 active:scale-95 transition-all z-40"
+      >
+        <Plus className="w-6 h-6" />
+      </button>
 
       {/* Modals */}
       <MatchModal
