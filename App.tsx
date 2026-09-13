@@ -559,15 +559,16 @@ function MainApp({ session }: { session: any }) {
   // --- DATA LOADING ---
   const loadData = async () => {
     setIsLoadingData(true);
+    setDataError(null);
     try {
       const [
-        { data: staffData },
-        { data: ambData },
-        { data: locData },
-        { data: clientData },
-        { data: matchData },
-        { data: fuelData },
-        { data: transfersData }
+        { data: staffData, error: e1 },
+        { data: ambData, error: e2 },
+        { data: locData, error: e3 },
+        { data: clientData, error: e4 },
+        { data: matchData, error: e5 },
+        { data: fuelData, error: e6 },
+        { data: transfersData, error: e7 }
       ] = await Promise.all([
         supabase.from('staff').select('*'),
         supabase.from('ambulances').select('*'),
@@ -578,16 +579,21 @@ function MainApp({ session }: { session: any }) {
         supabase.from('transfers').select('*').order('date', { ascending: false })
       ]);
 
-      if (staffData) setStaff(staffData.map(mapStaffFromDB));
-      if (ambData) setAmbulances(ambData.map(mapAmbulanceFromDB));
-      if (locData) setLocations(locData.map(mapLocationFromDB));
-      if (clientData) setClients(clientData.map(mapClientFromDB));
-      if (matchData) setMatches(matchData.map(mapMatchFromDB));
-      if (fuelData) setFuelRecords(fuelData.map(mapFuelFromDB));
-      if (transfersData) setTransfers(transfersData as TransferModel[]);
+      if (e1 || e2 || e3 || e4 || e5 || e6 || e7) {
+        throw new Error("Una de las consultas falló o la sesión expiró.");
+      }
+
+      if (staffData && staffData.length >= 0) setStaff(staffData.map(mapStaffFromDB));
+      if (ambData && ambData.length >= 0) setAmbulances(ambData.map(mapAmbulanceFromDB));
+      if (locData && locData.length >= 0) setLocations(locData.map(mapLocationFromDB));
+      if (clientData && clientData.length >= 0) setClients(clientData.map(mapClientFromDB));
+      if (matchData && matchData.length >= 0) setMatches(matchData.map(mapMatchFromDB));
+      if (fuelData && fuelData.length >= 0) setFuelRecords(fuelData.map(mapFuelFromDB));
+      if (transfersData && transfersData.length >= 0) setTransfers(transfersData as TransferModel[]);
 
     } catch (error) {
       console.error("Error loading data:", error);
+      setDataError("Error de conexión. Si tu internet funciona bien, tu sesión caducó. Por favor cierra sesión y vuelve a ingresar.");
     } finally {
       setIsLoadingData(false);
     }
@@ -1726,7 +1732,26 @@ function MainApp({ session }: { session: any }) {
           </div>
         </header>
 
-        <div className="p-6 max-w-7xl mx-auto space-y-6">
+          {dataError && (
+            <div className="m-4 md:m-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-r-lg shadow-sm flex flex-col md:flex-row gap-4 justify-between md:items-center">
+              <div>
+                <h4 className="font-bold flex items-center gap-2">
+                  <AlertCircle className="w-5 h-5" /> Sin conexión a la base de datos
+                </h4>
+                <p className="text-sm mt-1">{dataError}</p>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={loadData} className="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-800 rounded-lg text-sm font-medium transition-colors">
+                  Reintentar
+                </button>
+                <button onClick={handleLogout} className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-sm font-medium transition-colors">
+                  Cerrar Sesión
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
 
           {isLoadingData ? (
             <div className="flex flex-col items-center justify-center py-20 text-slate-400">
