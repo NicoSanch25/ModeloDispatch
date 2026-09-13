@@ -20,7 +20,8 @@ import {
   IncidentReport as IncidentReportModel,
   AuditLogEntry,
   FuelRecord as FuelRecordModel,
-  Client as ClientModel
+  Client as ClientModel,
+  Transfer as TransferModel
 } from './src/types';
 import { supabase } from './src/lib/supabase';
 
@@ -31,6 +32,7 @@ import { LocationModal } from './src/components/modals/LocationModal';
 import { LocationDetailModal } from './src/components/modals/LocationDetailModal';
 import { AmbulanceDetailModal } from './src/components/modals/AmbulanceDetailModal';
 import { ClientModal } from './src/components/modals/ClientModal';
+import { TransferModal } from './src/components/modals/TransferModal';
 import { FleetStatusWidget } from './src/components/FleetStatusWidget';
 import { DashboardClock } from './src/components/DashboardClock';
 import { QuickAddModal, QuickAddRow } from './src/components/modals/QuickAddModal';
@@ -474,7 +476,7 @@ export default function App() {
 }
 
 function MainApp({ session }: { session: any }) {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'matches' | 'history' | 'fleet' | 'staff' | 'locations' | 'fuel' | 'clients'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'matches' | 'history' | 'fleet' | 'staff' | 'locations' | 'fuel' | 'clients' | 'transfers'>('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Data State
@@ -484,9 +486,13 @@ function MainApp({ session }: { session: any }) {
   const [locations, setLocations] = useState<LocationModel[]>([]);
   const [fuelRecords, setFuelRecords] = useState<FuelRecordModel[]>([]);
   const [clients, setClients] = useState<ClientModel[]>([]);
+  const [transfers, setTransfers] = useState<TransferModel[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(false);
 
   // Modals State
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
+  const [editingTransfer, setEditingTransfer] = useState<Partial<TransferModel> | null>(null);
+
   const [isMatchModalOpen, setIsMatchModalOpen] = useState(false);
   const [editingMatch, setEditingMatch] = useState<Partial<MatchModel> | null>(null);
   const [isMatchReadOnly, setIsMatchReadOnly] = useState(false);
@@ -560,14 +566,16 @@ function MainApp({ session }: { session: any }) {
         { data: locData },
         { data: clientData },
         { data: matchData },
-        { data: fuelData }
+        { data: fuelData },
+        { data: transfersData }
       ] = await Promise.all([
         supabase.from('staff').select('*'),
         supabase.from('ambulances').select('*'),
         supabase.from('locations').select('*'),
         supabase.from('clients').select('*'),
         supabase.from('matches').select('*, audit_logs(*)').order('date', { ascending: true }),
-        supabase.from('fuel_records').select('*')
+        supabase.from('fuel_records').select('*'),
+        supabase.from('transfers').select('*').order('date', { ascending: false })
       ]);
 
       if (staffData) setStaff(staffData.map(mapStaffFromDB));
@@ -576,6 +584,7 @@ function MainApp({ session }: { session: any }) {
       if (clientData) setClients(clientData.map(mapClientFromDB));
       if (matchData) setMatches(matchData.map(mapMatchFromDB));
       if (fuelData) setFuelRecords(fuelData.map(mapFuelFromDB));
+      if (transfersData) setTransfers(transfersData as TransferModel[]);
 
     } catch (error) {
       console.error("Error loading data:", error);
@@ -873,6 +882,37 @@ function MainApp({ session }: { session: any }) {
       setBatchFuelRows([]);
     } catch (err: any) {
       alert("Error guardando combustible: " + err.message);
+    }
+  };
+
+  // --- TRANSFERS HANDLERS ---
+  const handleSaveTransfer = async (payload: Partial<TransferModel>) => {
+    try {
+      if (payload.id) {
+        const { error } = await supabase.from('transfers').update(payload).eq('id', payload.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('transfers').insert([payload]);
+        if (error) throw error;
+      }
+      await loadData();
+      setIsTransferModalOpen(false);
+      setEditingTransfer(null);
+    } catch (err: any) {
+      alert("Error al guardar traslado: " + err.message);
+    }
+  };
+
+  const handleDeleteTransfer = async (id: string) => {
+    if (!confirm('¿Seguro que deseas eliminar este traslado?')) return;
+    try {
+      const { error } = await supabase.from('transfers').delete().eq('id', id);
+      if (error) throw error;
+      await loadData();
+      setIsTransferModalOpen(false);
+      setEditingTransfer(null);
+    } catch (err: any) {
+      alert("Error al eliminar traslado: " + err.message);
     }
   };
 
@@ -1621,7 +1661,10 @@ function MainApp({ session }: { session: any }) {
             <LayoutDashboard className="w-5 h-5" /> Tablero
           </button>
           <button onClick={() => handleNav('matches')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'matches' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-            <ClipboardList className="w-5 h-5" /> Coberturas
+            <ClipboardCheck className="w-5 h-5" /> Coberturas
+          </button>
+          <button onClick={() => handleNav('transfers')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'transfers' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
+            <Ambulance className="w-5 h-5" /> Traslados
           </button>
           <button onClick={() => handleNav('history')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'history' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
             <History className="w-5 h-5" /> Historial
@@ -2252,6 +2295,64 @@ function MainApp({ session }: { session: any }) {
                   </div>
                 </div>
               )}
+              {activeTab === 'transfers' && (
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-200">
+                    <h3 className="font-bold text-slate-700 flex items-center gap-2"><Ambulance className="w-5 h-5" /> Registro de Traslados</h3>
+                    <button onClick={() => { setEditingTransfer(null); setIsTransferModalOpen(true); }} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium flex items-center gap-2"><Plus className="w-4 h-4"/> Nuevo Traslado</button>
+                  </div>
+                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-slate-50 text-slate-600 font-medium border-b border-slate-200">
+                        <tr>
+                          <th className="p-3 text-left">Fecha</th>
+                          <th className="p-3 text-left">Paciente</th>
+                          <th className="p-3 text-left">Origen</th>
+                          <th className="p-3 text-left">Destino</th>
+                          <th className="p-3 text-left">Chofer</th>
+                          <th className="p-3 text-left">Estado</th>
+                          <th className="p-3 text-center">Acción</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {transfers.map(tr => {
+                          const drv = staff.find(s => s.id === tr.driver_id);
+                          return (
+                            <tr key={tr.id} className="hover:bg-slate-50 transition-colors">
+                              <td className="p-3">{formatDateAR(tr.date)}</td>
+                              <td className="p-3 font-medium text-slate-800">{tr.patient_name || '--'}</td>
+                              <td className="p-3 text-slate-600">{tr.origin || '--'}</td>
+                              <td className="p-3 text-slate-600">{tr.destination || '--'}</td>
+                              <td className="p-3">{drv?.name || '--'}</td>
+                              <td className="p-3">
+                                <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                  tr.status === 'Completed' ? 'bg-emerald-100 text-emerald-700' :
+                                  tr.status === 'Cancelled' ? 'bg-red-100 text-red-700' :
+                                  'bg-amber-100 text-amber-700'
+                                }`}>
+                                  {tr.status === 'Completed' ? 'Completado' : tr.status === 'Cancelled' ? 'Cancelado' : 'Pendiente'}
+                                </span>
+                              </td>
+                              <td className="p-3 text-center">
+                                <button onClick={() => { setEditingTransfer(tr); setIsTransferModalOpen(true); }} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Editar">
+                                  <Edit2 className="w-4 h-4" />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {transfers.length === 0 && (
+                          <tr>
+                            <td colSpan={7} className="p-8 text-center text-slate-400">
+                              No hay traslados registrados.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </>
           )}
 
@@ -2259,6 +2360,15 @@ function MainApp({ session }: { session: any }) {
       </main>
 
       {/* Modals */}
+      <TransferModal
+        isOpen={isTransferModalOpen}
+        onClose={() => setIsTransferModalOpen(false)}
+        onSave={handleSaveTransfer}
+        onDelete={handleDeleteTransfer}
+        transfer={editingTransfer}
+        staff={staff}
+      />
+      
       <MatchModal
         isOpen={isMatchModalOpen}
         onClose={() => setIsMatchModalOpen(false)}

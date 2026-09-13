@@ -129,3 +129,35 @@ export interface AppState {
   fuelRecords: FuelRecord[];
   clients: Client[];
 }
+export interface Transfer {
+  id: string;
+  transfer_number?: string;
+  driver_id?: string;
+  received_by?: string;
+  holder_name?: string;
+  date: string; // YYYY-MM-DD
+  patient_name?: string;
+  subscriber_number?: string;
+  address?: string;
+  affiliate_number?: string;
+  locality?: string;
+  age?: string;
+  document_number?: string;
+  ambulance_type?: string;
+  origin?: string;
+  destination?: string;
+  
+  arrival_origin_time?: string;
+  departure_origin_time?: string;
+  arrival_destination_time?: string;
+  departure_destination_time?: string;
+  arrival_base_time?: string;
+  departure_base_time?: string;
+  
+  wait_time_minutes?: number;
+  kms_driven?: number;
+  amount_to_bill?: number;
+  presumed_diagnosis?: string;
+  observations?: string;
+  status: 'Pending' | 'Completed' | 'Cancelled';
+}
