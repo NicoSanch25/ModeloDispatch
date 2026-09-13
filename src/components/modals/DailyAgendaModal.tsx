@@ -113,7 +113,7 @@ export const DailyAgendaModal: React.FC<DailyAgendaModalProps> = ({
                         type="date"
                         value={date}
                         onChange={(e) => setDate(e.target.value)}
-                        className="w-full md:w-64 p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 shadow-sm text-slate-700 appearance-none"
+                        className="w-full p-2.5 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800"
                     />
                 </div>
                 <div className="p-6 overflow-y-auto bg-slate-100 flex-1">
