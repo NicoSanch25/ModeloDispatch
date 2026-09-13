@@ -72,7 +72,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                         {/* Status & Header info */}
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nº Traslado</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">NÂº Traslado</label>
                                 <input type="text" name="transfer_number" value={formData.transfer_number || ''} onChange={handleChange} className="w-full p-2 border border-slate-200 rounded-lg bg-white" placeholder="Ej: 00123" />
                             </div>
                             <div>
@@ -97,7 +97,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                         </div>
 
                         {/* Patient Info */}
-                        <h4 className="text-sm font-bold text-slate-700 border-b pb-2">Información del Paciente</h4>
+                        <h4 className="text-sm font-bold text-slate-700 border-b pb-2">InformaciÃ³n del Paciente</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             <div className="lg:col-span-2">
                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Paciente</label>
@@ -108,11 +108,11 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                                 <input type="text" name="holder_name" value={formData.holder_name || ''} onChange={handleChange} className="w-full p-2 border border-slate-200 rounded-lg" />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nº Abonado</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">NÂº Abonado</label>
                                 <input type="text" name="subscriber_number" value={formData.subscriber_number || ''} onChange={handleChange} className="w-full p-2 border border-slate-200 rounded-lg" />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nº Afiliado</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">NÂº Afiliado</label>
                                 <input type="text" name="affiliate_number" value={formData.affiliate_number || ''} onChange={handleChange} className="w-full p-2 border border-slate-200 rounded-lg" />
                             </div>
                             <div>
@@ -204,7 +204,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
 
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Diagnóstico Presunto</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">DiagnÃ³stico Presunto</label>
                                 <input type="text" name="presumed_diagnosis" value={formData.presumed_diagnosis || ''} onChange={handleChange} className="w-full p-2 border border-slate-200 rounded-lg" />
                             </div>
                             <div>
@@ -213,7 +213,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Recepcionó</label>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">RecepcionÃ³</label>
                                     <input type="text" name="received_by" value={formData.received_by || ''} onChange={handleChange} className="w-full p-2 border border-slate-200 rounded-lg" />
                                 </div>
                             </div>
@@ -257,3 +257,4 @@ export const TransferModal: React.FC<TransferModalProps> = ({
         </div>
     );
 };
+
