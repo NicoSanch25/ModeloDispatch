@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Client } from '../../types';
 import { Building, X } from 'lucide-react';
 import { resourceService } from '../../services/resources';
@@ -14,6 +14,21 @@ export const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSav
     if (!isOpen) return null;
 
     const [isLoading, setIsLoading] = useState(false);
+
+    const handleDelete = async () => {
+        if (!editingClient?.id) return;
+        if (!window.confirm('¿Seguro que deseas eliminar este cliente?')) return;
+        setIsLoading(true);
+        try {
+            await resourceService.deleteClient(editingClient.id);
+            onSaveSuccess();
+            onClose();
+        } catch (err: any) {
+            alert('Error al eliminar: ' + err.message);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -52,13 +67,16 @@ export const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSav
                             </div>
                             {editingClient ? 'Editar Cliente' : 'Nuevo Cliente'}
                         </h3>
+                        {editingClient?.id && (
+                            <button type="button" onClick={handleDelete} disabled={isLoading} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors mr-auto">Eliminar</button>
+                        )}
                         <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-full transition-colors"><X className="w-5 h-5" /></button>
                     </div>
 
                     {/* Body */}
                     <div className="p-6 space-y-5 overflow-y-auto">
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre / Razón Social</label>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre / RazÃ³n Social</label>
                             <input name="name" defaultValue={editingClient?.name} required className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
                         </div>
 
@@ -68,7 +86,7 @@ export const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSav
                                 <input name="contactName" defaultValue={editingClient?.contactName} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Contacto Teléfono</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Contacto TelÃ©fono</label>
                                 <input name="contactPhone" defaultValue={editingClient?.contactPhone} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
                             </div>
                         </div>
@@ -80,12 +98,15 @@ export const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSav
 
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Notas Internas</label>
-                            <textarea name="notes" defaultValue={editingClient?.notes} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none h-24 resize-none" placeholder="Información adicional..." />
+                            <textarea name="notes" defaultValue={editingClient?.notes} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none h-24 resize-none" placeholder="InformaciÃ³n adicional..." />
                         </div>
                     </div>
 
                     {/* Footer */}
                     <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+                        {editingClient?.id && (
+                            <button type="button" onClick={handleDelete} disabled={isLoading} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors mr-auto">Eliminar</button>
+                        )}
                         <button type="button" onClick={onClose} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg font-medium transition-colors">Cancelar</button>
                         <button type="submit" disabled={isLoading} className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium shadow-lg shadow-indigo-200 transition-all transform active:scale-95">
                             {isLoading ? 'Guardando...' : 'Guardar'}
@@ -96,3 +117,4 @@ export const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSav
         </div>
     );
 };
+

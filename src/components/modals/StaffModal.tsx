@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Staff } from '../../types';
 import { Users, X, Check } from 'lucide-react';
 import { resourceService } from '../../services/resources';
@@ -14,6 +14,21 @@ export const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, onSaveS
     if (!isOpen) return null;
 
     const [isLoading, setIsLoading] = useState(false);
+
+    const handleDelete = async () => {
+        if (!editingStaff?.id) return;
+        if (!window.confirm('¿Seguro que deseas eliminar este personal?')) return;
+        setIsLoading(true);
+        try {
+            await resourceService.deleteStaff(editingStaff.id);
+            onSaveSuccess();
+            onClose();
+        } catch (err: any) {
+            alert('Error al eliminar: ' + err.message);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -52,6 +67,9 @@ export const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, onSaveS
                             </div>
                             {editingStaff ? 'Editar Personal' : 'Nuevo Personal'}
                         </h3>
+                        {editingStaff?.id && (
+                            <button type="button" onClick={handleDelete} disabled={isLoading} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors mr-auto">Eliminar</button>
+                        )}
                         <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-full transition-colors"><X className="w-5 h-5" /></button>
                     </div>
 
@@ -59,7 +77,7 @@ export const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, onSaveS
                     <div className="p-6 space-y-5 overflow-y-auto">
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre Completo</label>
-                            <input name="name" defaultValue={editingStaff?.name} placeholder="Ej: Juan Pérez" required className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all" />
+                            <input name="name" defaultValue={editingStaff?.name} placeholder="Ej: Juan PÃ©rez" required className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all" />
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
@@ -68,11 +86,11 @@ export const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, onSaveS
                                 <select name="role" defaultValue={editingStaff?.role || 'Chofer'} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white">
                                     <option value="Chofer">Chofer</option>
                                     <option value="Enfermero/a">Enfermero/a</option>
-                                    <option value="Médico/a">Médico/a</option>
+                                    <option value="MÃ©dico/a">MÃ©dico/a</option>
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Teléfono</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">TelÃ©fono</label>
                                 <input name="phone" defaultValue={editingStaff?.phone} placeholder="Ej: 11 1234 5678" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
                             </div>
                         </div>
@@ -94,6 +112,9 @@ export const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, onSaveS
 
                     {/* Footer */}
                     <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+                        {editingStaff?.id && (
+                            <button type="button" onClick={handleDelete} disabled={isLoading} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors mr-auto">Eliminar</button>
+                        )}
                         <button type="button" onClick={onClose} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg font-medium transition-colors">Cancelar</button>
                         <button type="submit" disabled={isLoading} className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium shadow-lg shadow-indigo-200 transition-all transform active:scale-95">
                             {isLoading ? 'Guardando...' : 'Guardar'}
@@ -104,3 +125,4 @@ export const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, onSaveS
         </div>
     );
 };
+

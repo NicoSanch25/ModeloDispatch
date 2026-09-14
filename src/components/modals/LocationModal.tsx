@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Location } from '../../types';
 import { MapPin, X, ExternalLink, Phone } from 'lucide-react';
 import { resourceService } from '../../services/resources';
@@ -14,6 +14,21 @@ export const LocationModal: React.FC<LocationModalProps> = ({ isOpen, onClose, o
     if (!isOpen) return null;
 
     const [isLoading, setIsLoading] = useState(false);
+
+    const handleDelete = async () => {
+        if (!editingLocation?.id) return;
+        if (!window.confirm('¿Seguro que deseas eliminar este lugar?')) return;
+        setIsLoading(true);
+        try {
+            await resourceService.deleteLocation(editingLocation.id);
+            onSaveSuccess();
+            onClose();
+        } catch (err: any) {
+            alert('Error al eliminar: ' + err.message);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -52,6 +67,9 @@ export const LocationModal: React.FC<LocationModalProps> = ({ isOpen, onClose, o
                             </div>
                             {editingLocation ? 'Editar Lugar' : 'Nuevo Lugar'}
                         </h3>
+                        {editingLocation?.id && (
+                            <button type="button" onClick={handleDelete} disabled={isLoading} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors mr-auto">Eliminar</button>
+                        )}
                         <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-full transition-colors"><X className="w-5 h-5" /></button>
                     </div>
 
@@ -62,7 +80,7 @@ export const LocationModal: React.FC<LocationModalProps> = ({ isOpen, onClose, o
                             <input name="name" defaultValue={editingLocation?.name} placeholder="Ej: Cancha 1 - Palermo" required className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Dirección</label>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">DirecciÃ³n</label>
                             <input name="address" defaultValue={editingLocation?.address} placeholder="Calle 123" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
                         </div>
                         <div>
@@ -81,7 +99,7 @@ export const LocationModal: React.FC<LocationModalProps> = ({ isOpen, onClose, o
                                     <input name="contactName" defaultValue={editingLocation?.contactName} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-sm" />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Teléfono</label>
+                                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">TelÃ©fono</label>
                                     <input name="contactPhone" defaultValue={editingLocation?.contactPhone} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-sm" />
                                 </div>
                             </div>
@@ -90,6 +108,9 @@ export const LocationModal: React.FC<LocationModalProps> = ({ isOpen, onClose, o
 
                     {/* Footer */}
                     <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+                        {editingLocation?.id && (
+                            <button type="button" onClick={handleDelete} disabled={isLoading} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors mr-auto">Eliminar</button>
+                        )}
                         <button type="button" onClick={onClose} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg font-medium transition-colors">Cancelar</button>
                         <button type="submit" disabled={isLoading} className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium shadow-lg shadow-indigo-200 transition-all transform active:scale-95">
                             {isLoading ? 'Guardando...' : 'Guardar'}
@@ -100,3 +121,4 @@ export const LocationModal: React.FC<LocationModalProps> = ({ isOpen, onClose, o
         </div>
     );
 };
+

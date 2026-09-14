@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Ambulance, Staff } from '../../types';
 import { Truck, X, User, Check } from 'lucide-react';
 import { resourceService } from '../../services/resources';
@@ -18,6 +18,21 @@ export const AmbulanceModal: React.FC<AmbulanceModalProps> = ({ isOpen, onClose,
     const [isLoading, setIsLoading] = useState(false);
     const [showOutsourced, setShowOutsourced] = useState(editingAmbulance?.isOutsourced || false);
     const [showWorkshop, setShowWorkshop] = useState(editingAmbulance?.maintenance?.status === 'InRepair');
+
+    const handleDelete = async () => {
+        if (!editingAmbulance?.id) return;
+        if (!window.confirm('¿Seguro que deseas eliminar este móvil?')) return;
+        setIsLoading(true);
+        try {
+            await resourceService.deleteAmbulance(editingAmbulance.id);
+            onSaveSuccess();
+            onClose();
+        } catch (err: any) {
+            alert('Error al eliminar: ' + err.message);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     // Helper to safely get date string YYYY-MM-DD
     const safeDate = (dateStr?: string) => dateStr ? dateStr.split('T')[0] : '';
@@ -59,7 +74,7 @@ export const AmbulanceModal: React.FC<AmbulanceModalProps> = ({ isOpen, onClose,
             onSaveSuccess();
             onClose();
         } catch (error: any) {
-            alert('Error guardando móvil: ' + error.message);
+            alert('Error guardando mÃ³vil: ' + error.message);
         } finally {
             setIsLoading(false);
         }
@@ -75,8 +90,11 @@ export const AmbulanceModal: React.FC<AmbulanceModalProps> = ({ isOpen, onClose,
                             <div className="bg-indigo-100 p-2 rounded-lg text-indigo-600">
                                 <Truck className="w-5 h-5" />
                             </div>
-                            {editingAmbulance ? 'Editar Móvil' : 'Nuevo Móvil'}
+                            {editingAmbulance ? 'Editar MÃ³vil' : 'Nuevo MÃ³vil'}
                         </h3>
+                        {editingAmbulance?.id && (
+                            <button type="button" onClick={handleDelete} disabled={isLoading} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors mr-auto">Eliminar</button>
+                        )}
                         <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-full transition-colors"><X className="w-5 h-5" /></button>
                     </div>
 
@@ -85,11 +103,11 @@ export const AmbulanceModal: React.FC<AmbulanceModalProps> = ({ isOpen, onClose,
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {/* Column 1: Identity */}
                             <div className="space-y-4">
-                                <h4 className="font-bold text-slate-700 text-sm border-b pb-2 mb-2">Identificación del Vehículo</h4>
+                                <h4 className="font-bold text-slate-700 text-sm border-b pb-2 mb-2">IdentificaciÃ³n del VehÃ­culo</h4>
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Número</label>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">NÃºmero</label>
                                         <input name="number" defaultValue={editingAmbulance?.number} placeholder="Ej: 22" required className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
                                     </div>
                                     <div>
@@ -104,7 +122,7 @@ export const AmbulanceModal: React.FC<AmbulanceModalProps> = ({ isOpen, onClose,
                                         <input name="vehicleType" defaultValue={editingAmbulance?.vehicleType} placeholder="Ej: Kangoo" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Año</label>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">AÃ±o</label>
                                         <input
                                             name="year"
                                             type="number"
@@ -116,8 +134,8 @@ export const AmbulanceModal: React.FC<AmbulanceModalProps> = ({ isOpen, onClose,
                                 </div>
 
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Carrocería / Carrocera</label>
-                                    <input name="coachBuilder" defaultValue={editingAmbulance?.coachBuilder} placeholder="Ej: Vallé" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">CarrocerÃ­a / Carrocera</label>
+                                    <input name="coachBuilder" defaultValue={editingAmbulance?.coachBuilder} placeholder="Ej: VallÃ©" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
                                 </div>
 
                                 <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
@@ -133,11 +151,11 @@ export const AmbulanceModal: React.FC<AmbulanceModalProps> = ({ isOpen, onClose,
                                             />
                                             <Check className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white opacity-0 peer-checked:opacity-100" />
                                         </div>
-                                        <label htmlFor="isOutsourcedAmb" className="text-sm font-medium text-slate-700 cursor-pointer">Es móvil externo / terciarizado</label>
+                                        <label htmlFor="isOutsourcedAmb" className="text-sm font-medium text-slate-700 cursor-pointer">Es mÃ³vil externo / terciarizado</label>
                                     </div>
                                     {showOutsourced && (
                                         <div className="mt-3 pl-8 animate-in slide-in-from-top-1">
-                                            <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Nombre Empresa / Dueño</label>
+                                            <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Nombre Empresa / DueÃ±o</label>
                                             <div className="relative">
                                                 <input list="outsourced-staff-list" name="outsourcedCompanyName" defaultValue={editingAmbulance?.outsourcedCompanyName} placeholder="Buscar personal externo..." className="w-full pl-3 pr-8 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm bg-white" autoComplete="off" />
                                                 <User className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
@@ -173,7 +191,7 @@ export const AmbulanceModal: React.FC<AmbulanceModalProps> = ({ isOpen, onClose,
                                             <h5 className="text-xs font-bold text-amber-700 uppercase mb-2">Datos del Taller</h5>
                                             <div className="space-y-2">
                                                 <input name="workshopName" defaultValue={editingAmbulance?.maintenance?.workshopName} placeholder="Nombre del Taller" className="w-full px-2 py-1 border border-amber-200 rounded text-sm focus:ring-2 focus:ring-amber-500" />
-                                                <input name="mechanicContact" defaultValue={editingAmbulance?.maintenance?.mechanicContact} placeholder="Contacto / Teléfono" className="w-full px-2 py-1 border border-amber-200 rounded text-sm focus:ring-2 focus:ring-amber-500" />
+                                                <input name="mechanicContact" defaultValue={editingAmbulance?.maintenance?.mechanicContact} placeholder="Contacto / TelÃ©fono" className="w-full px-2 py-1 border border-amber-200 rounded text-sm focus:ring-2 focus:ring-amber-500" />
                                             </div>
                                         </div>
                                     )}
@@ -182,7 +200,7 @@ export const AmbulanceModal: React.FC<AmbulanceModalProps> = ({ isOpen, onClose,
 
                             {/* Column 2: Mechanics */}
                             <div className="space-y-4">
-                                <h4 className="font-bold text-slate-700 text-sm border-b pb-2 mb-2">Mecánica y Documentación</h4>
+                                <h4 className="font-bold text-slate-700 text-sm border-b pb-2 mb-2">MecÃ¡nica y DocumentaciÃ³n</h4>
 
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Kilometraje Actual</label>
@@ -196,7 +214,7 @@ export const AmbulanceModal: React.FC<AmbulanceModalProps> = ({ isOpen, onClose,
                                     </div>
                                     <div>
                                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Seguro</label>
-                                        <input name="insurance" defaultValue={editingAmbulance?.maintenance?.insurance} placeholder="Compañía" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
+                                        <input name="insurance" defaultValue={editingAmbulance?.maintenance?.insurance} placeholder="CompaÃ±Ã­a" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
                                     </div>
                                 </div>
 
@@ -212,16 +230,16 @@ export const AmbulanceModal: React.FC<AmbulanceModalProps> = ({ isOpen, onClose,
                                 </div>
 
                                 <div className="p-3 bg-slate-50 rounded-lg border border-slate-100 space-y-3">
-                                    <label className="block text-xs font-bold text-slate-500 uppercase">Batería</label>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase">BaterÃ­a</label>
 
                                     <div>
                                         <span className="text-[10px] text-slate-400 block mb-1">Modelo / Tipo</span>
-                                        <input name="batteryType" defaultValue={editingAmbulance?.maintenance?.batteryType} className="w-full px-2 py-1 border border-slate-200 rounded text-sm" placeholder="Especificación técnica" />
+                                        <input name="batteryType" defaultValue={editingAmbulance?.maintenance?.batteryType} className="w-full px-2 py-1 border border-slate-200 rounded text-sm" placeholder="EspecificaciÃ³n tÃ©cnica" />
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-3">
                                         <div>
-                                            <span className="text-[10px] text-slate-400 block mb-1">Último Cambio</span>
+                                            <span className="text-[10px] text-slate-400 block mb-1">Ãšltimo Cambio</span>
                                             <input name="batteryLastChange" type="date" defaultValue={editingAmbulance?.maintenance?.batteryLastChange} className="w-full px-2 py-1 border border-slate-200 rounded text-sm" />
                                         </div>
                                         <div>
@@ -232,7 +250,7 @@ export const AmbulanceModal: React.FC<AmbulanceModalProps> = ({ isOpen, onClose,
                                 </div>
 
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Observaciones Mecánicas</label>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Observaciones MecÃ¡nicas</label>
                                     <textarea name="mechanicNotes" defaultValue={editingAmbulance?.maintenance?.mechanicNotes} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm h-20 resize-none" placeholder="Detalles adicionales..." />
                                 </div>
 
@@ -242,6 +260,9 @@ export const AmbulanceModal: React.FC<AmbulanceModalProps> = ({ isOpen, onClose,
 
                     {/* Footer */}
                     <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+                        {editingAmbulance?.id && (
+                            <button type="button" onClick={handleDelete} disabled={isLoading} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors mr-auto">Eliminar</button>
+                        )}
                         <button type="button" onClick={onClose} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg font-medium transition-colors">Cancelar</button>
                         <button type="submit" disabled={isLoading} className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium shadow-lg shadow-indigo-200 transition-all transform active:scale-95">
                             {isLoading ? 'Guardando...' : 'Guardar'}
@@ -252,3 +273,4 @@ export const AmbulanceModal: React.FC<AmbulanceModalProps> = ({ isOpen, onClose,
         </div>
     );
 };
+

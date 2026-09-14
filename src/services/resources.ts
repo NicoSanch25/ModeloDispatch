@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase';
+﻿import { supabase } from '../lib/supabase';
 import { Staff, Ambulance, Location, Client, FuelRecord } from '../types';
 
 // Mappers
@@ -174,6 +174,23 @@ export const resourceService = {
         }
     },
 
+    async deleteStaff(id: string) {
+        const { error } = await supabase.from('staff').delete().eq('id', id);
+        if (error) throw error;
+    },
+    async deleteAmbulance(id: string) {
+        const { error } = await supabase.from('ambulances').delete().eq('id', id);
+        if (error) throw error;
+    },
+    async deleteLocation(id: string) {
+        const { error } = await supabase.from('locations').delete().eq('id', id);
+        if (error) throw error;
+    },
+    async deleteClient(id: string) {
+        const { error } = await supabase.from('clients').delete().eq('id', id);
+        if (error) throw error;
+    },
+
     async saveClient(client: Partial<Client>) {
         const payload = {
             name: client.name,
@@ -191,3 +208,4 @@ export const resourceService = {
         }
     }
 };
+
