@@ -488,6 +488,7 @@ function MainApp({ session }: { session: any }) {
   const [clients, setClients] = useState<ClientModel[]>([]);
   const [transfers, setTransfers] = useState<TransferModel[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(false);
+  const [dataError, setDataError] = useState<string | null>(null);
 
   // Modals State
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
