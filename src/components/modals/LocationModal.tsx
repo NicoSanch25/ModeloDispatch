@@ -67,9 +67,6 @@ export const LocationModal: React.FC<LocationModalProps> = ({ isOpen, onClose, o
                             </div>
                             {editingLocation ? 'Editar Lugar' : 'Nuevo Lugar'}
                         </h3>
-                        {editingLocation?.id && (
-                            <button type="button" onClick={handleDelete} disabled={isLoading} className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors mr-auto">Eliminar</button>
-                        )}
                         <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-full transition-colors"><X className="w-5 h-5" /></button>
                     </div>
 
@@ -121,4 +118,5 @@ export const LocationModal: React.FC<LocationModalProps> = ({ isOpen, onClose, o
         </div>
     );
 };
+
 
