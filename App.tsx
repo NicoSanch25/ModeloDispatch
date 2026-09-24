@@ -23,7 +23,10 @@ import {
   Client as ClientModel,
   Transfer as TransferModel
 } from './src/types';
-import { supabase } from './src/lib/supabase';
+import { supabase, configurationError } from './src/lib/supabase';
+import { OperationsInsights } from './src/components/OperationsInsights';
+import { localDate } from './src/utils/statistics';
+import { csvCell } from './src/utils/security';
 
 import { MatchModal } from './src/components/modals/MatchModal';
 import { StaffModal } from './src/components/modals/StaffModal';
@@ -188,15 +191,15 @@ const subtractTime = (timeStr: string, minutesToSubtract: number) => {
 };
 
 const downloadCSV = (data: any[], filename: string) => {
-  const csvContent = "data:text/csv;charset=utf-8,"
-    + data.map(e => e.join(",")).join("\n");
-  const encodedUri = encodeURI(csvContent);
+  const csvContent = '\uFEFF' + data.map(row => row.map(csvCell).join(',')).join('\r\n');
+  const encodedUri = URL.createObjectURL(new Blob([csvContent], { type: 'text/csv;charset=utf-8' }));
   const link = document.createElement("a");
   link.setAttribute("href", encodedUri);
   link.setAttribute("download", filename);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(encodedUri), 1000);
 };
 
 // Returns an icon based on vehicle type
@@ -259,7 +262,7 @@ const getConflicts = (currentMatch: MatchModel, allMatches: MatchModel[]): { har
 };
 
 const checkSystemConflicts = (matches: MatchModel[]) => {
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = localDate();
   const relevantMatches = matches.filter(m => m.date >= todayStr && m.status !== 'Suspended');
   let count = 0;
   for (const match of relevantMatches) {
@@ -286,73 +289,17 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
     return `${sanitizedUser}@dispatch.app`;
   };
 
-  const handleAuth = async (isRegister: boolean) => {
-    if (!username || !password) {
-      setError("Por favor complete usuario y contraseña");
-      return;
-    }
-    if (password.length < 6) {
-      setError("La contraseña debe tener al menos 6 caracteres");
-      return;
-    }
-
+  const handleAuth = async () => {
+    if (!username.trim() || !password) { setError('Completá usuario y contraseña.'); return; }
     setLoading(true);
     setError('');
-
-    const email = getInternalEmail();
-
     try {
-      if (isRegister) {
-        // Sign Up
-        const { data, error: signUpError } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { data: { username: username.trim() } }
-        });
-
-        if (signUpError) throw signUpError;
-
-        // If successful or waiting for confirmation (handled by next check)
-        if (data.user && !data.session) {
-          // This usually means email confirmation is ON in Supabase
-          throw new Error("EMAIL_NOT_CONFIRMED");
-        }
-        if (data.session) onLogin();
-
-      } else {
-        // Log In
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password
-        });
-
-        if (signInError) {
-          console.error("Login failed for:", email);
-          if (signInError.message.includes("Invalid login credentials")) {
-            throw new Error("Usuario no encontrado o contraseña incorrecta.");
-          } else if (signInError.message.includes("Email not confirmed")) {
-            throw new Error("EMAIL_NOT_CONFIRMED");
-          } else {
-            throw signInError;
-          }
-        } else {
-          onLogin();
-        }
-      }
-    } catch (err: any) {
-      console.error("Auth Error:", err);
-      if (err.message === "EMAIL_NOT_CONFIRMED") {
-        setError("EMAIL_NOT_CONFIRMED");
-      } else if (err.message.includes("already registered")) {
-        setError("Este usuario ya existe. Intenta el botón 'Ingresar'.");
-      } else if (err.message.includes("Usuario no encontrado")) {
-        setError("Credenciales incorrectas. Si es tu primera vez, usa 'Registrarse'.");
-      } else {
-        setError(err.message || "Error de conexión");
-      }
-    } finally {
-      setLoading(false);
-    }
+      const { error } = await supabase.auth.signInWithPassword({ email: getInternalEmail(), password });
+      if (error) { setError('No se pudo ingresar. Verificá tus credenciales o consultá al administrador.'); return; }
+      onLogin();
+    } catch {
+      setError('No se pudo conectar. Intentá nuevamente.');
+    } finally { setLoading(false); }
   };
 
   return (
@@ -366,28 +313,7 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
         <h2 className="text-2xl font-bold text-center text-slate-800 mb-2">Modelo Dispatch</h2>
         <p className="text-center text-slate-500 mb-8">Acceso al Sistema</p>
 
-        {error === "EMAIL_NOT_CONFIRMED" ? (
-          <div className="bg-amber-50 text-amber-800 p-4 rounded-lg text-sm mb-6 border border-amber-200">
-            <div className="flex items-start gap-2">
-              <AlertCircle className="w-6 h-6 flex-shrink-0 text-amber-600" />
-              <div>
-                <p className="font-bold">¡Atención! Configuración Requerida</p>
-                <p className="mt-1">Tu usuario se creó, pero Supabase está esperando confirmación de email.</p>
-                <p className="mt-2 font-bold">SOLUCIÓN:</p>
-                <ol className="list-decimal ml-4 mt-1 space-y-1">
-                  <li>Ve a tu proyecto en <strong>Supabase</strong>.</li>
-                  <li>Menú: <strong>Authentication</strong> &gt; <strong>Providers</strong> &gt; <strong>Email</strong>.</li>
-                  <li><span className="text-red-600 font-bold">DESACTIVA</span> la opción "Confirm email".</li>
-                  <li>Guarda y vuelve a intentar entrar aquí.</li>
-                </ol>
-              </div>
-            </div>
-          </div>
-        ) : error && (
-          <div className="bg-red-50 text-red-700 p-3 rounded-lg text-center mb-6 border border-red-200 text-sm font-medium">
-            {error}
-          </div>
-        )}
+        {error && <div role="alert" className="bg-red-50 text-red-700 p-3 rounded-lg text-center mb-6 border border-red-200 text-sm">{error}</div>}
 
         <div className="space-y-4">
           <div>
@@ -400,6 +326,7 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 className="w-full p-3 pl-10 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                autoComplete="username"
                 placeholder="NombreUsuario"
                 autoCapitalize="none"
               />
@@ -415,10 +342,13 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full p-3 pl-10 pr-10 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                autoComplete="current-password"
+                onKeyDown={(e) => { if (e.key === 'Enter' && !loading) handleAuth(); }}
                 placeholder="••••••••"
               />
               <button
                 type="button"
+                aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
               >
@@ -429,7 +359,7 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
 
           <div className="pt-2 flex flex-col gap-3">
             <button
-              onClick={() => handleAuth(false)}
+              onClick={() => handleAuth()}
               disabled={loading}
               className="w-full bg-emerald-700 text-white py-3 rounded-lg font-bold hover:bg-emerald-800 transition-colors flex justify-center items-center gap-2"
             >
@@ -451,10 +381,11 @@ export default function App() {
 
   // Check auth session
   useEffect(() => {
+    if (configurationError) { setIsLoadingSession(false); return; }
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setIsLoadingSession(false);
-    });
+    }).catch(() => { setSession(null); setIsLoadingSession(false); });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
@@ -465,6 +396,8 @@ export default function App() {
 
   if (isLoadingSession) return <div className="min-h-screen flex items-center justify-center bg-slate-100"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
 
+  if (configurationError) return <div role="alert" className="min-h-screen flex items-center justify-center p-6 bg-slate-50"><div className="max-w-md rounded-2xl border bg-white p-6"><h1 className="font-bold text-xl">Configuración pendiente</h1><p className="text-slate-600 mt-2">Falta configurar la conexión del sistema. Contactá al administrador.</p></div></div>;
+
   if (!session) return <LoginScreen onLogin={() => { 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) setSession(session);
@@ -472,7 +405,7 @@ export default function App() {
     });
   }} />;
 
-  return <MainApp session={session} />;
+  return <MainApp key={session.user.id} session={session} />;
 }
 
 function MainApp({ session }: { session: any }) {
@@ -531,7 +464,7 @@ function MainApp({ session }: { session: any }) {
   const [batchFuelRows, setBatchFuelRows] = useState<Partial<FuelRecordModel>[]>([]);
 
   const [isDailyAgendaOpen, setIsDailyAgendaOpen] = useState(false);
-  const [dailyAgendaDate, setDailyAgendaDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [dailyAgendaDate, setDailyAgendaDate] = useState<string>(localDate());
 
   // Quick Add State
   const [isQuickAddModalOpen, setIsQuickAddModalOpen] = useState(false);
@@ -594,7 +527,7 @@ function MainApp({ session }: { session: any }) {
 
     } catch (error) {
       console.error("Error loading data:", error);
-      setDataError("Error de conexión. Si tu internet funciona bien, tu sesión caducó. Por favor cierra sesión y vuelve a ingresar.");
+      setDataError("No se pudieron actualizar los datos. Revisá la conexión y tus permisos de acceso. Los datos visibles pueden estar desactualizados.");
     } finally {
       setIsLoadingData(false);
     }
@@ -681,7 +614,7 @@ function MainApp({ session }: { session: any }) {
       ];
     });
 
-    downloadCSV([headers, ...rows], `reporte_dispatch_${new Date().toISOString().split('T')[0]}.csv`);
+    downloadCSV([headers, ...rows], `reporte_dispatch_${localDate()}.csv`);
   };
 
   const handleToggleNotified = async (matchId: string, role: 'driver' | 'nurse' | 'third', currentVal: boolean) => {
@@ -871,7 +804,7 @@ function MainApp({ session }: { session: any }) {
 
   const handleSaveFuelBatch = async () => {
     const newRecords = batchFuelRows.filter(r => r.liters && r.ambulanceId && r.driverId).map(r => ({
-      date: r.date || new Date().toISOString().split('T')[0],
+      date: r.date || localDate(),
       ambulance_id: r.ambulanceId,
       driver_id: r.driverId,
       fuel_type: r.fuelType || 'Euro Diesel',
@@ -1023,9 +956,9 @@ function MainApp({ session }: { session: any }) {
 
     let mileageLastUpdate = editingAmbulance?.maintenance?.mileageLastUpdate;
     if (newMileage && newMileage !== Number(editingAmbulance?.maintenance?.mileage)) {
-      mileageLastUpdate = new Date().toISOString().split('T')[0];
+      mileageLastUpdate = localDate();
     } else if (!editingAmbulance && newMileage) {
-      mileageLastUpdate = new Date().toISOString().split('T')[0];
+      mileageLastUpdate = localDate();
     }
 
     const payload = {
@@ -1335,7 +1268,7 @@ function MainApp({ session }: { session: any }) {
   const FuelBatchModal = () => {
     const addRow = () => {
       const lastRow = batchFuelRows[batchFuelRows.length - 1];
-      setBatchFuelRows([...batchFuelRows, { date: lastRow?.date || new Date().toISOString().split('T')[0], fuelType: 'Euro Diesel', liters: 0 }]);
+      setBatchFuelRows([...batchFuelRows, { date: lastRow?.date || localDate(), fuelType: 'Euro Diesel', liters: 0 }]);
     };
 
     const updateRow = (index: number, field: keyof FuelRecordModel, value: any) => {
@@ -1642,7 +1575,7 @@ function MainApp({ session }: { session: any }) {
   };
 
   return (
-    <div className="min-h-screen flex bg-slate-100 font-sans text-slate-900">
+    <div className="dispatch-shell min-h-screen flex font-sans text-slate-900">
 
       {isMobileMenuOpen && (
         <div
@@ -1652,7 +1585,7 @@ function MainApp({ session }: { session: any }) {
       )}
 
       {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-white transform transition-transform duration-200 ease-in-out lg:relative lg:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 dispatch-sidebar text-white transform transition-transform duration-200 ease-in-out lg:relative lg:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-6 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src="/logo.png" alt="Logo" className="h-10 w-auto object-contain bg-white rounded-lg p-1.5" />
@@ -1704,9 +1637,9 @@ function MainApp({ session }: { session: any }) {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 min-w-0 overflow-auto">
         {/* Header */}
-        <header className="bg-white border-b sticky top-0 z-30 px-6 py-4 flex items-center justify-between shadow-sm">
+        <header className="bg-white/95 backdrop-blur border-b border-slate-200 sticky top-0 z-30 px-4 md:px-6 py-3 flex items-center justify-between shadow-sm">
           <button className="lg:hidden text-slate-500" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
             <Menu className="w-6 h-6" />
           </button>
@@ -1719,10 +1652,11 @@ function MainApp({ session }: { session: any }) {
             {activeTab === 'locations' && 'Lugares y Sedes'}
             {activeTab === 'fuel' && 'Control de Combustible'}
             {activeTab === 'clients' && 'Gestión de Clientes'}
+            {activeTab === 'transfers' && 'Registro de Traslados'}
           </h2>
           <div className="flex items-center gap-3">
             <button
-              onClick={() => { setDailyAgendaDate(new Date().toISOString().split('T')[0]); setIsDailyAgendaOpen(true); }}
+              onClick={() => { setDailyAgendaDate(localDate()); setIsDailyAgendaOpen(true); }}
               className="flex items-center gap-2 px-3 py-2 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 text-sm font-medium transition-colors"
             >
               <Calendar className="w-4 h-4" /> Agenda Diaria
@@ -1764,8 +1698,13 @@ function MainApp({ session }: { session: any }) {
               {/* DASHBOARD */}
               {activeTab === 'dashboard' && (
                   <>
-                    <div className="mb-4 px-1">
-                      <h2 className="text-lg md:text-xl font-bold text-slate-800">Resumen Operativo</h2>
+                    <OperationsInsights matches={matches} transfers={transfers} fuelRecords={fuelRecords} ambulances={ambulances}
+                      onNewMatch={() => { setEditingMatch({ date: localDate() }); setIsMatchReadOnly(false); setIsMatchModalOpen(true); }}
+                      onNewTransfer={() => { setEditingTransfer({ date: localDate() }); setIsTransferModalOpen(true); }}
+                      onAgenda={() => { setFilters({ ...filters, startDate: localDate(), endDate: localDate(), status: 'all', location: '', ambulance: '', outsourced: 'all', clientId: '', staffId: '' }); handleNav('matches'); }}
+                      onFleet={() => handleNav('fleet')} />
+                    <div className="mb-2 px-1 pt-4">
+                      <h2 className="text-lg md:text-xl font-bold text-slate-800">En operación</h2>
                       <DashboardClock />
                     </div>
   
@@ -1777,8 +1716,8 @@ function MainApp({ session }: { session: any }) {
                         <div className="min-w-0">
                           <p className="text-xs text-slate-500 font-medium truncate">Pendientes</p>
                           <div className="flex flex-col md:flex-row md:items-baseline md:gap-2">
-                            <p className="text-lg md:text-xl font-bold text-slate-800 leading-none mt-0.5">{futureMatches.length}</p>
-                            <span className="text-[10px] text-slate-400 font-medium truncate mt-0.5">Hoy: {futureMatches.filter(m => m.date === new Date().toISOString().split('T')[0]).length}</span>
+                            <p className="text-lg md:text-xl font-bold text-slate-800 leading-none mt-0.5">{futureMatches.filter(m => m.status !== 'Suspended').length}</p>
+                            <span className="text-[10px] text-slate-400 font-medium truncate mt-0.5">Hoy: {futureMatches.filter(m => m.date === localDate() && m.status !== 'Suspended').length}</span>
                           </div>
                         </div>
                       </div>
@@ -1827,7 +1766,7 @@ function MainApp({ session }: { session: any }) {
                     </div>
 
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+                    <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 p-3 md:p-4">
                       <h3 className="text-lg font-bold mb-4">Coberturas Pendientes</h3>
                       <div className="space-y-3">
                         {futureMatches.filter(m => m.status !== 'Suspended').slice(0, 5).map(match => {
@@ -1837,7 +1776,7 @@ function MainApp({ session }: { session: any }) {
                             <div className="flex items-center gap-3">
                               <div className="flex flex-col items-center justify-center bg-white border border-slate-200 w-12 h-12 rounded-lg text-xs font-bold text-slate-700 shadow-sm">
                                 <span>{formatDateAR(match.date).split('/')[0]}</span>
-                                <span className="text-[10px] uppercase">{new Date(match.date).toLocaleString('es-AR', { month: 'short' })}</span>
+                                <span className="text-[10px] uppercase">{new Date(match.date + 'T12:00:00').toLocaleString('es-AR', { month: 'short' })}</span>
                               </div>
                               <div>
                                 <p className="font-semibold text-slate-800 flex items-center gap-2">
@@ -1875,7 +1814,7 @@ function MainApp({ session }: { session: any }) {
                             </div>
                             <p className="text-slate-600 font-medium mb-1">Todo al día</p>
                             <p className="text-slate-400 text-sm mb-4">No hay coberturas pendientes registradas.</p>
-                            <button onClick={() => { setEditingMatch({ date: new Date().toISOString().split('T')[0] }); setIsMatchModalOpen(true); }} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors flex items-center gap-2 shadow-sm">
+                            <button onClick={() => { setEditingMatch({ date: localDate() }); setIsMatchModalOpen(true); }} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors flex items-center gap-2 shadow-sm">
                               <Plus className="w-4 h-4" /> Nueva Cobertura
                             </button>
                           </div>

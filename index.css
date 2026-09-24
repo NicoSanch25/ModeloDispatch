@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@layer base {
+  body { font-family: ui-sans-serif, system-ui, sans-serif; }
+  button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+  :focus-visible { outline: 3px solid #6366f1; outline-offset: 3px; }
+  button:disabled { cursor: not-allowed; }
+  input, select, textarea { font-size: 16px; }
+}
+@layer components {
+  .dispatch-shell { background: radial-gradient(ellipse at top right, #e0e7ff55, transparent 55%), #f8fafc; }
+  .dispatch-sidebar { background: linear-gradient(170deg, #111c35, #0f172a 70%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { safeWebUrl } from '../../utils/security';
 import { Location, Match } from '../../types';
 import { MapPin, Phone, History, Edit2, X, ExternalLink, Calendar } from 'lucide-react';
 import { formatDateAR, formatTime24 } from '../../utils/formatters';
@@ -62,9 +63,9 @@ export const LocationDetailModal: React.FC<LocationDetailModalProps> = ({
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
-                                    {location.googleMapsUrl ? (
+                                    {safeWebUrl(location.googleMapsUrl) ? (
                                         <a
-                                            href={location.googleMapsUrl}
+                                            href={safeWebUrl(location.googleMapsUrl)}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="flex flex-col items-center justify-center p-4 bg-indigo-50 border border-indigo-100 rounded-xl text-indigo-700 hover:bg-indigo-100 transition-colors"
