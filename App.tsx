@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import type { LucideIcon } from 'lucide-react';
 import {
   Ambulance, Users, LayoutDashboard, Plus, AlertTriangle, Trash2, Edit2,
   Check, Clock, Menu, X, Send, Siren, Calendar, MapPin, Filter, Truck,
@@ -211,6 +212,37 @@ const getAmbulanceIcon = (vehicleType?: string, className: string = "w-6 h-6") =
   }
   return <Ambulance className={className} />;
 };
+
+interface SectionHeaderProps {
+  eyebrow: string;
+  title: string;
+  description: string;
+  icon: LucideIcon;
+  count?: number;
+  countLabel?: string;
+  actions?: React.ReactNode;
+}
+
+const SectionHeader = ({ eyebrow, title, description, icon: Icon, count, countLabel, actions }: SectionHeaderProps) => (
+  <section className="dispatch-section-header" aria-labelledby={`section-${eyebrow.replace(/\s+/g, '-').toLowerCase()}`}>
+    <div className="flex min-w-0 items-start gap-3">
+      <div className="dispatch-section-icon"><Icon className="h-5 w-5" /></div>
+      <div className="min-w-0">
+        <p className="dispatch-eyebrow">{eyebrow}</p>
+        <h2 id={`section-${eyebrow.replace(/\s+/g, '-').toLowerCase()}`} className="text-xl font-bold tracking-tight text-slate-900 md:text-2xl">{title}</h2>
+        <p className="mt-1 max-w-2xl text-sm text-slate-500">{description}</p>
+      </div>
+    </div>
+    <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+      {typeof count === 'number' && (
+        <div className="dispatch-count" aria-label={`${count} ${countLabel || 'registros'}`}>
+          <strong>{count}</strong><span>{countLabel || 'registros'}</span>
+        </div>
+      )}
+      {actions}
+    </div>
+  </section>
+);
 
 interface ConflictDetail {
   match: MatchModel;
@@ -1834,15 +1866,22 @@ function MainApp({ session }: { session: any }) {
               {/* MATCHES & HISTORY TABS */}
               {(activeTab === 'matches' || activeTab === 'history') && (
                 <div className="space-y-6">
-                  {/* ... [Matches Code remains the same] ... */}
+                  <SectionHeader
+                    eyebrow={activeTab === 'matches' ? 'Planificación' : 'Archivo operativo'}
+                    title={activeTab === 'matches' ? 'Agenda de coberturas' : 'Historial de servicios'}
+                    description={activeTab === 'matches' ? 'Organizá recursos, detectá cruces y confirmá cada servicio.' : 'Consultá servicios cerrados y exportá la información visible.'}
+                    icon={activeTab === 'matches' ? ClipboardCheck : History}
+                    count={filteredMatches.length}
+                    countLabel={filteredMatches.length === 1 ? 'servicio' : 'servicios'}
+                  />
                   <div className="flex flex-col gap-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div className="flex gap-2 items-center">
-                        <button onClick={() => setShowFilters(!showFilters)} className={`flex items-center gap-2 px-3 py-2 border rounded-lg text-sm font-medium transition-colors ${showFilters ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-slate-200 text-slate-700'}`}>
+                        <button onClick={() => setShowFilters(!showFilters)} className={`dispatch-secondary-action ${showFilters ? 'border-indigo-200 bg-indigo-50 text-indigo-700' : ''}`}>
                           <Filter className="w-4 h-4" /> Filtros
                         </button>
                         {activeTab === 'history' && (
-                          <button onClick={handleExportCSV} className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm font-medium hover:bg-green-100 transition-colors">
+                          <button onClick={handleExportCSV} className="dispatch-secondary-action border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800">
                             <FileSpreadsheet className="w-4 h-4" /> Exportar Excel
                           </button>
                         )}
@@ -1854,10 +1893,10 @@ function MainApp({ session }: { session: any }) {
                             setQuickAddDate(tmr.toISOString().split('T')[0]);
                             setQuickAddRows([{ id: Math.random().toString(), time: '14:00', location: '', fieldNumber: '', ambulanceId: '', driverId: '', nurseId: '', type: 'Partido de Polo' }]);
                             setIsQuickAddModalOpen(true);
-                          }} className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 shadow-md transition-all font-medium whitespace-nowrap">
+                          }} className="dispatch-secondary-action border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 hover:text-amber-900 whitespace-nowrap">
                             <Zap className="w-4 h-4 fill-white" /> Carga Rápida
                           </button>
-                          <button onClick={() => { setEditingMatch(null); setIsMatchModalOpen(true); }} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-md transition-all shadow-indigo-200 font-medium whitespace-nowrap">
+                          <button onClick={() => { setEditingMatch(null); setIsMatchModalOpen(true); }} className="dispatch-primary-action whitespace-nowrap">
                             <Plus className="w-5 h-5" /> Nueva Cobertura
                           </button>
                         </div>
@@ -1865,7 +1904,7 @@ function MainApp({ session }: { session: any }) {
                     </div>
 
                     {showFilters && (
-                      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm grid grid-cols-1 md:grid-cols-4 gap-4 animate-in slide-in-from-top-2">
+                      <div className="grid grid-cols-1 gap-4 rounded-2xl border border-indigo-100 bg-white p-4 shadow-sm md:grid-cols-4 animate-in slide-in-from-top-2">
                         <div>
                           <label className="block text-xs font-bold text-slate-500 mb-1">Rango de Fechas</label>
                           <div className="flex gap-2">
@@ -1927,12 +1966,12 @@ function MainApp({ session }: { session: any }) {
                       return (
                         <React.Fragment key={match.id}>
                           {showMonthHeader && (
-                            <div className="py-2 text-sm font-bold text-slate-400 uppercase tracking-wider border-b border-slate-200 mt-6 mb-2">
-                              {currentMonth}
+                            <div className="mt-6 mb-2 flex items-center gap-3 py-2 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+                              <span>{currentMonth}</span><span className="h-px flex-1 bg-slate-200" />
                             </div>
                           )}
 
-                          <div className={`bg-white rounded-xl shadow-sm border overflow-hidden hover:shadow-md transition-shadow group ${isSuspended ? 'border-slate-200 opacity-75 bg-slate-50' : 'border-slate-100'}`}>
+                          <div className={`dispatch-card overflow-hidden group ${isSuspended ? 'opacity-75 bg-slate-50' : ''}`}>
                             <div className="flex flex-col md:flex-row">
                               <div className="md:w-32 bg-slate-50 p-4 flex flex-row md:flex-col items-center md:justify-center justify-between border-b md:border-b-0 md:border-r border-slate-100 gap-2">
                                 <div className="text-center">
@@ -2124,18 +2163,17 @@ function MainApp({ session }: { session: any }) {
 
               {activeTab === 'fleet' && (
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-200">
-                    <h3 className="font-bold text-slate-700 flex items-center gap-2"><Truck className="w-5 h-5" /> Flota de Ambulancias</h3>
+                  <SectionHeader eyebrow="Recursos móviles" title="Flota de ambulancias" description="Estado operativo, mantenimiento y datos clave de cada unidad." icon={Truck} count={ambulances.length} countLabel={ambulances.length === 1 ? 'móvil' : 'móviles'} actions={
                     <button onClick={() => {
                       setEditingAmbulance(null);
                       setAmbFormShowOutsourced(false);
                       setAmbFormShowWorkshop(false);
                       setIsAmbulanceModalOpen(true);
-                    }} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium">Agregar Móvil</button>
-                  </div>
+                    }} className="dispatch-primary-action"><Plus className="h-4 w-4" /> Agregar móvil</button>
+                  } />
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {ambulances.map(amb => (
-                      <div key={amb.id} className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 hover:shadow-md transition-shadow relative overflow-hidden group">
+                      <div key={amb.id} className="dispatch-card p-4 relative overflow-hidden group border-t-4 border-t-indigo-400">
                         <div className="flex justify-between items-start mb-2">
                           <div className="bg-indigo-50 p-2 rounded-lg text-indigo-600">{getAmbulanceIcon(amb.vehicleType, "w-8 h-8")}</div>
                           <span className={`px-2 py-1 rounded text-xs font-bold border ${amb.maintenance?.status === 'Active' ? 'bg-green-50 text-green-700 border-green-200' : amb.maintenance?.status === 'InRepair' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
@@ -2144,8 +2182,8 @@ function MainApp({ session }: { session: any }) {
                         </div>
                         <h4 className="text-xl font-bold text-slate-800">Móvil {amb.number}</h4>
                         <p className="text-sm text-slate-500 font-medium mb-3">{amb.vehicleType || 'Vehículo'} {amb.year ? `(${amb.year})` : ''}</p>
-                        <button onClick={() => setViewingAmbulance(amb)} className="w-full mt-4 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-lg text-sm font-medium transition-colors border border-slate-200">
-                          Ver Detalles
+                        <button onClick={() => setViewingAmbulance(amb)} className="dispatch-secondary-action mt-4 w-full">
+                          Ver detalles <ArrowRight className="h-4 w-4" />
                         </button>
                       </div>
                     ))}
@@ -2156,13 +2194,12 @@ function MainApp({ session }: { session: any }) {
               {/* Other tabs remain identical... */}
               {activeTab === 'staff' && (
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-200">
-                    <h3 className="font-bold text-slate-700 flex items-center gap-2"><Users className="w-5 h-5" /> Personal</h3>
-                    <button onClick={() => { setEditingStaff(null); setIsStaffModalOpen(true); }} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium">Agregar Personal</button>
-                  </div>
+                  <SectionHeader eyebrow="Equipo" title="Personal" description="Choferes, enfermería y profesionales disponibles para asignar." icon={Users} count={staff.length} countLabel="personas" actions={
+                    <button onClick={() => { setEditingStaff(null); setIsStaffModalOpen(true); }} className="dispatch-primary-action"><UserPlus className="h-4 w-4" /> Agregar personal</button>
+                  } />
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {staff.map(s => (
-                      <div key={s.id} onClick={() => setViewingStaff(s)} className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex items-center gap-4 hover:shadow-md transition-shadow cursor-pointer relative group">
+                      <div key={s.id} onClick={() => setViewingStaff(s)} className="dispatch-card p-4 flex items-center gap-4 cursor-pointer relative group">
                         <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-sm ${s.role === 'Chofer' ? 'bg-slate-600' : s.role === 'Médico/a' ? 'bg-teal-500' : 'bg-indigo-500'}`}>{s.name.charAt(0)}</div>
                         <div>
                           <h4 className="font-bold text-slate-800">{s.name}</h4>
@@ -2177,14 +2214,13 @@ function MainApp({ session }: { session: any }) {
               )}
               {activeTab === 'locations' && (
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-200">
-                    <h3 className="font-bold text-slate-700 flex items-center gap-2"><MapPin className="w-5 h-5" /> Lugares</h3>
-                    <button onClick={() => { setEditingLocation(null); setIsLocationModalOpen(true); }} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium">Agregar Lugar</button>
-                  </div>
+                  <SectionHeader eyebrow="Cobertura territorial" title="Lugares y sedes" description="Accedé rápido a los puntos habituales y sus contactos operativos." icon={MapPin} count={locations.length} countLabel="lugares" actions={
+                    <button onClick={() => { setEditingLocation(null); setIsLocationModalOpen(true); }} className="dispatch-primary-action"><Plus className="h-4 w-4" /> Agregar lugar</button>
+                  } />
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {locations.map(l => (
-                      <div key={l.id} onClick={() => setViewingLocation(l)} className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 hover:shadow-md transition-shadow cursor-pointer">
-                        <h4 className="font-bold text-slate-800 flex items-center gap-2"><MapPin className="w-4 h-4 text-slate-400" /> {l.name}</h4>
+                      <div key={l.id} onClick={() => setViewingLocation(l)} className="dispatch-card cursor-pointer p-4">
+                        <h4 className="font-bold text-slate-800 flex items-center gap-2"><span className="rounded-lg bg-indigo-50 p-2 text-indigo-600"><MapPin className="w-4 h-4" /></span> {l.name}</h4>
                         {l.contactName && <p className="text-sm text-slate-600 mt-2">Contacto: {l.contactName}</p>}
                       </div>
                     ))}
@@ -2193,13 +2229,12 @@ function MainApp({ session }: { session: any }) {
               )}
               {activeTab === 'clients' && (
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-200">
-                    <h3 className="font-bold text-slate-700 flex items-center gap-2"><Building className="w-5 h-5" /> Clientes</h3>
-                    <button onClick={() => { setEditingClient(null); setIsClientModalOpen(true); }} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium">Agregar Cliente</button>
-                  </div>
+                  <SectionHeader eyebrow="Relaciones" title="Clientes" description="Datos de contacto y responsables de cada organización." icon={Building} count={clients.length} countLabel="clientes" actions={
+                    <button onClick={() => { setEditingClient(null); setIsClientModalOpen(true); }} className="dispatch-primary-action"><Plus className="h-4 w-4" /> Agregar cliente</button>
+                  } />
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {clients.map(c => (
-                      <div key={c.id} onClick={() => setViewingClient(viewingClient?.id === c.id ? null : c)} className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 hover:shadow-md transition-shadow cursor-pointer group relative">
+                      <div key={c.id} onClick={() => setViewingClient(viewingClient?.id === c.id ? null : c)} className="dispatch-card p-4 cursor-pointer group relative">
                         <div className="flex justify-between items-start">
                           <h4 className="font-bold text-slate-800 text-lg">{c.name}</h4>
                           <button onClick={(e) => { e.stopPropagation(); setEditingClient(c); setIsClientModalOpen(true); }} className="text-slate-300 hover:text-indigo-600"><Edit2 className="w-4 h-4" /></button>
@@ -2228,18 +2263,17 @@ function MainApp({ session }: { session: any }) {
               )}
               {activeTab === 'fuel' && (
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-200">
-                    <h3 className="font-bold text-slate-700 flex items-center gap-2"><Fuel className="w-5 h-5" /> Registro de Combustible</h3>
-                    <button onClick={() => setIsBatchFuelModalOpen(true)} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium">Carga Masiva</button>
-                  </div>
-                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                    <table className="w-full text-sm">
-                      <thead className="bg-slate-50 text-slate-600 font-medium border-b border-slate-200">
+                  <SectionHeader eyebrow="Consumo" title="Control de combustible" description="Revisá cargas por fecha, unidad y chofer desde un solo lugar." icon={Fuel} count={fuelRecords.length} countLabel="cargas" actions={
+                    <button onClick={() => setIsBatchFuelModalOpen(true)} className="dispatch-primary-action"><ListPlus className="h-4 w-4" /> Carga masiva</button>
+                  } />
+                  <div className="dispatch-table-wrap">
+                    <table className="dispatch-table">
+                      <thead>
                         <tr>
-                          <th className="p-3 text-left">Fecha</th>
-                          <th className="p-3 text-left">Móvil</th>
-                          <th className="p-3 text-left">Chofer</th>
-                          <th className="p-3 text-left">Litros</th>
+                          <th>Fecha</th>
+                          <th>Móvil</th>
+                          <th>Chofer</th>
+                          <th>Litros</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
@@ -2248,35 +2282,35 @@ function MainApp({ session }: { session: any }) {
                           const drv = staff.find(s => s.id === rec.driverId);
                           return (
                             <tr key={rec.id} className="hover:bg-slate-50">
-                              <td className="p-3">{formatDateAR(rec.date)}</td>
-                              <td className="p-3 font-medium text-slate-800">Móvil {amb?.number || '--'}</td>
-                              <td className="p-3">{drv?.name || '--'}</td>
-                              <td className="p-3 font-mono">{rec.liters.toFixed(2)}</td>
+                              <td>{formatDateAR(rec.date)}</td>
+                              <td className="font-semibold text-slate-800">Móvil {amb?.number || '--'}</td>
+                              <td>{drv?.name || '--'}</td>
+                              <td><span className="rounded-lg bg-cyan-50 px-2 py-1 font-mono font-semibold text-cyan-700">{rec.liters.toFixed(2)} L</span></td>
                             </tr>
                           );
                         })}
                       </tbody>
                     </table>
+                    {fuelRecords.length === 0 && <div className="p-10 text-center text-sm text-slate-500"><Droplet className="mx-auto mb-2 h-7 w-7 text-slate-300" />No hay cargas registradas.</div>}
                   </div>
                 </div>
               )}
               {activeTab === 'transfers' && (
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-200">
-                    <h3 className="font-bold text-slate-700 flex items-center gap-2"><Ambulance className="w-5 h-5" /> Registro de Traslados</h3>
-                    <button onClick={() => { setEditingTransfer(null); setIsTransferModalOpen(true); }} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium flex items-center gap-2"><Plus className="w-4 h-4"/> Nuevo Traslado</button>
-                  </div>
-                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                    <table className="w-full text-sm">
-                      <thead className="bg-slate-50 text-slate-600 font-medium border-b border-slate-200">
+                  <SectionHeader eyebrow="Movimientos" title="Registro de traslados" description="Seguimiento de pacientes, recorridos y estado de cada traslado." icon={Ambulance} count={transfers.length} countLabel="traslados" actions={
+                    <button onClick={() => { setEditingTransfer(null); setIsTransferModalOpen(true); }} className="dispatch-primary-action"><Plus className="w-4 h-4"/> Nuevo traslado</button>
+                  } />
+                  <div className="dispatch-table-wrap">
+                    <table className="dispatch-table min-w-[900px]">
+                      <thead>
                         <tr>
-                          <th className="p-3 text-left">Fecha</th>
-                          <th className="p-3 text-left">Paciente</th>
-                          <th className="p-3 text-left">Origen</th>
-                          <th className="p-3 text-left">Destino</th>
-                          <th className="p-3 text-left">Chofer</th>
-                          <th className="p-3 text-left">Estado</th>
-                          <th className="p-3 text-center">Acción</th>
+                          <th>Fecha</th>
+                          <th>Paciente</th>
+                          <th>Origen</th>
+                          <th>Destino</th>
+                          <th>Chofer</th>
+                          <th>Estado</th>
+                          <th className="text-center">Acción</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
@@ -2284,12 +2318,12 @@ function MainApp({ session }: { session: any }) {
                           const drv = staff.find(s => s.id === tr.driver_id);
                           return (
                             <tr key={tr.id} className="hover:bg-slate-50 transition-colors">
-                              <td className="p-3">{formatDateAR(tr.date)}</td>
-                              <td className="p-3 font-medium text-slate-800">{tr.patient_name || '--'}</td>
-                              <td className="p-3 text-slate-600">{tr.origin || '--'}</td>
-                              <td className="p-3 text-slate-600">{tr.destination || '--'}</td>
-                              <td className="p-3">{drv?.name || '--'}</td>
-                              <td className="p-3">
+                              <td>{formatDateAR(tr.date)}</td>
+                              <td className="font-semibold text-slate-800">{tr.patient_name || '--'}</td>
+                              <td className="text-slate-600">{tr.origin || '--'}</td>
+                              <td className="text-slate-600">{tr.destination || '--'}</td>
+                              <td>{drv?.name || '--'}</td>
+                              <td>
                                 <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                                   tr.status === 'Completed' ? 'bg-emerald-100 text-emerald-700' :
                                   tr.status === 'Cancelled' ? 'bg-red-100 text-red-700' :
@@ -2298,7 +2332,7 @@ function MainApp({ session }: { session: any }) {
                                   {tr.status === 'Completed' ? 'Completado' : tr.status === 'Cancelled' ? 'Cancelado' : 'Pendiente'}
                                 </span>
                               </td>
-                              <td className="p-3 text-center">
+                              <td className="text-center">
                                 <button onClick={() => { setEditingTransfer(tr); setIsTransferModalOpen(true); }} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Editar">
                                   <Edit2 className="w-4 h-4" />
                                 </button>
