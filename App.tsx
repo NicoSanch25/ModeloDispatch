@@ -6,7 +6,7 @@ import {
   History, ExternalLink, Car, Stethoscope, ChevronDown, XCircle, Phone, User,
   Wrench, Gauge, Activity, FileText, Shield, ClipboardCheck, Hash, AlertCircle,
   ArrowRightCircle, ClipboardList, Briefcase, History as HistoryIcon, ArrowRight,
-  Fuel, Droplet, ListPlus, Copy, FileStack, UserPlus, Clock4, BatteryCharging, Disc, Share2,
+  Fuel, Droplet, ListPlus, ReceiptText, Copy, FileStack, UserPlus, Clock4, BatteryCharging, Disc, Share2,
   AlertOctagon, Save, Building, FileSpreadsheet, Download, Ban, CalendarDays, Zap, Mail,
   Lock, Unlock, LogIn, Loader2, Key, Eye, EyeOff, HelpCircle
 } from 'lucide-react';
@@ -37,6 +37,7 @@ import { LocationDetailModal } from './src/components/modals/LocationDetailModal
 import { AmbulanceDetailModal } from './src/components/modals/AmbulanceDetailModal';
 import { ClientModal } from './src/components/modals/ClientModal';
 import { TransferModal } from './src/components/modals/TransferModal';
+import { FuelBatchModal } from './src/components/modals/FuelBatchModal';
 import { FleetStatusWidget } from './src/components/FleetStatusWidget';
 import { DashboardClock } from './src/components/DashboardClock';
 import { QuickAddModal, QuickAddRow } from './src/components/modals/QuickAddModal';
@@ -139,6 +140,7 @@ const mapFuelFromDB = (data: any): FuelRecordModel => ({
   date: data.date,
   ambulanceId: data.ambulance_id,
   driverId: data.driver_id,
+  externalDriverName: data.external_driver_name,
   fuelType: data.fuel_type,
   liters: Number(data.liters),
   items: data.items
@@ -218,12 +220,10 @@ interface SectionHeaderProps {
   title: string;
   description: string;
   icon: LucideIcon;
-  count?: number;
-  countLabel?: string;
   actions?: React.ReactNode;
 }
 
-const SectionHeader = ({ eyebrow, title, description, icon: Icon, count, countLabel, actions }: SectionHeaderProps) => (
+const SectionHeader = ({ eyebrow, title, description, icon: Icon, actions }: SectionHeaderProps) => (
   <section className="dispatch-section-header" aria-labelledby={`section-${eyebrow.replace(/\s+/g, '-').toLowerCase()}`}>
     <div className="flex min-w-0 items-start gap-3">
       <div className="dispatch-section-icon"><Icon className="h-5 w-5" /></div>
@@ -234,11 +234,6 @@ const SectionHeader = ({ eyebrow, title, description, icon: Icon, count, countLa
       </div>
     </div>
     <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
-      {typeof count === 'number' && (
-        <div className="dispatch-count" aria-label={`${count} ${countLabel || 'registros'}`}>
-          <strong>{count}</strong><span>{countLabel || 'registros'}</span>
-        </div>
-      )}
       {actions}
     </div>
   </section>
@@ -493,7 +488,6 @@ function MainApp({ session }: { session: any }) {
 
   const [isFuelModalOpen, setIsFuelModalOpen] = useState(false);
   const [isBatchFuelModalOpen, setIsBatchFuelModalOpen] = useState(false);
-  const [batchFuelRows, setBatchFuelRows] = useState<Partial<FuelRecordModel>[]>([]);
 
   const [isDailyAgendaOpen, setIsDailyAgendaOpen] = useState(false);
   const [dailyAgendaDate, setDailyAgendaDate] = useState<string>(localDate());
@@ -831,29 +825,6 @@ function MainApp({ session }: { session: any }) {
       setReportingMatch(null);
     } catch (err: any) {
       alert("Error guardando reporte: " + err.message);
-    }
-  };
-
-  const handleSaveFuelBatch = async () => {
-    const newRecords = batchFuelRows.filter(r => r.liters && r.ambulanceId && r.driverId).map(r => ({
-      date: r.date || localDate(),
-      ambulance_id: r.ambulanceId,
-      driver_id: r.driverId,
-      fuel_type: r.fuelType || 'Euro Diesel',
-      liters: Number(r.liters),
-      items: r.items
-    }));
-
-    if (newRecords.length === 0) return;
-
-    try {
-      const { error } = await supabase.from('fuel_records').insert(newRecords);
-      if (error) throw error;
-      await loadData();
-      setIsBatchFuelModalOpen(false);
-      setBatchFuelRows([]);
-    } catch (err: any) {
-      alert("Error guardando combustible: " + err.message);
     }
   };
 
@@ -1297,96 +1268,6 @@ function MainApp({ session }: { session: any }) {
     );
   };
 
-  const FuelBatchModal = () => {
-    const addRow = () => {
-      const lastRow = batchFuelRows[batchFuelRows.length - 1];
-      setBatchFuelRows([...batchFuelRows, { date: lastRow?.date || localDate(), fuelType: 'Euro Diesel', liters: 0 }]);
-    };
-
-    const updateRow = (index: number, field: keyof FuelRecordModel, value: any) => {
-      const newRows = [...batchFuelRows];
-      newRows[index] = { ...newRows[index], [field]: value };
-      setBatchFuelRows(newRows);
-    };
-
-    const removeRow = (index: number) => {
-      setBatchFuelRows(batchFuelRows.filter((_, i) => i !== index));
-    };
-
-    return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
-          <div className="p-4 border-b flex justify-between items-center bg-slate-50">
-            <h3 className="font-bold text-slate-800 flex items-center gap-2">
-              <ListPlus className="w-5 h-5 text-indigo-600" /> Carga Masiva de Combustible
-            </h3>
-            <button onClick={() => setIsBatchFuelModalOpen(false)}><X className="w-6 h-6" /></button>
-          </div>
-          <div className="p-4 overflow-x-auto flex-1">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-100 text-slate-600">
-                <tr>
-                  <th className="p-2 text-left rounded-l-lg">Fecha</th>
-                  <th className="p-2 text-left">Móvil</th>
-                  <th className="p-2 text-left">Chofer</th>
-                  <th className="p-2 text-left">Combustible</th>
-                  <th className="p-2 text-left">Litros</th>
-                  <th className="p-2 text-left">Items Extra</th>
-                  <th className="p-2 text-left rounded-r-lg"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {batchFuelRows.map((row, idx) => (
-                  <tr key={idx} className="group hover:bg-slate-50">
-                    <td className="p-2">
-                      <input type="date" value={row.date} onChange={(e) => updateRow(idx, 'date', e.target.value)} className="w-32 border rounded p-1" />
-                    </td>
-                    <td className="p-2">
-                      <select value={row.ambulanceId || ''} onChange={(e) => updateRow(idx, 'ambulanceId', e.target.value)} className="w-24 border rounded p-1">
-                        <option value="">Sel...</option>
-                        {ambulances.map(a => <option key={a.id} value={a.id}>{a.number}</option>)}
-                      </select>
-                    </td>
-                    <td className="p-2">
-                      <select value={row.driverId || ''} onChange={(e) => updateRow(idx, 'driverId', e.target.value)} className="w-32 border rounded p-1">
-                        <option value="">Sel...</option>
-                        {staff.filter(s => s.role === 'Chofer').map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                      </select>
-                    </td>
-                    <td className="p-2">
-                      <select value={row.fuelType} onChange={(e) => updateRow(idx, 'fuelType', e.target.value)} className="w-32 border rounded p-1">
-                        <option value="Euro Diesel">Euro Diesel</option>
-                        <option value="Nafta Super">Nafta Super</option>
-                        <option value="Nafta Premium">Nafta Premium</option>
-                      </select>
-                    </td>
-                    <td className="p-2">
-                      <input type="number" value={row.liters} onChange={(e) => updateRow(idx, 'liters', e.target.value)} className="w-20 border rounded p-1" step="0.1" />
-                    </td>
-                    <td className="p-2">
-                      <input type="text" value={row.items || ''} onChange={(e) => updateRow(idx, 'items', e.target.value)} placeholder="Ej: Aceite" className="w-32 border rounded p-1" />
-                    </td>
-                    <td className="p-2">
-                      <button onClick={() => removeRow(idx)} className="text-red-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            <button onClick={addRow} className="mt-4 flex items-center gap-2 text-indigo-600 font-medium hover:text-indigo-800">
-              <Plus className="w-4 h-4" /> Agregar Fila
-            </button>
-          </div>
-          <div className="p-4 border-t bg-slate-50 flex justify-end gap-3">
-            <button onClick={() => setIsBatchFuelModalOpen(false)} className="px-4 py-2 text-slate-600">Cancelar</button>
-            <button onClick={handleSaveFuelBatch} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Guardar Todo</button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   const AuditModal = () => {
     // ... [No changes needed]
     if (!isAuditModalOpen || !viewingAuditMatch) return null;
@@ -1730,14 +1611,15 @@ function MainApp({ session }: { session: any }) {
               {/* DASHBOARD */}
               {activeTab === 'dashboard' && (
                   <>
-                    <OperationsInsights matches={matches} transfers={transfers} fuelRecords={fuelRecords} ambulances={ambulances}
-                      onNewMatch={() => { setEditingMatch({ date: localDate() }); setIsMatchReadOnly(false); setIsMatchModalOpen(true); }}
-                      onNewTransfer={() => { setEditingTransfer({ date: localDate() }); setIsTransferModalOpen(true); }}
-                      onAgenda={() => { setFilters({ ...filters, startDate: localDate(), endDate: localDate(), status: 'all', location: '', ambulance: '', outsourced: 'all', clientId: '', staffId: '' }); handleNav('matches'); }}
-                      onFleet={() => handleNav('fleet')} />
-                    <div className="mb-2 px-1 pt-4">
-                      <h2 className="text-lg md:text-xl font-bold text-slate-800">En operación</h2>
-                      <DashboardClock />
+                    <div className="mb-3 flex flex-wrap items-end justify-between gap-2 px-1">
+                      <div>
+                        <h2 className="text-lg md:text-xl font-bold text-slate-800">En operación</h2>
+                        <DashboardClock />
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => { setEditingTransfer({ date: localDate() }); setIsTransferModalOpen(true); }} className="dispatch-secondary-action"><Truck className="h-4 w-4" /> Traslado</button>
+                        <button onClick={() => { setEditingMatch({ date: localDate() }); setIsMatchReadOnly(false); setIsMatchModalOpen(true); }} className="dispatch-primary-action"><Plus className="h-4 w-4" /> Cobertura</button>
+                      </div>
                     </div>
   
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-3 mb-4">
@@ -1860,6 +1742,9 @@ function MainApp({ session }: { session: any }) {
                         onAmbulanceClick={(amb) => setViewingAmbulance(amb)}
                       />
                     </div>
+                    <OperationsInsights matches={matches} transfers={transfers} fuelRecords={fuelRecords} ambulances={ambulances}
+                      onAgenda={() => { setFilters({ ...filters, startDate: localDate(), endDate: localDate(), status: 'all', location: '', ambulance: '', outsourced: 'all', clientId: '', staffId: '' }); handleNav('matches'); }}
+                      onFleet={() => handleNav('fleet')} />
                   </>
                 )}
 
@@ -1871,8 +1756,6 @@ function MainApp({ session }: { session: any }) {
                     title={activeTab === 'matches' ? 'Agenda de coberturas' : 'Historial de servicios'}
                     description={activeTab === 'matches' ? 'Organizá recursos, detectá cruces y confirmá cada servicio.' : 'Consultá servicios cerrados y exportá la información visible.'}
                     icon={activeTab === 'matches' ? ClipboardCheck : History}
-                    count={filteredMatches.length}
-                    countLabel={filteredMatches.length === 1 ? 'servicio' : 'servicios'}
                   />
                   <div className="flex flex-col gap-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
@@ -2163,7 +2046,7 @@ function MainApp({ session }: { session: any }) {
 
               {activeTab === 'fleet' && (
                 <div className="space-y-4">
-                  <SectionHeader eyebrow="Recursos móviles" title="Flota de ambulancias" description="Estado operativo, mantenimiento y datos clave de cada unidad." icon={Truck} count={ambulances.length} countLabel={ambulances.length === 1 ? 'móvil' : 'móviles'} actions={
+                  <SectionHeader eyebrow="Recursos móviles" title="Flota de ambulancias" description="Estado operativo, mantenimiento y datos clave de cada unidad." icon={Truck} actions={
                     <button onClick={() => {
                       setEditingAmbulance(null);
                       setAmbFormShowOutsourced(false);
@@ -2194,7 +2077,7 @@ function MainApp({ session }: { session: any }) {
               {/* Other tabs remain identical... */}
               {activeTab === 'staff' && (
                 <div className="space-y-4">
-                  <SectionHeader eyebrow="Equipo" title="Personal" description="Choferes, enfermería y profesionales disponibles para asignar." icon={Users} count={staff.length} countLabel="personas" actions={
+                  <SectionHeader eyebrow="Equipo" title="Personal" description="Choferes, enfermería y profesionales disponibles para asignar." icon={Users} actions={
                     <button onClick={() => { setEditingStaff(null); setIsStaffModalOpen(true); }} className="dispatch-primary-action"><UserPlus className="h-4 w-4" /> Agregar personal</button>
                   } />
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -2214,7 +2097,7 @@ function MainApp({ session }: { session: any }) {
               )}
               {activeTab === 'locations' && (
                 <div className="space-y-4">
-                  <SectionHeader eyebrow="Cobertura territorial" title="Lugares y sedes" description="Accedé rápido a los puntos habituales y sus contactos operativos." icon={MapPin} count={locations.length} countLabel="lugares" actions={
+                  <SectionHeader eyebrow="Cobertura territorial" title="Lugares y sedes" description="Accedé rápido a los puntos habituales y sus contactos operativos." icon={MapPin} actions={
                     <button onClick={() => { setEditingLocation(null); setIsLocationModalOpen(true); }} className="dispatch-primary-action"><Plus className="h-4 w-4" /> Agregar lugar</button>
                   } />
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -2229,7 +2112,7 @@ function MainApp({ session }: { session: any }) {
               )}
               {activeTab === 'clients' && (
                 <div className="space-y-4">
-                  <SectionHeader eyebrow="Relaciones" title="Clientes" description="Datos de contacto y responsables de cada organización." icon={Building} count={clients.length} countLabel="clientes" actions={
+                  <SectionHeader eyebrow="Relaciones" title="Clientes" description="Datos de contacto y responsables de cada organización." icon={Building} actions={
                     <button onClick={() => { setEditingClient(null); setIsClientModalOpen(true); }} className="dispatch-primary-action"><Plus className="h-4 w-4" /> Agregar cliente</button>
                   } />
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -2263,10 +2146,30 @@ function MainApp({ session }: { session: any }) {
               )}
               {activeTab === 'fuel' && (
                 <div className="space-y-4">
-                  <SectionHeader eyebrow="Consumo" title="Control de combustible" description="Revisá cargas por fecha, unidad y chofer desde un solo lugar." icon={Fuel} count={fuelRecords.length} countLabel="cargas" actions={
-                    <button onClick={() => setIsBatchFuelModalOpen(true)} className="dispatch-primary-action"><ListPlus className="h-4 w-4" /> Carga masiva</button>
+                  <SectionHeader eyebrow="Consumo" title="Combustible y compras" description="Registrá cargas y compras de estación de forma rápida." icon={Fuel} actions={
+                    <button onClick={() => setIsBatchFuelModalOpen(true)} className="dispatch-primary-action"><ListPlus className="h-4 w-4" /> Nueva carga</button>
                   } />
-                  <div className="dispatch-table-wrap">
+                  <div className="space-y-2 sm:hidden">
+                    {[...fuelRecords].reverse().map(rec => {
+                      const amb = ambulances.find(a => a.id === rec.ambulanceId);
+                      const drv = staff.find(s => s.id === rec.driverId);
+                      return (
+                        <article key={rec.id} className="dispatch-card p-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-xs font-semibold text-slate-400">{formatDateAR(rec.date)}</p>
+                              <h3 className="font-bold text-slate-900">Móvil {amb?.number || '--'}</h3>
+                              <p className="mt-0.5 text-sm text-slate-600">{drv?.name || rec.externalDriverName || 'Chofer sin indicar'}</p>
+                            </div>
+                            {rec.liters > 0 ? <span className="shrink-0 rounded-lg bg-cyan-50 px-2 py-1 font-mono text-sm font-semibold text-cyan-700">{rec.liters.toFixed(2)} L</span> : <span className="shrink-0 rounded-lg bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700">Compra</span>}
+                          </div>
+                          {rec.items && <p className="mt-2 flex items-center gap-2 rounded-lg bg-slate-50 px-2.5 py-2 text-sm text-slate-700"><ReceiptText className="h-4 w-4 shrink-0 text-slate-400" /> {rec.items}</p>}
+                        </article>
+                      );
+                    })}
+                    {fuelRecords.length === 0 && <div className="dispatch-card p-10 text-center text-sm text-slate-500"><Droplet className="mx-auto mb-2 h-7 w-7 text-slate-300" />No hay movimientos registrados.</div>}
+                  </div>
+                  <div className="dispatch-table-wrap hidden sm:block">
                     <table className="dispatch-table">
                       <thead>
                         <tr>
@@ -2274,6 +2177,7 @@ function MainApp({ session }: { session: any }) {
                           <th>Móvil</th>
                           <th>Chofer</th>
                           <th>Litros</th>
+                          <th>Compra</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
@@ -2284,20 +2188,21 @@ function MainApp({ session }: { session: any }) {
                             <tr key={rec.id} className="hover:bg-slate-50">
                               <td>{formatDateAR(rec.date)}</td>
                               <td className="font-semibold text-slate-800">Móvil {amb?.number || '--'}</td>
-                              <td>{drv?.name || '--'}</td>
-                              <td><span className="rounded-lg bg-cyan-50 px-2 py-1 font-mono font-semibold text-cyan-700">{rec.liters.toFixed(2)} L</span></td>
+                              <td>{drv?.name || rec.externalDriverName || '--'}</td>
+                              <td>{rec.liters > 0 ? <span className="rounded-lg bg-cyan-50 px-2 py-1 font-mono font-semibold text-cyan-700">{rec.liters.toFixed(2)} L</span> : '—'}</td>
+                              <td>{rec.items || '—'}</td>
                             </tr>
                           );
                         })}
                       </tbody>
                     </table>
-                    {fuelRecords.length === 0 && <div className="p-10 text-center text-sm text-slate-500"><Droplet className="mx-auto mb-2 h-7 w-7 text-slate-300" />No hay cargas registradas.</div>}
+                    {fuelRecords.length === 0 && <div className="p-10 text-center text-sm text-slate-500"><Droplet className="mx-auto mb-2 h-7 w-7 text-slate-300" />No hay movimientos registrados.</div>}
                   </div>
                 </div>
               )}
               {activeTab === 'transfers' && (
                 <div className="space-y-4">
-                  <SectionHeader eyebrow="Movimientos" title="Registro de traslados" description="Seguimiento de pacientes, recorridos y estado de cada traslado." icon={Ambulance} count={transfers.length} countLabel="traslados" actions={
+                  <SectionHeader eyebrow="Movimientos" title="Registro de traslados" description="Seguimiento de pacientes, recorridos y estado de cada traslado." icon={Ambulance} actions={
                     <button onClick={() => { setEditingTransfer(null); setIsTransferModalOpen(true); }} className="dispatch-primary-action"><Plus className="w-4 h-4"/> Nuevo traslado</button>
                   } />
                   <div className="dispatch-table-wrap">
@@ -2398,7 +2303,13 @@ function MainApp({ session }: { session: any }) {
           existingMatches={matches}
         />
       )}
-      {isBatchFuelModalOpen && <FuelBatchModal />}
+      <FuelBatchModal
+        isOpen={isBatchFuelModalOpen}
+        onClose={() => setIsBatchFuelModalOpen(false)}
+        onSaveSuccess={loadData}
+        staff={staff}
+        ambulances={ambulances}
+      />
       {isChangePasswordOpen && <ChangePasswordModal />}
       {viewingStaff && <StaffHistoryModal />}
       {viewingAmbulance && (

@@ -115,7 +115,8 @@ export interface FuelRecord {
   id: string;
   date: string; // YYYY-MM-DD
   ambulanceId: string;
-  driverId: string;
+  driverId?: string;
+  externalDriverName?: string;
   fuelType: string; // 'Euro Diesel', 'Nafta Super', etc.
   liters: number;
   items?: string; // Extra items like "Franela", "Aceite"

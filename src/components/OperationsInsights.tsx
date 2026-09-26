@@ -1,14 +1,14 @@
 import React, { useMemo, useState } from 'react';
-import { Activity, ArrowUpRight, BarChart3, CalendarDays, Droplet, Plus, Truck, AlertCircle } from 'lucide-react';
+import { Activity, ArrowUpRight, BarChart3, CalendarDays, Droplet, Truck, AlertCircle } from 'lucide-react';
 import type { Ambulance, FuelRecord, Match, Transfer } from '../types';
 import { localDate, summarizeOperations } from '../utils/statistics';
 
 interface Props {
   matches: Match[]; transfers: Transfer[]; fuelRecords: FuelRecord[]; ambulances: Ambulance[];
-  onNewMatch: () => void; onNewTransfer: () => void; onAgenda: () => void; onFleet: () => void;
+  onAgenda: () => void; onFleet: () => void;
 }
 
-export function OperationsInsights({ matches, transfers, fuelRecords, ambulances, onNewMatch, onNewTransfer, onAgenda, onFleet }: Props) {
+export function OperationsInsights({ matches, transfers, fuelRecords, ambulances, onAgenda, onFleet }: Props) {
   const [days, setDays] = useState(7);
   const today = localDate();
   const summary = useMemo(() => summarizeOperations(matches, transfers, fuelRecords, today, days), [matches, transfers, fuelRecords, today, days]);
@@ -17,17 +17,6 @@ export function OperationsInsights({ matches, transfers, fuelRecords, ambulances
   const max = Math.max(1, ...summary.series.map(d => d.coverage + d.transfers));
   const number = (value: number) => value.toLocaleString('es-AR', { maximumFractionDigits: 1 });
   return <section className="space-y-4" aria-label="Resumen de operaciones">
-    <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-      <div>
-        <p className="text-xs font-semibold tracking-widest text-indigo-600 uppercase">Centro de operaciones</p>
-        <h2 className="text-2xl font-bold tracking-tight text-slate-900 mt-1">Cada servicio, bajo control.</h2>
-        <p className="text-sm text-slate-500 mt-1">Planificá el día y seguí la actividad de tu equipo.</p>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        <button onClick={onNewTransfer} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold hover:bg-slate-50"><Truck size={16} /> Traslado</button>
-        <button onClick={onNewMatch} className="flex items-center gap-2 rounded-xl bg-indigo-600 px-3 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"><Plus size={16} /> Cobertura</button>
-      </div>
-    </div>
     <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
       <div className="flex flex-wrap justify-between items-center gap-2 px-4 py-3 border-b border-slate-100">
         <h3 className="font-semibold flex items-center gap-2 text-slate-800"><BarChart3 size={18} className="text-indigo-500" /> Actividad del período</h3>
