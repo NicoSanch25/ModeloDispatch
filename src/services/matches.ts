@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { Match, MatchType } from '../types';
+import { getConflicts, checkSystemConflicts } from '../utils/scheduling';
 
 // --- MAPPERS ---
 const mapMatchFromDB = (data: any): Match => {
@@ -74,65 +75,9 @@ export const timeUtils = {
     }
 };
 
-interface ConflictDetail {
-    match: Match;
-    resources: string[];
-}
-
 export const matchHelpers = {
-    getConflicts(currentMatch: Match, allMatches: Match[]) {
-        if (currentMatch.status === 'Suspended') return { hard: [], shared: [] };
-
-        const currentStart = timeUtils.timeToMinutes(currentMatch.time);
-        const currentEnd = currentStart + (currentMatch.durationMinutes || 90) + (currentMatch.extensionMinutes || 0) + 15;
-
-        const hard: ConflictDetail[] = [];
-        const shared: ConflictDetail[] = [];
-
-        const loc1 = (currentMatch.location || '').trim().toLowerCase();
-        const field1 = (currentMatch.fieldNumber || '').trim().toLowerCase();
-
-        allMatches.forEach(other => {
-            if (other.id === currentMatch.id || other.date !== currentMatch.date) return;
-            if (other.status === 'Suspended') return;
-
-            const otherStart = timeUtils.timeToMinutes(other.time);
-            const otherEnd = otherStart + (other.durationMinutes || 90) + (other.extensionMinutes || 0) + 15;
-
-            if (!(currentStart < otherEnd && currentEnd > otherStart)) return;
-
-            const conflictingResources: string[] = [];
-            if (currentMatch.driverId && currentMatch.driverId === other.driverId) conflictingResources.push("Chofer");
-            if (currentMatch.nurseId && currentMatch.nurseId === other.nurseId) conflictingResources.push("Enfermero/a");
-            if (currentMatch.thirdCrewId && currentMatch.thirdCrewId === other.thirdCrewId) conflictingResources.push("Auxiliar");
-            if (currentMatch.ambulanceId && currentMatch.ambulanceId === other.ambulanceId) conflictingResources.push("Móvil");
-
-            if (conflictingResources.length > 0) {
-                const loc2 = (other.location || '').trim().toLowerCase();
-                const field2 = (other.fieldNumber || '').trim().toLowerCase();
-
-                if (loc1 === loc2) {
-                    if (field1 && field2 && field1 !== field2) {
-                        shared.push({ match: other, resources: conflictingResources });
-                        return;
-                    }
-                }
-                hard.push({ match: other, resources: conflictingResources });
-            }
-        });
-
-        return { hard, shared };
-    },
-
-    checkSystemConflicts(matches: Match[]) {
-        const todayStr = new Date().toISOString().split('T')[0];
-        const relevantMatches = matches.filter(m => m.date >= todayStr && m.status !== 'Suspended');
-        let count = 0;
-        for (const match of relevantMatches) {
-            if (this.getConflicts(match, matches).hard.length > 0) count++;
-        }
-        return count;
-    },
+    getConflicts,
+    checkSystemConflicts,
 
     getStaffHistory(staffId: string, matches: Match[]) {
         return matches.filter(m =>
@@ -195,23 +140,35 @@ export const matchesService = {
             status: finalData.status,
             suspension_reason: finalData.suspensionReason,
             is_single_crew: finalData.isSingleCrew,
-            driver_notified: finalData.driverNotified || false,
-            nurse_notified: finalData.nurseNotified || false,
-            client_id: finalData.clientId || null,
-            ambulance_id: finalData.ambulanceId || null,
-            driver_id: finalData.driverId || null,
-            nurse_id: finalData.nurseId || null,
-            third_crew_id: finalData.thirdCrewId || null,
+            driver_notified: finalData.driverNotified,
+            nurse_notified: finalData.nurseNotified,
+            client_id: finalData.clientId === undefined ? undefined : finalData.clientId || null,
+            ambulance_id: finalData.ambulanceId === undefined ? undefined : finalData.ambulanceId || null,
+            driver_id: finalData.driverId === undefined ? undefined : finalData.driverId || null,
+            nurse_id: finalData.nurseId === undefined ? undefined : finalData.nurseId || null,
+            third_crew_id: finalData.thirdCrewId === undefined ? undefined : finalData.thirdCrewId || null,
             hired_by: finalData.hiredBy,
             hired_contact: finalData.hiredContact,
-            has_incident: finalData.incidentReport?.hasIncident || false,
-            was_transferred: finalData.incidentReport?.wasTransferred || false,
-            incident_details: finalData.incidentReport?.details || ''
+            has_incident: finalData.incidentReport?.hasIncident,
+            was_transferred: finalData.incidentReport?.wasTransferred,
+            incident_details: finalData.incidentReport?.details
         };
+
+        if (matchData.type === undefined) delete payload.chukkers;
+        for (const key of Object.keys(payload)) {
+            if (payload[key] === undefined) delete payload[key];
+        }
+        if (!matchData.id) {
+            payload.driver_notified ??= false;
+            payload.nurse_notified ??= false;
+            payload.has_incident ??= false;
+            payload.was_transferred ??= false;
+            payload.incident_details ??= '';
+        }
 
         if (matchData.id) {
             // Update
-            const { error } = await supabase.from('matches').update(payload).eq('id', matchData.id);
+            const { error } = await supabase.from('matches').update(payload).eq('id', matchData.id).select('id').single();
             if (error) throw error;
             return { id: matchData.id, ...finalData }; // Return optimistic
         } else {
@@ -227,10 +184,16 @@ export const matchesService = {
         if (error) throw error;
     },
 
+    async setNotified(matchId: string, flags: { driver_notified?: boolean; nurse_notified?: boolean }) {
+        const { error } = await supabase.from('matches').update(flags).eq('id', matchId).select('id').single();
+        if (error) throw error;
+    },
+
     async addAuditLog(matchId: string, changes: string) {
-        await supabase.from('audit_logs').insert({
+        const { error } = await supabase.from('audit_logs').insert({
             match_id: matchId,
             changes
         });
+        if (error) throw error;
     }
 };

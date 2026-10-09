@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+﻿import React, { useState, useRef } from 'react';
 import { Client } from '../../types';
 import { Building, X } from 'lucide-react';
 import { resourceService } from '../../services/resources';
@@ -11,9 +11,10 @@ interface ClientModalProps {
 }
 
 export const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSaveSuccess, editingClient }) => {
-    if (!isOpen) return null;
-
     const [isLoading, setIsLoading] = useState(false);
+    const submitting = useRef(false);
+
+    if (!isOpen) return null;
 
     const handleDelete = async () => {
         if (!editingClient?.id) return;
@@ -26,12 +27,15 @@ export const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSav
         } catch (err: any) {
             alert('Error al eliminar: ' + err.message);
         } finally {
+            submitting.current = false;
             setIsLoading(false);
         }
     };
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
+        if (submitting.current) return;
+        submitting.current = true;
         setIsLoading(true);
         const formData = new FormData(e.currentTarget);
 
@@ -51,6 +55,7 @@ export const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSav
         } catch (error: any) {
             alert('Error guardando cliente: ' + error.message);
         } finally {
+            submitting.current = false;
             setIsLoading(false);
         }
     };
@@ -73,7 +78,7 @@ export const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSav
                     {/* Body */}
                     <div className="p-6 space-y-5 overflow-y-auto">
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre / RazÃ³n Social</label>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre / Razón Social</label>
                             <input name="name" defaultValue={editingClient?.name} required className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
                         </div>
 
@@ -83,7 +88,7 @@ export const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSav
                                 <input name="contactName" defaultValue={editingClient?.contactName} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Contacto TelÃ©fono</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Contacto Teléfono</label>
                                 <input name="contactPhone" defaultValue={editingClient?.contactPhone} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
                             </div>
                         </div>
@@ -95,7 +100,7 @@ export const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSav
 
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Notas Internas</label>
-                            <textarea name="notes" defaultValue={editingClient?.notes} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none h-24 resize-none" placeholder="InformaciÃ³n adicional..." />
+                            <textarea name="notes" defaultValue={editingClient?.notes} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none h-24 resize-none" placeholder="Información adicional..." />
                         </div>
                     </div>
 

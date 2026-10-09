@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Save, Trash2, Ambulance } from 'lucide-react';
 import { Transfer, Staff } from '../../types';
+import { localDate } from '../../utils/statistics';
+import { DateInput } from '../DateInput';
 
 interface TransferModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (transfer: Partial<Transfer>) => void;
+    onSave: (transfer: Partial<Transfer>) => Promise<void>;
     onDelete?: (id: string) => void;
     transfer: Partial<Transfer> | null;
     staff: Staff[];
@@ -15,21 +17,25 @@ export const TransferModal: React.FC<TransferModalProps> = ({
     isOpen, onClose, onSave, onDelete, transfer, staff
 }) => {
     const [formData, setFormData] = useState<Partial<Transfer>>({
-        date: new Date().toISOString().split('T')[0],
+        date: localDate(),
         status: 'Pending',
         ambulance_type: 'S/M'
     });
+    const [isSaving, setIsSaving] = useState(false);
+    const [error, setError] = useState('');
+    const submitting = useRef(false);
 
     useEffect(() => {
+        setError('');
         if (transfer) {
             setFormData({
-                date: new Date().toISOString().split('T')[0],
+                date: localDate(),
                 status: 'Pending',
                 ...transfer
             });
         } else {
             setFormData({
-                date: new Date().toISOString().split('T')[0],
+                date: localDate(),
                 status: 'Pending',
                 ambulance_type: 'S/M'
             });
@@ -38,9 +44,20 @@ export const TransferModal: React.FC<TransferModalProps> = ({
 
     if (!isOpen) return null;
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        onSave(formData);
+        if (submitting.current) return;
+        submitting.current = true;
+        setIsSaving(true);
+        setError('');
+        try {
+            await onSave(formData);
+        } catch {
+            setError('No se pudo guardar el traslado. Revisá la conexión y volvé a intentar.');
+        } finally {
+            submitting.current = false;
+            setIsSaving(false);
+        }
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -61,12 +78,13 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                         <Ambulance className="w-5 h-5 text-indigo-600" />
                         {transfer?.id ? 'Editar Traslado' : 'Nuevo Traslado'}
                     </h3>
-                    <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                    <button onClick={onClose} disabled={isSaving} aria-label="Cerrar traslado" className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-50">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar">
+                    {error && <p role="alert" className="mb-3 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
                     <form id="transfer-form" onSubmit={handleSubmit} className="space-y-6">
                         
                         {/* Status & Header info */}
@@ -77,7 +95,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Fecha *</label>
-                                <input type="date" name="date" required value={formData.date || ''} onChange={handleChange} className="w-full p-2 border border-slate-200 rounded-lg bg-white" />
+                                <DateInput name="date" aria-label="Fecha de traslado" required value={formData.date || ''} onChange={handleChange} className="w-full p-2 border border-slate-200 rounded-lg bg-white" />
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Estado</label>
@@ -228,6 +246,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                             <button
                                 type="button"
                                 onClick={() => onDelete(transfer.id as string)}
+                                disabled={isSaving}
                                 className="flex items-center gap-2 px-4 py-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg text-sm font-medium transition-colors w-full sm:w-auto justify-center"
                             >
                                 <Trash2 className="w-4 h-4" /> Eliminar
@@ -238,6 +257,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                         <button
                             type="button"
                             onClick={onClose}
+                            disabled={isSaving}
                             className="px-6 py-2 border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 rounded-lg text-sm font-medium transition-colors"
                         >
                             Cancelar
@@ -245,10 +265,11 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                         <button
                             type="submit"
                             form="transfer-form"
+                            disabled={isSaving}
                             className="flex items-center justify-center gap-2 px-6 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm"
                         >
                             <Save className="w-4 h-4" />
-                            Guardar Traslado
+                            {isSaving ? 'Guardando…' : 'Guardar Traslado'}
                         </button>
                     </div>
                 </div>

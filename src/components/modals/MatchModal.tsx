@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Match, MatchType, Location, Client, Staff, Ambulance } from '../../types';
 import { X, Lock, Unlock, Briefcase, Siren, Trash2, UserPlus } from 'lucide-react';
 import { matchesService } from '../../services/matches';
 import { resourceService } from '../../services/resources';
+import { localDate } from '../../utils/statistics';
+import { DateInput } from '../DateInput';
 
 interface MatchModalProps {
     isOpen: boolean;
@@ -18,14 +20,13 @@ interface MatchModalProps {
 export const MatchModal: React.FC<MatchModalProps> = ({
     isOpen, onClose, onSaveSuccess, editingMatch, locations, clients, staff, ambulances
 }) => {
-    if (!isOpen) return null;
-
     const [isReadOnly, setIsReadOnly] = useState(false);
     const [showChukkers, setShowChukkers] = useState(false);
     const [showSuspensionReason, setShowSuspensionReason] = useState(false);
     const [statusValue, setStatusValue] = useState(editingMatch?.status || 'Pending');
     const [typeValue, setTypeValue] = useState(editingMatch?.type || 'Partido de Polo');
     const [isLoading, setIsLoading] = useState(false);
+    const submitting = useRef(false);
 
     useEffect(() => {
         if (editingMatch && editingMatch.status === 'Completed') {
@@ -40,10 +41,12 @@ export const MatchModal: React.FC<MatchModalProps> = ({
         const type = editingMatch?.type || 'Partido de Polo';
         setTypeValue(type);
         setShowChukkers(type.includes('Polo'));
-    }, [editingMatch]);
+    }, [editingMatch, isOpen]);
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
+        if (isReadOnly || submitting.current) return;
+        submitting.current = true;
         setIsLoading(true);
         const formData = new FormData(e.currentTarget);
 
@@ -79,7 +82,9 @@ export const MatchModal: React.FC<MatchModalProps> = ({
                 }
             }
 
-            // 2. Handle Audit Logs (only on update)
+            // Persist first; a failed save must not create a log claiming it succeeded.
+            await matchesService.saveMatch(matchData);
+
             if (editingMatch && editingMatch.id) {
                 const changes: string[] = [];
                 const norm = (val: any) => (val || '').toString().trim();
@@ -87,31 +92,38 @@ export const MatchModal: React.FC<MatchModalProps> = ({
                 const d = matchData;
 
                 if (norm(m.status) !== norm(d.status)) changes.push(`Estado: ${m.status} -> ${d.status}`);
+                if (norm(m.date) !== norm(d.date)) changes.push(`Fecha: ${m.date} -> ${d.date}`);
                 if (norm(m.time) !== norm(d.time)) changes.push(`Hora: ${m.time} -> ${d.time}`);
                 if (norm(m.location) !== norm(d.location)) changes.push(`Lugar: ${m.location} -> ${d.location}`);
                 if (norm(m.ambulanceId) !== norm(d.ambulanceId)) changes.push('Cambio de Móvil');
                 if (norm(m.driverId) !== norm(d.driverId)) changes.push('Cambio de Chofer');
+                if (norm(m.nurseId) !== norm(d.nurseId)) changes.push('Cambio de Enfermero/a');
+                if (norm(m.thirdCrewId) !== norm(d.thirdCrewId)) changes.push('Cambio de Auxiliar');
+                if (norm(m.fieldNumber) !== norm(d.fieldNumber)) changes.push('Cambio de Cancha');
+                if (norm(m.durationMinutes) !== norm(d.durationMinutes) || norm(m.extensionMinutes) !== norm(d.extensionMinutes)) changes.push('Cambio de Duración');
                 if (m.isSingleCrew !== d.isSingleCrew) changes.push(`Tripulación: ${d.isSingleCrew ? 'Simple' : 'Completa'}`);
 
                 if (changes.length > 0) {
-                    await matchesService.addAuditLog(m.id, changes.join(', '));
+                    try {
+                        await matchesService.addAuditLog(m.id, changes.join(', '));
+                    } catch {
+                        alert('La cobertura se guardó, pero no se pudo registrar el cambio en el historial. Avisá al administrador.');
+                    }
                 }
             }
-
-            // 3. Save Match
-            await matchesService.saveMatch(matchData);
 
             onSaveSuccess();
             onClose();
         } catch (error: any) {
             alert('Error guardando cobertura: ' + error.message);
         } finally {
+            submitting.current = false;
             setIsLoading(false);
         }
     };
 
     const handleDelete = async () => {
-        if (!editingMatch || !confirm('¿Seguro que desea eliminar esta cobertura?')) return;
+        if (!editingMatch?.id || isLoading || !confirm('¿Seguro que desea eliminar esta cobertura?')) return;
         setIsLoading(true);
         try {
             await matchesService.deleteMatch(editingMatch.id);
@@ -127,13 +139,9 @@ export const MatchModal: React.FC<MatchModalProps> = ({
     const [isCustomType, setIsCustomType] = useState(false);
 
     useEffect(() => {
-        if (editingMatch && editingMatch.type) {
-            const predefined = ['Partido de Polo', 'Práctica de Polo', 'Triangular de Polo', 'Partido de Fútbol', 'Evento'];
-            if (!predefined.includes(editingMatch.type)) {
-                setIsCustomType(true);
-            }
-        }
-    }, [editingMatch]);
+        const predefined = ['Partido de Polo', 'Práctica de Polo', 'Triangular de Polo', 'Partido de Fútbol', 'Evento'];
+        setIsCustomType(Boolean(editingMatch?.type && !predefined.includes(editingMatch.type)));
+    }, [editingMatch, isOpen]);
 
     const handleTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const val = e.target.value;
@@ -154,13 +162,15 @@ export const MatchModal: React.FC<MatchModalProps> = ({
         setShowSuspensionReason(val === 'Suspended');
     };
 
+    if (!isOpen) return null;
+
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
                 <form onSubmit={handleSubmit} className="flex flex-col h-full">
                     <div className="p-6 border-b bg-slate-50 rounded-t-xl flex justify-between items-center">
                         <div className="flex items-center gap-4">
-                            <h3 className="text-xl font-bold text-slate-800">{editingMatch ? 'Editar Cobertura' : 'Nueva Cobertura'}</h3>
+                            <h3 className="text-xl font-bold text-slate-800">{editingMatch?.id ? 'Editar Cobertura' : 'Nueva Cobertura'}</h3>
                             {editingMatch?.status === 'Completed' && (
                                 isReadOnly ? (
                                     <button type="button" onClick={() => setIsReadOnly(false)} className="flex items-center gap-1 text-xs px-2 py-1 bg-amber-100 text-amber-700 rounded border border-amber-200 font-bold hover:bg-amber-200 transition-colors">
@@ -173,14 +183,14 @@ export const MatchModal: React.FC<MatchModalProps> = ({
                                 )
                             )}
                         </div>
-                        <button type="button" onClick={onClose}><X className="w-6 h-6 text-slate-400" /></button>
+                        <button type="button" disabled={isLoading} aria-label="Cerrar cobertura" onClick={onClose}><X className="w-6 h-6 text-slate-400" /></button>
                     </div>
 
-                    <div className={`p-8 space-y-6 ${isReadOnly ? 'opacity-80 pointer-events-none grayscale-[0.5]' : ''}`}>
+                    <div className={`p-4 sm:p-6 space-y-4 ${isReadOnly ? 'opacity-80 pointer-events-none grayscale-[0.5]' : ''}`}>
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                             <div className="md:col-span-1">
                                 <label className="block text-sm font-medium text-slate-700 mb-1">Fecha</label>
-                                <input name="date" type="date" required defaultValue={editingMatch?.date || new Date().toISOString().split('T')[0]} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
+                                <DateInput name="date" aria-label="Fecha de cobertura" required defaultValue={editingMatch?.date || localDate()} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
                             </div>
                             <div className="md:col-span-1">
                                 <label className="block text-sm font-medium text-slate-700 mb-1">Hora Inicio</label>
@@ -251,10 +261,14 @@ export const MatchModal: React.FC<MatchModalProps> = ({
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div style={{ visibility: showChukkers ? 'visible' : 'hidden' }}>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {showChukkers && <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-1">Chukkers (0-20)</label>
                                 <input name="chukkers" type="number" min="0" max="20" defaultValue={editingMatch?.chukkers} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
+                            </div>}
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Duración estimada (min)</label>
+                                <input name="durationMinutes" aria-label="Duración estimada en minutos" type="number" min="1" required defaultValue={editingMatch?.durationMinutes || 90} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-1">Tiempo Extra (min)</label>
@@ -330,16 +344,16 @@ export const MatchModal: React.FC<MatchModalProps> = ({
                     </div>
 
                     <div className="p-6 border-t bg-slate-50 rounded-b-xl flex flex-col md:flex-row justify-between gap-3">
-                        {editingMatch && !isReadOnly && (
-                            <button type="button" onClick={handleDelete} className="px-4 py-2 rounded-lg text-red-600 hover:bg-red-50 border border-red-200 font-medium flex items-center justify-center gap-2 order-2 md:order-1">
+                        {editingMatch?.id && !isReadOnly && (
+                            <button type="button" disabled={isLoading} onClick={handleDelete} className="px-4 py-2 rounded-lg text-red-600 hover:bg-red-50 border border-red-200 font-medium flex items-center justify-center gap-2 order-2 md:order-1">
                                 <Trash2 className="w-4 h-4" /> Eliminar
                             </button>
                         )}
                         <div className="flex gap-3 ml-auto order-1 md:order-2 w-full md:w-auto">
-                            <button type="button" onClick={onClose} className="flex-1 md:flex-none px-6 py-2 rounded-lg text-slate-600 hover:bg-slate-200 font-medium">Cancelar</button>
+                            <button type="button" disabled={isLoading} onClick={onClose} className="flex-1 md:flex-none px-6 py-2 rounded-lg text-slate-600 hover:bg-slate-200 font-medium">Cancelar</button>
                             {!isReadOnly && (
                                 <button type="submit" disabled={isLoading} className="flex-1 md:flex-none px-6 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 font-medium shadow-lg shadow-indigo-200">
-                                    {isLoading ? 'Guardando...' : (editingMatch ? 'Guardar' : 'Crear')}
+                                    {isLoading ? 'Guardando...' : (editingMatch?.id ? 'Guardar' : 'Crear')}
                                 </button>
                             )}
                         </div>

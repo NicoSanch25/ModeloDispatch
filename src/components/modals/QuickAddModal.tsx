@@ -1,6 +1,8 @@
 import React, { useMemo } from 'react';
 import { MatchType, Location, Ambulance, Staff, Match } from '../../types';
 import { Zap, X, Plus, AlertTriangle } from 'lucide-react';
+import { getConflicts } from '../../utils/scheduling';
+import { DateInput } from '../DateInput';
 
 interface QuickAddRow {
     id: string;
@@ -27,79 +29,25 @@ interface QuickAddModalProps {
     existingMatches?: Match[]; // Matches that already exist in the system
 }
 
-// Helper to convert time to minutes
-const timeToMinutes = (timeStr?: string) => {
-    if (!timeStr) return 0;
-    const [hours, minutes] = timeStr.split(':').map(Number);
-    return (hours || 0) * 60 + (minutes || 0);
-};
-
 export const QuickAddModal: React.FC<QuickAddModalProps> = ({
     isOpen, onClose, date, setDate, rows, setRows, onSave, locations, ambulances, staff, existingMatches = []
 }) => {
     const [isSaving, setIsSaving] = React.useState(false);
 
-    if (!isOpen) return null;
-
-    // Calculate conflicts between rows themselves and with existing matches
     const conflicts = useMemo(() => {
+        const drafts: Match[] = rows.map(row => ({ ...row, id: 'draft:' + row.id, date, durationMinutes: 90, status: 'Pending' }));
+        const candidates = [...existingMatches, ...drafts];
         const conflictMap: Record<string, { field: string; conflictWith: string }[]> = {};
-
-        // Filter existing matches for the same date
-        const sameDayMatches = existingMatches.filter(m => m.date === date && m.status !== 'Suspended');
-
-        rows.forEach((row, idx) => {
-            const rowConflicts: { field: string; conflictWith: string }[] = [];
-            const rowStart = timeToMinutes(row.time);
-            const rowEnd = rowStart + 90 + 15; // 90 min default + 15 buffer
-
-            // Check conflicts with OTHER rows in the quick add
-            rows.forEach((other, otherIdx) => {
-                if (idx >= otherIdx) return; // Only check forward to avoid duplicates
-
-                const otherStart = timeToMinutes(other.time);
-                const otherEnd = otherStart + 90 + 15;
-
-                // Check for time overlap
-                const overlaps = !(rowEnd <= otherStart || rowStart >= otherEnd);
-                if (!overlaps) return;
-
-                // Check for resource conflicts
-                if (row.ambulanceId && row.ambulanceId === other.ambulanceId) {
-                    rowConflicts.push({ field: 'ambulanceId', conflictWith: `Fila ${otherIdx + 1}` });
-                }
-                if (row.driverId && row.driverId === other.driverId) {
-                    rowConflicts.push({ field: 'driverId', conflictWith: `Fila ${otherIdx + 1}` });
-                }
-                if (row.nurseId && row.nurseId === other.nurseId) {
-                    rowConflicts.push({ field: 'nurseId', conflictWith: `Fila ${otherIdx + 1}` });
-                }
+        drafts.forEach((draft, index) => {
+            const found = getConflicts(draft, candidates).hard;
+            const items = found.flatMap(conflict => {
+                const rowIndex = drafts.findIndex(item => item.id === conflict.match.id);
+                const conflictWith = rowIndex >= 0 ? 'Fila ' + (rowIndex + 1) : conflict.match.location + ' (existente)';
+                const fields: Record<string, string> = { 'Móvil': 'ambulanceId', 'Chofer': 'driverId', 'Enfermero/a': 'nurseId' };
+                return conflict.resources.filter(resource => fields[resource]).map(resource => ({ field: fields[resource], conflictWith }));
             });
-
-            // Check conflicts with EXISTING matches in the system
-            sameDayMatches.forEach(existing => {
-                const existingStart = timeToMinutes(existing.time);
-                const existingEnd = existingStart + (existing.durationMinutes || 90) + 15;
-
-                const overlaps = !(rowEnd <= existingStart || rowStart >= existingEnd);
-                if (!overlaps) return;
-
-                if (row.ambulanceId && row.ambulanceId === existing.ambulanceId) {
-                    rowConflicts.push({ field: 'ambulanceId', conflictWith: `${existing.location} (existente)` });
-                }
-                if (row.driverId && row.driverId === existing.driverId) {
-                    rowConflicts.push({ field: 'driverId', conflictWith: `${existing.location} (existente)` });
-                }
-                if (row.nurseId && row.nurseId === existing.nurseId) {
-                    rowConflicts.push({ field: 'nurseId', conflictWith: `${existing.location} (existente)` });
-                }
-            });
-
-            if (rowConflicts.length > 0) {
-                conflictMap[row.id] = rowConflicts;
-            }
+            if (items.length) conflictMap[rows[index].id] = items;
         });
-
         return conflictMap;
     }, [rows, date, existingMatches]);
 
@@ -139,6 +87,8 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
     };
 
 
+    if (!isOpen) return null;
+
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] flex flex-col">
@@ -155,8 +105,8 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
                 <div className="p-4 border-b bg-white flex items-center gap-4">
                     <div className="flex items-center gap-2">
                         <label className="text-sm font-bold text-slate-700">Fecha Común:</label>
-                        <input
-                            type="date"
+                        <DateInput
+                            aria-label="Fecha de carga rápida"
                             value={date}
                             onChange={(e) => setDate(e.target.value)}
                             className="p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 font-medium"

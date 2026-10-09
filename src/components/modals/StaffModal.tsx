@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+﻿import React, { useState, useRef } from 'react';
 import { Staff } from '../../types';
 import { Users, X, Check } from 'lucide-react';
 import { resourceService } from '../../services/resources';
@@ -11,9 +11,10 @@ interface StaffModalProps {
 }
 
 export const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, onSaveSuccess, editingStaff }) => {
-    if (!isOpen) return null;
-
     const [isLoading, setIsLoading] = useState(false);
+    const submitting = useRef(false);
+
+    if (!isOpen) return null;
 
     const handleDelete = async () => {
         if (!editingStaff?.id) return;
@@ -26,12 +27,15 @@ export const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, onSaveS
         } catch (err: any) {
             alert('Error al eliminar: ' + err.message);
         } finally {
+            submitting.current = false;
             setIsLoading(false);
         }
     };
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
+        if (submitting.current) return;
+        submitting.current = true;
         setIsLoading(true);
         const formData = new FormData(e.currentTarget);
 
@@ -51,6 +55,7 @@ export const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, onSaveS
         } catch (error: any) {
             alert('Error guardando personal: ' + error.message);
         } finally {
+            submitting.current = false;
             setIsLoading(false);
         }
     };
@@ -74,7 +79,7 @@ export const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, onSaveS
                     <div className="p-6 space-y-5 overflow-y-auto">
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre Completo</label>
-                            <input name="name" defaultValue={editingStaff?.name} placeholder="Ej: Juan PÃ©rez" required className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all" />
+                            <input name="name" defaultValue={editingStaff?.name} placeholder="Ej: Juan Pérez" required className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all" />
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
@@ -83,11 +88,11 @@ export const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, onSaveS
                                 <select name="role" defaultValue={editingStaff?.role || 'Chofer'} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white">
                                     <option value="Chofer">Chofer</option>
                                     <option value="Enfermero/a">Enfermero/a</option>
-                                    <option value="MÃ©dico/a">MÃ©dico/a</option>
+                                    <option value="Médico/a">Médico/a</option>
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">TelÃ©fono</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Teléfono</label>
                                 <input name="phone" defaultValue={editingStaff?.phone} placeholder="Ej: 11 1234 5678" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
                             </div>
                         </div>

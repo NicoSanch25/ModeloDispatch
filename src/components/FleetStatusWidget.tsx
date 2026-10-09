@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { MapPin, Car, Ambulance } from 'lucide-react';
 import { Ambulance as AmbulanceModel, Match as MatchModel } from '../types';
-import { formatTime24, timeToMinutes } from '../utils/formatters';
+import { formatTime24 } from '../utils/formatters';
+import { activeCoverage } from '../utils/scheduling';
 
 interface FleetStatusWidgetProps {
     ambulances: AmbulanceModel[];
@@ -23,13 +24,12 @@ export const FleetStatusWidget: React.FC<FleetStatusWidgetProps> = ({ ambulances
     const [filter, setFilter] = useState<'Todos' | 'Disponibles' | 'En Servicio' | 'En Taller'>('Todos');
 
     useEffect(() => {
-        const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+        const timer = setInterval(() => setCurrentTime(new Date()), 30_000);
         return () => clearInterval(timer);
     }, []);
 
     const enrichedAmbulances = useMemo(() => {
         return ambulances.map(amb => {
-            const isMaintenance = amb.maintenance?.status !== 'Active';
             let statusText = '';
             let statusColor = 'bg-emerald-500';
             let activeMatch = null;
@@ -41,23 +41,13 @@ export const FleetStatusWidget: React.FC<FleetStatusWidgetProps> = ({ ambulances
                 statusText = 'Fuera de Servicio';
                 statusColor = 'bg-red-500';
             } else {
-                const nowMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
-                const todayStr = currentTime.toISOString().split('T')[0];
-
-                activeMatch = matches.find(m => {
-                    if (m.ambulanceId !== amb.id) return false;
-                    if (m.date !== todayStr) return false;
-                    if (m.status === 'Suspended') return false;
-                    const start = timeToMinutes(m.time);
-                    const end = start + (m.durationMinutes || 90) + (m.extensionMinutes || 0);
-                    return nowMinutes >= start && nowMinutes <= end;
-                });
+                activeMatch = activeCoverage(amb.id, matches, currentTime) || null;
 
                 if (activeMatch) {
-                    statusText = 'En Servicio';
+                    statusText = 'Cobertura prevista';
                     statusColor = 'bg-blue-500 animate-pulse';
                 } else {
-                    statusText = 'Disponible';
+                    statusText = 'Sin cobertura prevista';
                     statusColor = 'bg-emerald-500';
                 }
             }
@@ -67,17 +57,17 @@ export const FleetStatusWidget: React.FC<FleetStatusWidgetProps> = ({ ambulances
 
     const filteredAmbulances = enrichedAmbulances.filter(item => {
         if (filter === 'Todos') return true;
-        if (filter === 'Disponibles') return item.statusText === 'Disponible';
-        if (filter === 'En Servicio') return item.statusText === 'En Servicio';
+        if (filter === 'Disponibles') return item.statusText === 'Sin cobertura prevista';
+        if (filter === 'En Servicio') return item.statusText === 'Cobertura prevista';
         if (filter === 'En Taller') return item.statusText === 'En Taller' || item.statusText === 'Fuera de Servicio';
         return true;
     });
 
     return (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 flex flex-col h-full">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-4 flex flex-col h-full">
             <h3 className="text-lg font-bold mb-3 flex items-center justify-between">
                 Estado de Flota
-                <span className="text-xs font-normal text-slate-400 bg-slate-100 px-2 py-1 rounded">En Tiempo Real</span>
+                <span className="text-xs font-normal text-slate-500 bg-slate-100 px-2 py-1 rounded">Según agenda</span>
             </h3>
             
             <div className="flex gap-2 mb-4 overflow-x-auto custom-scrollbar pb-1">
@@ -87,11 +77,12 @@ export const FleetStatusWidget: React.FC<FleetStatusWidgetProps> = ({ ambulances
                         onClick={() => setFilter(f as any)}
                         className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap transition-colors font-medium border ${filter === f ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}
                     >
-                        {f}
+                        {f === 'Disponibles' ? 'Sin cobertura' : f === 'En Servicio' ? 'Con cobertura' : f}
                     </button>
                 ))}
             </div>
 
+            <p className="mb-3 text-xs text-slate-500">Estimación por coberturas. Verificá traslados y regreso antes de asignar.</p>
             <div className="space-y-3 overflow-y-auto max-h-[350px] pr-2 custom-scrollbar">
                 {filteredAmbulances.length === 0 ? (
                     <p className="text-center text-sm text-slate-400 py-4">No hay móviles en este estado.</p>

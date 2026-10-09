@@ -27,6 +27,10 @@ import {
 import { supabase, configurationError } from './src/lib/supabase';
 import { OperationsInsights } from './src/components/OperationsInsights';
 import { localDate } from './src/utils/statistics';
+import { getConflicts, checkSystemConflicts } from './src/utils/scheduling';
+import { withTimeout } from './src/utils/requests';
+import { matchesService } from './src/services/matches';
+import { DateInput } from './src/components/DateInput';
 import { csvCell } from './src/utils/security';
 
 import { MatchModal } from './src/components/modals/MatchModal';
@@ -239,67 +243,6 @@ const SectionHeader = ({ eyebrow, title, description, icon: Icon, actions }: Sec
   </section>
 );
 
-interface ConflictDetail {
-  match: MatchModel;
-  resources: string[];
-}
-
-const getConflicts = (currentMatch: MatchModel, allMatches: MatchModel[]): { hard: ConflictDetail[], shared: ConflictDetail[] } => {
-  if (currentMatch.status === 'Suspended') return { hard: [], shared: [] };
-
-  const currentStart = timeToMinutes(currentMatch.time);
-  const currentEnd = currentStart + (currentMatch.durationMinutes || 90) + (currentMatch.extensionMinutes || 0) + 15;
-
-  const hard: ConflictDetail[] = [];
-  const shared: ConflictDetail[] = [];
-
-  const loc1 = (currentMatch.location || '').trim().toLowerCase();
-  const field1 = (currentMatch.fieldNumber || '').trim().toLowerCase();
-
-  allMatches.forEach(other => {
-    if (other.id === currentMatch.id || other.date !== currentMatch.date) return;
-    if (other.status === 'Suspended') return;
-
-    const otherStart = timeToMinutes(other.time);
-    const otherEnd = otherStart + (other.durationMinutes || 90) + (other.extensionMinutes || 0) + 15;
-
-    if (!(currentStart < otherEnd && currentEnd > otherStart)) return;
-
-    const conflictingResources: string[] = [];
-    if (currentMatch.driverId && currentMatch.driverId === other.driverId) conflictingResources.push("Chofer");
-    if (currentMatch.nurseId && currentMatch.nurseId === other.nurseId) conflictingResources.push("Enfermero/a");
-    if (currentMatch.thirdCrewId && currentMatch.thirdCrewId === other.thirdCrewId) conflictingResources.push("Auxiliar");
-    if (currentMatch.ambulanceId && currentMatch.ambulanceId === other.ambulanceId) conflictingResources.push("Móvil");
-
-    if (conflictingResources.length > 0) {
-      const loc2 = (other.location || '').trim().toLowerCase();
-      const field2 = (other.fieldNumber || '').trim().toLowerCase();
-
-      if (loc1 === loc2) {
-        if (field1 && field2 && field1 !== field2) {
-          shared.push({ match: other, resources: conflictingResources });
-          return;
-        }
-      }
-      hard.push({ match: other, resources: conflictingResources });
-    }
-  });
-
-  return { hard, shared };
-};
-
-const checkSystemConflicts = (matches: MatchModel[]) => {
-  const todayStr = localDate();
-  const relevantMatches = matches.filter(m => m.date >= todayStr && m.status !== 'Suspended');
-  let count = 0;
-  for (const match of relevantMatches) {
-    if (getConflicts(match, matches).hard.length > 0) count++;
-  }
-  return count;
-};
-
-
-
 // LOGIN COMPONENT
 const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
   const [username, setUsername] = useState('');
@@ -405,25 +348,39 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
 export default function App() {
   const [session, setSession] = useState<any>(null);
   const [isLoadingSession, setIsLoadingSession] = useState(true);
+  const [sessionError, setSessionError] = useState(false);
 
   // Check auth session
   useEffect(() => {
+    let mounted = true;
+    let observedSession = false;
     if (configurationError) { setIsLoadingSession(false); return; }
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    withTimeout(supabase.auth.getSession(), 12_000, 'La conexión no respondió').then(({ data: { session }, error }) => {
+      if (!mounted || observedSession) return;
+      if (error) throw error;
       setSession(session);
       setIsLoadingSession(false);
-    }).catch(() => { setSession(null); setIsLoadingSession(false); });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
+    }).catch(() => {
+      if (!mounted || observedSession) return;
+      setSessionError(true);
+      setIsLoadingSession(false);
     });
 
-    return () => subscription.unsubscribe();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      observedSession = true;
+      setSession(session);
+      setSessionError(false);
+      setIsLoadingSession(false);
+    });
+
+    return () => { mounted = false; subscription.unsubscribe(); };
   }, []);
 
   if (isLoadingSession) return <div className="min-h-screen flex items-center justify-center bg-slate-100"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
 
   if (configurationError) return <div role="alert" className="min-h-screen flex items-center justify-center p-6 bg-slate-50"><div className="max-w-md rounded-2xl border bg-white p-6"><h1 className="font-bold text-xl">Configuración pendiente</h1><p className="text-slate-600 mt-2">Falta configurar la conexión del sistema. Contactá al administrador.</p></div></div>;
+
+  if (sessionError && !session) return <div role="alert" className="min-h-screen flex items-center justify-center p-6 bg-slate-50"><div className="max-w-md rounded-2xl border bg-white p-6"><h1 className="font-bold text-xl">No pudimos comprobar la sesión</h1><p className="text-slate-600 mt-2">Revisá la conexión y volvé a intentar.</p><button onClick={() => window.location.reload()} className="mt-4 rounded-xl bg-indigo-600 px-4 py-2 font-semibold text-white">Reintentar</button></div></div>;
 
   if (!session) return <LoginScreen onLogin={() => { 
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -529,15 +486,15 @@ function MainApp({ session }: { session: any }) {
         { data: matchData, error: e5 },
         { data: fuelData, error: e6 },
         { data: transfersData, error: e7 }
-      ] = await Promise.all([
+      ] = await withTimeout(Promise.all([
         supabase.from('staff').select('*'),
         supabase.from('ambulances').select('*'),
         supabase.from('locations').select('*'),
         supabase.from('clients').select('*'),
         supabase.from('matches').select('*, audit_logs(*)').order('date', { ascending: true }),
-        supabase.from('fuel_records').select('*'),
+        supabase.from('fuel_records').select('*').order('date', { ascending: true }),
         supabase.from('transfers').select('*').order('date', { ascending: false })
-      ]);
+      ]), 20_000, 'No se pudieron actualizar los datos a tiempo.');
 
       if (e1 || e2 || e3 || e4 || e5 || e6 || e7) {
         throw new Error("Una de las consultas falló o la sesión expiró.");
@@ -581,7 +538,8 @@ function MainApp({ session }: { session: any }) {
 
     if (filters.location && !m.location.toLowerCase().includes(filters.location.toLowerCase())) return false;
 
-    if (filters.ambulance && amb) {
+    if (filters.ambulance) {
+      if (!amb) return false;
       const label = `Móvil ${amb.number}`;
       if (!label.toLowerCase().includes(filters.ambulance.toLowerCase())) return false;
     }
@@ -644,54 +602,39 @@ function MainApp({ session }: { session: any }) {
   };
 
   const handleToggleNotified = async (matchId: string, role: 'driver' | 'nurse' | 'third', currentVal: boolean) => {
-    const field = role === 'driver' ? 'driver_notified' : role === 'nurse' ? 'nurse_notified' : 'third_crew_notified';
+    if (role === 'third') return;
+    const flags = role === 'driver' ? { driver_notified: !currentVal } : { nurse_notified: !currentVal };
     try {
-      // Optimistic update
-      setMatches(prev => prev.map(m => {
-        if (m.id === matchId) {
-          if (role === 'driver') return { ...m, driverNotified: !currentVal };
-          if (role === 'nurse') return { ...m, nurseNotified: !currentVal };
-        }
-        return m;
+      await matchesService.setNotified(matchId, flags);
+      setMatches(prev => prev.map(m => m.id !== matchId ? m : {
+        ...m,
+        driverNotified: flags.driver_notified ?? m.driverNotified,
+        nurseNotified: flags.nurse_notified ?? m.nurseNotified
       }));
-      const { error } = await supabase.from('matches').update({ [field]: !currentVal }).eq('id', matchId);
-      if (error) {
-        // Revert on error
-        await loadData();
-        throw error;
-      }
-    } catch (err: any) {
-      alert("Error actualizando estado de aviso: " + err.message);
+    } catch {
+      alert('No se pudo guardar el estado del aviso. Revisá la conexión y volvé a intentar.');
     }
   };
 
   const handleMarkStaffNotifiedForDay = async (staffId: string, dayMatchesToUpdate: MatchModel[]) => {
-    try {
-      // Optimistic update
-      setMatches(prev => prev.map(m => {
-        const isTargetMatch = dayMatchesToUpdate.find(dm => dm.id === m.id);
-        if (!isTargetMatch) return m;
-        return {
-          ...m,
-          driverNotified: m.driverId === staffId ? true : m.driverNotified,
-          nurseNotified: m.nurseId === staffId ? true : m.nurseNotified
-        };
-      }));
-
-      // Update in DB (one by one or bulk, let's do one by one since it's just a few usually)
-      for (const m of dayMatchesToUpdate) {
-        if (m.driverId === staffId) {
-          await supabase.from('matches').update({ driver_notified: true }).eq('id', m.id);
-        }
-        if (m.nurseId === staffId) {
-          await supabase.from('matches').update({ nurse_notified: true }).eq('id', m.id);
-        }
+    let failed = 0;
+    for (const m of dayMatchesToUpdate) {
+      const flags: { driver_notified?: boolean; nurse_notified?: boolean } = {};
+      if (m.driverId === staffId) flags.driver_notified = true;
+      if (m.nurseId === staffId) flags.nurse_notified = true;
+      if (!Object.keys(flags).length) continue;
+      try {
+        await matchesService.setNotified(m.id, flags);
+        setMatches(prev => prev.map(item => item.id !== m.id ? item : {
+          ...item,
+          driverNotified: flags.driver_notified ?? item.driverNotified,
+          nurseNotified: flags.nurse_notified ?? item.nurseNotified
+        }));
+      } catch {
+        failed++;
       }
-      // Re-fetch just in case
-      await loadData();
-    } catch (err: any) {
-      console.error("Error marking as notified:", err);
     }
+    if (failed) alert('No se pudo guardar el aviso en ' + failed + ' cobertura(s). Esas marcas quedaron pendientes.');
   };
 
   const handleSaveMatch = async (matchData: Partial<MatchModel>) => {
@@ -815,10 +758,11 @@ function MainApp({ session }: { session: any }) {
       const { error } = await supabase.from('matches').update(payload).eq('id', reportingMatch.id);
       if (error) throw error;
 
-      await supabase.from('audit_logs').insert({
-        match_id: reportingMatch.id,
-        changes: 'Reporte de incidente actualizado / Cobertura completada'
-      });
+      try {
+        await matchesService.addAuditLog(reportingMatch.id, 'Reporte de incidente actualizado / Cobertura completada');
+      } catch {
+        alert('El reporte se guardó, pero no se pudo registrar el historial. Avisá al administrador.');
+      }
 
       await loadData();
       setIsIncidentModalOpen(false);
@@ -830,20 +774,17 @@ function MainApp({ session }: { session: any }) {
 
   // --- TRANSFERS HANDLERS ---
   const handleSaveTransfer = async (payload: Partial<TransferModel>) => {
-    try {
+      const cleaned = { ...payload, driver_id: payload.driver_id || null };
       if (payload.id) {
-        const { error } = await supabase.from('transfers').update(payload).eq('id', payload.id);
+        const { error } = await supabase.from('transfers').update(cleaned).eq('id', payload.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('transfers').insert([payload]);
+        const { error } = await supabase.from('transfers').insert([cleaned]);
         if (error) throw error;
       }
       await loadData();
       setIsTransferModalOpen(false);
       setEditingTransfer(null);
-    } catch (err: any) {
-      alert("Error al guardar traslado: " + err.message);
-    }
   };
 
   const handleDeleteTransfer = async (id: string) => {
@@ -1131,8 +1072,8 @@ function MainApp({ session }: { session: any }) {
           </div>
           <div className="p-4 border-b bg-white">
             <label className="block text-sm font-medium text-slate-700 mb-1">Seleccionar Fecha</label>
-            <input
-              type="date"
+            <DateInput
+              aria-label="Fecha de agenda diaria"
               value={dailyAgendaDate}
               onChange={(e) => setDailyAgendaDate(e.target.value)}
               className="w-full md:w-64 p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
@@ -1773,7 +1714,7 @@ function MainApp({ session }: { session: any }) {
                         <div className="flex gap-2">
                           <button onClick={() => {
                             const tmr = new Date(); tmr.setDate(tmr.getDate() + 1);
-                            setQuickAddDate(tmr.toISOString().split('T')[0]);
+                            setQuickAddDate(localDate(tmr));
                             setQuickAddRows([{ id: Math.random().toString(), time: '14:00', location: '', fieldNumber: '', ambulanceId: '', driverId: '', nurseId: '', type: 'Partido de Polo' }]);
                             setIsQuickAddModalOpen(true);
                           }} className="dispatch-secondary-action border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 hover:text-amber-900 whitespace-nowrap">
@@ -2089,7 +2030,7 @@ function MainApp({ session }: { session: any }) {
                           <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">{s.role} {s.isOutsourced ? '(Ext)' : ''}</p>
                           <p className="text-sm text-slate-600 flex items-center gap-1 mt-1"><Phone className="w-3 h-3" /> {s.phone}</p>
                         </div>
-                        <button onClick={(e) => { e.stopPropagation(); setEditingStaff(s); setIsStaffModalOpen(true); }} className="absolute top-2 right-2 p-1 text-slate-300 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"><Edit2 className="w-4 h-4" /></button>
+                        <button aria-label={`Editar ${s.name}`} onClick={(e) => { e.stopPropagation(); setEditingStaff(s); setIsStaffModalOpen(true); }} className="absolute top-2 right-2 p-2 text-slate-400 hover:text-indigo-600 transition-opacity"><Edit2 className="w-4 h-4" /></button>
                       </div>
                     ))}
                   </div>
