@@ -27,10 +27,13 @@ import {
 import { supabase, configurationError } from './src/lib/supabase';
 import { OperationsInsights } from './src/components/OperationsInsights';
 import { localDate } from './src/utils/statistics';
-import { getConflicts, checkSystemConflicts } from './src/utils/scheduling';
+import { getConflicts } from './src/utils/scheduling';
 import { withTimeout } from './src/utils/requests';
 import { matchesService } from './src/services/matches';
 import { DateInput } from './src/components/DateInput';
+import { AgendaList } from './src/components/AgendaList';
+import { OperationalAgendaModal } from './src/components/modals/OperationalAgendaModal';
+import { agendaConflicts, buildAgenda, servicesForDay, type AgendaService } from './src/utils/agenda';
 import { csvCell } from './src/utils/security';
 
 import { MatchModal } from './src/components/modals/MatchModal';
@@ -447,6 +450,7 @@ function MainApp({ session }: { session: any }) {
   const [isBatchFuelModalOpen, setIsBatchFuelModalOpen] = useState(false);
 
   const [isDailyAgendaOpen, setIsDailyAgendaOpen] = useState(false);
+  const [isStaffScheduleOpen, setIsStaffScheduleOpen] = useState(false);
   const [dailyAgendaDate, setDailyAgendaDate] = useState<string>(localDate());
 
   // Quick Add State
@@ -528,7 +532,20 @@ function MainApp({ session }: { session: any }) {
     return a.time.localeCompare(b.time);
   });
 
-  const superpositionCount = useMemo(() => checkSystemConflicts(matches), [matches]);
+  const agendaServices = useMemo(() => buildAgenda(matches, transfers), [matches, transfers]);
+  const superpositionCount = useMemo(() => agendaServices.filter(service => !service.closed &&
+    (service.date >= localDate() || (service.end !== null && service.end > Date.now())) &&
+    agendaConflicts(service, agendaServices).length > 0).length, [agendaServices]);
+  const openAgendaService = (service: AgendaService) => {
+    setIsDailyAgendaOpen(false);
+    if (service.kind === 'coverage') {
+      setEditingMatch(service.source as MatchModel);
+      setIsMatchModalOpen(true);
+    } else {
+      setEditingTransfer(service.source as TransferModel);
+      setIsTransferModalOpen(true);
+    }
+  };
 
   const filteredMatches = (activeTab === 'history' ? matches : futureMatches).filter(m => {
     if (activeTab === 'history' && m.status !== 'Completed' && m.status !== 'Suspended') return false;
@@ -1066,9 +1083,9 @@ function MainApp({ session }: { session: any }) {
         <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full flex flex-col max-h-[90vh]">
           <div className="p-4 border-b flex justify-between items-center bg-slate-50 rounded-t-xl">
             <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-indigo-600" /> Agenda Diaria por Personal
+              <Calendar className="w-5 h-5 text-indigo-600" /> Coberturas por Personal
             </h3>
-            <button onClick={() => setIsDailyAgendaOpen(false)}><X className="w-6 h-6 text-slate-400" /></button>
+            <button aria-label="Cerrar cronograma" onClick={() => setIsStaffScheduleOpen(false)}><X className="w-6 h-6 text-slate-400" /></button>
           </div>
           <div className="p-4 border-b bg-white">
             <label className="block text-sm font-medium text-slate-700 mb-1">Seleccionar Fecha</label>
@@ -1143,7 +1160,7 @@ function MainApp({ session }: { session: any }) {
             )}
           </div>
           <div className="p-4 border-t bg-slate-50 rounded-b-xl flex justify-end">
-            <button onClick={() => setIsDailyAgendaOpen(false)} className="px-6 py-2 bg-slate-800 text-white hover:bg-slate-700 rounded-lg">Cerrar</button>
+            <button onClick={() => { setIsStaffScheduleOpen(false); setIsDailyAgendaOpen(true); }} className="px-6 py-2 bg-slate-800 text-white hover:bg-slate-700 rounded-lg">Volver a agenda</button>
           </div>
         </div>
       </div>
@@ -1564,15 +1581,15 @@ function MainApp({ session }: { session: any }) {
                     </div>
   
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-3 mb-4">
-                      <div onClick={() => handleNav('matches')} className="bg-white p-3 rounded-xl shadow-sm border border-slate-100 flex items-center gap-3 cursor-pointer hover:bg-slate-50 hover:border-blue-200 transition-colors active:scale-95 touch-manipulation">
+                      <div onClick={() => { setDailyAgendaDate(localDate()); setIsDailyAgendaOpen(true); }} className="bg-white p-3 rounded-xl shadow-sm border border-slate-100 flex items-center gap-3 cursor-pointer hover:bg-slate-50 hover:border-blue-200 transition-colors active:scale-95 touch-manipulation">
                         <div className="p-2 bg-blue-50 text-blue-600 rounded-lg shrink-0">
                           <ClipboardCheck className="w-5 h-5" />
                         </div>
                         <div className="min-w-0">
                           <p className="text-xs text-slate-500 font-medium truncate">Pendientes</p>
                           <div className="flex flex-col md:flex-row md:items-baseline md:gap-2">
-                            <p className="text-lg md:text-xl font-bold text-slate-800 leading-none mt-0.5">{futureMatches.filter(m => m.status !== 'Suspended').length}</p>
-                            <span className="text-[10px] text-slate-400 font-medium truncate mt-0.5">Hoy: {futureMatches.filter(m => m.date === localDate() && m.status !== 'Suspended').length}</span>
+                            <p className="text-lg md:text-xl font-bold text-slate-800 leading-none mt-0.5">{agendaServices.filter(service => !service.closed && service.date >= localDate()).length}</p>
+                            <span className="text-[10px] text-slate-400 font-medium truncate mt-0.5">Hoy: {servicesForDay(agendaServices, localDate()).length}</span>
                           </div>
                         </div>
                       </div>
@@ -1606,7 +1623,7 @@ function MainApp({ session }: { session: any }) {
                         </div>
                       </div>
 
-                      <div onClick={() => handleNav('matches')} className="bg-white p-3 rounded-xl shadow-sm border border-slate-100 flex items-center gap-3 cursor-pointer hover:bg-slate-50 hover:border-amber-200 transition-colors active:scale-95 touch-manipulation">
+                      <div onClick={() => { setDailyAgendaDate(localDate()); setIsDailyAgendaOpen(true); }} className="bg-white p-3 rounded-xl shadow-sm border border-slate-100 flex items-center gap-3 cursor-pointer hover:bg-slate-50 hover:border-amber-200 transition-colors active:scale-95 touch-manipulation">
                         <div className={`p-2 rounded-lg shrink-0 ${superpositionCount > 0 ? 'bg-amber-50 text-amber-600' : 'bg-slate-50 text-slate-400'}`}>
                           <AlertTriangle className="w-5 h-5" />
                         </div>
@@ -1614,7 +1631,7 @@ function MainApp({ session }: { session: any }) {
                           <p className="text-xs text-slate-500 font-medium truncate">Conflictos</p>
                           <div className="flex flex-col md:flex-row md:items-baseline md:gap-2">
                             <p className={`text-lg md:text-xl font-bold leading-none mt-0.5 ${superpositionCount > 0 ? 'text-amber-600' : 'text-slate-800'}`}>{superpositionCount}</p>
-                            <span className={`text-[10px] font-medium truncate mt-0.5 ${superpositionCount > 0 ? 'text-amber-500' : 'text-slate-400'}`}>{superpositionCount > 0 ? 'Atención' : 'En orden'}</span>
+                            <span className={`text-[10px] font-medium truncate mt-0.5 ${superpositionCount > 0 ? 'text-amber-500' : 'text-slate-400'}`}>{superpositionCount > 0 ? 'Revisar agenda' : 'Sin cruces detectados'}</span>
                           </div>
                         </div>
                       </div>
@@ -1622,59 +1639,12 @@ function MainApp({ session }: { session: any }) {
 
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 p-3 md:p-4">
-                      <h3 className="text-lg font-bold mb-4">Coberturas Pendientes</h3>
-                      <div className="space-y-3">
-                        {futureMatches.filter(m => m.status !== 'Suspended').slice(0, 5).map(match => {
-                          const matchConflicts = getConflicts(match, matches).hard;
-                          return (
-                          <div key={match.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
-                            <div className="flex items-center gap-3">
-                              <div className="flex flex-col items-center justify-center bg-white border border-slate-200 w-12 h-12 rounded-lg text-xs font-bold text-slate-700 shadow-sm">
-                                <span>{formatDateAR(match.date).split('/')[0]}</span>
-                                <span className="text-[10px] uppercase">{new Date(match.date + 'T12:00:00').toLocaleString('es-AR', { month: 'short' })}</span>
-                              </div>
-                              <div>
-                                <p className="font-semibold text-slate-800 flex items-center gap-2">
-                                  {match.location} {match.fieldNumber && <span className="text-slate-500 font-normal">- {match.fieldNumber}</span>}
-                                  {matchConflicts.length > 0 && (
-                                    <span title={`Superposición de ${matchConflicts.map(c => `${c.resources.join(', ')} con el partido en ${c.match.location} (${c.match.time})`).join(' | ')}`} className="text-red-500 flex items-center cursor-help">
-                                      <AlertTriangle className="w-4 h-4" />
-                                    </span>
-                                  )}
-                                </p>
-                                <p className="text-sm text-slate-500">{formatTime24(match.time)} hs - {match.type}</p>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-medium px-2 py-1 bg-blue-100 text-blue-700 rounded-full">{match.status === 'Pending' ? 'Pendiente' : 'Confirmado'}</span>
-                              <button onClick={(e) => { 
-                                e.stopPropagation(); 
-                                setReportingMatch(match); 
-                                setIncidentForm(match.incidentReport || { hasIncident: false, wasTransferred: false, details: '' }); 
-                                setIsIncidentModalOpen(true); 
-                              }} className="text-indigo-600 hover:text-indigo-800 p-1 bg-indigo-50 rounded-full" title="Completar Cobertura / Reportar Incidente">
-                                <ClipboardCheck className="w-4 h-4" />
-                              </button>
-                              <button onClick={(e) => { e.stopPropagation(); handleDeleteMatch(match.id); }} className="text-slate-400 hover:text-red-500 p-1">
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </div>
-                          );
-                        })}
-                        {futureMatches.filter(m => m.status !== 'Suspended').length === 0 && (
-                          <div className="flex flex-col items-center justify-center py-10 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                            <div className="bg-emerald-100 text-emerald-600 p-3 rounded-full mb-3">
-                              <ClipboardCheck className="w-6 h-6" />
-                            </div>
-                            <p className="text-slate-600 font-medium mb-1">Todo al día</p>
-                            <p className="text-slate-400 text-sm mb-4">No hay coberturas pendientes registradas.</p>
-                            <button onClick={() => { setEditingMatch({ date: localDate() }); setIsMatchModalOpen(true); }} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors flex items-center gap-2 shadow-sm">
-                              <Plus className="w-4 h-4" /> Nueva Cobertura
-                            </button>
-                          </div>
-                        )}
+                      <div className="mb-3 flex items-center justify-between gap-2">
+                        <h3 className="text-lg font-bold">Servicios de hoy</h3>
+                        <button onClick={() => { setDailyAgendaDate(localDate()); setIsDailyAgendaOpen(true); }} className="text-sm font-semibold text-indigo-700">Ver agenda</button>
                       </div>
+                      <AgendaList services={servicesForDay(agendaServices, localDate()).slice(0, 5)} allServices={agendaServices} date={localDate()} staff={staff} ambulances={ambulances} onOpen={openAgendaService} />
+                      {servicesForDay(agendaServices, localDate()).length > 5 && <button onClick={() => { setDailyAgendaDate(localDate()); setIsDailyAgendaOpen(true); }} className="mt-3 text-sm font-semibold text-indigo-700">Ver todos los servicios del día</button>}
                     </div>
 
                       <FleetStatusWidget 
@@ -2228,7 +2198,19 @@ function MainApp({ session }: { session: any }) {
 
       {isAuditModalOpen && <AuditModal />}
       {isIncidentModalOpen && <IncidentModal />}
-      {isDailyAgendaOpen && <DailyAgendaModal />}
+      {isStaffScheduleOpen && <DailyAgendaModal />}
+      {isDailyAgendaOpen && <OperationalAgendaModal
+        date={dailyAgendaDate} setDate={setDailyAgendaDate}
+        onClose={() => setIsDailyAgendaOpen(false)} services={agendaServices}
+        staff={staff} ambulances={ambulances} onOpen={openAgendaService}
+        dataError={dataError} loading={isLoadingData} onRefresh={loadData}
+        onStaffSchedule={() => { setIsDailyAgendaOpen(false); setIsStaffScheduleOpen(true); }}
+        onCreate={kind => {
+          setIsDailyAgendaOpen(false);
+          if (kind === 'coverage') { setEditingMatch({ date: dailyAgendaDate }); setIsMatchModalOpen(true); }
+          else { setEditingTransfer({ date: dailyAgendaDate }); setIsTransferModalOpen(true); }
+        }}
+      />}
       {isQuickAddModalOpen && (
         <QuickAddModal
           isOpen={isQuickAddModalOpen}

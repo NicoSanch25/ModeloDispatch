@@ -14,7 +14,11 @@ const database: Record<string, any[]> = {
   locations: [{ id: 'location', name: 'Sede de prueba' }],
   clients: [{ id: 'client', name: 'Cliente de prueba' }],
   matches: [{ id: 'match', date: today, time: '18:00', duration_minutes: 90, extension_minutes: 30, location: 'Sede de prueba', field_number: '1', type: 'Evento', status: 'Confirmed', ambulance_id: 'vehicle', driver_id: 'driver', nurse_id: 'nurse', driver_notified: true, nurse_notified: true, has_incident: true, was_transferred: true, incident_details: 'Incidente ficticio conservado', audit_logs: [] }],
-  fuel_records: [], transfers: [], audit_logs: []
+  fuel_records: [], transfers: params.get('agenda') ? [
+    { id: 'journey', date: today, transfer_number: 'PRUEBA-1', driver_id: 'driver', origin: 'Base de prueba', destination: 'Hospital de prueba', departure_base_time: '19:00', arrival_base_time: '21:00', status: 'Pending' },
+    { id: 'unscheduled', date: today, transfer_number: 'PRUEBA-2', origin: 'Sede sin horario', destination: 'Destino de prueba', status: 'Pending' },
+    { id: 'closed', date: today, origin: 'Traslado finalizado', destination: 'Base', status: 'Completed' }
+  ] : [], audit_logs: []
 };
 
 class Query implements PromiseLike<any> {
