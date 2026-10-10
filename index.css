@@ -29,3 +29,12 @@
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+.business-print-area { display: none; }
+@media print {
+  body:has(.business-print-area) * { visibility: hidden; }
+  .business-print-area, .business-print-area * { visibility: visible !important; }
+  .business-print-area { display: block; position: absolute; inset: 0; padding: 24px; background: white; color: black; font-size: 12pt; }
+  .business-print-area h1 { font-size: 24pt; margin-bottom: 16px; }
+  .business-print-area h2 { font-size: 16pt; margin: 16px 0; }
+  .business-print-area p { margin: 12px 0; }
+}

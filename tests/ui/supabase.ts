@@ -29,6 +29,7 @@ class Query implements PromiseLike<any> {
   constructor(private table: string) {}
   select(_columns?: string) { return this; }
   order(_column: string, _options?: any) { return this; }
+  range(_start: number, _end: number) { return this; }
   eq(key: string, value: any) { this.filters.push([key, value]); return this; }
   update(payload: any) { this.action = 'update'; this.payload = payload; return this; }
   insert(payload: any) { this.action = 'insert'; this.payload = payload; return this; }
@@ -38,6 +39,7 @@ class Query implements PromiseLike<any> {
     return this.execute().then(onfulfilled, onrejected);
   }
   private async execute() {
+    if (window.location.pathname.includes('business-harness')) return (await fetch(`/__business_fixture/table?name=${encodeURIComponent(this.table)}`)).json();
     if (this.action !== 'read') {
       await new Promise(resolve => setTimeout(resolve, params.get('delay') ? 1_000 : 10));
       if (params.get('fail') === this.table) return { data: null, error: new Error('Fallo ficticio de guardado') };
@@ -65,6 +67,7 @@ class Query implements PromiseLike<any> {
 
 export const configurationError = false;
 export const supabase = {
+  rpc: async (action: string, payload: any) => (await fetch('/__business_fixture/rpc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,payload})})).json(),
   from: (table: string) => new Query(table),
   auth: {
     getSession: async () => params.get('session') === 'stall' ? new Promise<any>(() => {}) : { data: { session }, error: null },

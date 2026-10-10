@@ -33,7 +33,8 @@ import { matchesService } from './src/services/matches';
 import { DateInput } from './src/components/DateInput';
 import { AgendaList } from './src/components/AgendaList';
 import { OperationalAgendaModal } from './src/components/modals/OperationalAgendaModal';
-import { agendaConflicts, buildAgenda, servicesForDay, type AgendaService } from './src/utils/agenda';
+import { agendaConflicts, applyServiceRegistry, buildAgenda, servicesForDay, type AgendaService } from './src/utils/agenda';
+import { fetchOperationalTable, fetchServiceRegistry, type Service } from './src/services/business';
 import { csvCell } from './src/utils/security';
 
 import { MatchModal } from './src/components/modals/MatchModal';
@@ -47,6 +48,7 @@ import { TransferModal } from './src/components/modals/TransferModal';
 import { FuelBatchModal } from './src/components/modals/FuelBatchModal';
 import { FleetStatusWidget } from './src/components/FleetStatusWidget';
 import { DashboardClock } from './src/components/DashboardClock';
+const BusinessWorkspace = React.lazy(() => import('./src/components/BusinessWorkspace').then(module => ({ default: module.BusinessWorkspace })));
 import { QuickAddModal, QuickAddRow } from './src/components/modals/QuickAddModal';
 
 // --- MAPPERS ---
@@ -107,6 +109,7 @@ const mapClientFromDB = (data: any): ClientModel => ({
 
 const mapMatchFromDB = (data: any): MatchModel => ({
   id: data.id,
+  version: data.version,
   date: data.date,
   time: data.time?.substring(0, 5), // Remove seconds if present
   location: data.location,
@@ -396,7 +399,7 @@ export default function App() {
 }
 
 function MainApp({ session }: { session: any }) {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'matches' | 'history' | 'fleet' | 'staff' | 'locations' | 'fuel' | 'clients' | 'transfers'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'matches' | 'history' | 'fleet' | 'staff' | 'locations' | 'fuel' | 'clients' | 'transfers' | 'business'>('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Data State
@@ -407,6 +410,7 @@ function MainApp({ session }: { session: any }) {
   const [fuelRecords, setFuelRecords] = useState<FuelRecordModel[]>([]);
   const [clients, setClients] = useState<ClientModel[]>([]);
   const [transfers, setTransfers] = useState<TransferModel[]>([]);
+  const [serviceRegistry, setServiceRegistry] = useState<Service[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [dataError, setDataError] = useState<string | null>(null);
 
@@ -489,15 +493,16 @@ function MainApp({ session }: { session: any }) {
         { data: clientData, error: e4 },
         { data: matchData, error: e5 },
         { data: fuelData, error: e6 },
-        { data: transfersData, error: e7 }
+        { data: transfersData, error: e7 }, registry
       ] = await withTimeout(Promise.all([
-        supabase.from('staff').select('*'),
-        supabase.from('ambulances').select('*'),
-        supabase.from('locations').select('*'),
-        supabase.from('clients').select('*'),
-        supabase.from('matches').select('*, audit_logs(*)').order('date', { ascending: true }),
-        supabase.from('fuel_records').select('*').order('date', { ascending: true }),
-        supabase.from('transfers').select('*').order('date', { ascending: false })
+        fetchOperationalTable('staff'),
+        fetchOperationalTable('ambulances'),
+        fetchOperationalTable('locations'),
+        fetchOperationalTable('clients'),
+        fetchOperationalTable('matches','*, audit_logs(*)'),
+        fetchOperationalTable('fuel_records'),
+        fetchOperationalTable('transfers'),
+        fetchServiceRegistry()
       ]), 20_000, 'No se pudieron actualizar los datos a tiempo.');
 
       if (e1 || e2 || e3 || e4 || e5 || e6 || e7) {
@@ -511,6 +516,7 @@ function MainApp({ session }: { session: any }) {
       if (matchData && matchData.length >= 0) setMatches(matchData.map(mapMatchFromDB));
       if (fuelData && fuelData.length >= 0) setFuelRecords(fuelData.map(mapFuelFromDB));
       if (transfersData && transfersData.length >= 0) setTransfers(transfersData as TransferModel[]);
+      setServiceRegistry(registry);
 
     } catch (error) {
       console.error("Error loading data:", error);
@@ -532,7 +538,18 @@ function MainApp({ session }: { session: any }) {
     return a.time.localeCompare(b.time);
   });
 
-  const agendaServices = useMemo(() => buildAgenda(matches, transfers), [matches, transfers]);
+  const agendaServices = useMemo(() => applyServiceRegistry(buildAgenda(matches, transfers),serviceRegistry), [matches, transfers,serviceRegistry]);
+  const openBusinessService = (service: Service) => {
+    if (service.kind === 'coverage') {
+      const source = matches.find(m => m.id === service.coverage_id);
+      if (!source) { setDataError('El servicio no está en la vista actual. Actualizá los datos antes de editar.'); return; }
+      setEditingMatch(source); setIsMatchModalOpen(true);
+    } else {
+      const source = transfers.find(t => t.id === service.transfer_id);
+      if (!source) { setDataError('El traslado no está en la vista actual. Actualizá los datos antes de editar.'); return; }
+      setEditingTransfer(source); setIsTransferModalOpen(true);
+    }
+  };
   const superpositionCount = useMemo(() => agendaServices.filter(service => !service.closed &&
     (service.date >= localDate() || (service.end !== null && service.end > Date.now())) &&
     agendaConflicts(service, agendaServices).length > 0).length, [agendaServices]);
@@ -791,9 +808,12 @@ function MainApp({ session }: { session: any }) {
 
   // --- TRANSFERS HANDLERS ---
   const handleSaveTransfer = async (payload: Partial<TransferModel>) => {
-      const cleaned = { ...payload, driver_id: payload.driver_id || null };
+      const cleaned = { ...payload, driver_id: payload.driver_id || null, ambulance_id: payload.ambulance_id || null, nurse_id: payload.nurse_id || null, client_id: payload.client_id || null, planned_start_at: payload.planned_start_at || null, planned_end_at: payload.planned_end_at || null };
+      delete cleaned.version;
       if (payload.id) {
-        const { error } = await supabase.from('transfers').update(cleaned).eq('id', payload.id);
+        let query = supabase.from('transfers').update(cleaned).eq('id', payload.id);
+        if (payload.version !== undefined) query = query.eq('version', payload.version);
+        const { error } = await query.select('id').single();
         if (error) throw error;
       } else {
         const { error } = await supabase.from('transfers').insert([cleaned]);
@@ -1483,6 +1503,7 @@ function MainApp({ session }: { session: any }) {
           <button onClick={() => handleNav('clients')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'clients' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
             <Building className="w-5 h-5" /> Clientes
           </button>
+          <button onClick={() => handleNav('business')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'business' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><ReceiptText size={20}/> Administración</button>
           <button onClick={() => handleNav('fleet')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'fleet' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
             <Truck className="w-5 h-5" /> Flota
           </button>
@@ -1524,6 +1545,7 @@ function MainApp({ session }: { session: any }) {
             {activeTab === 'fuel' && 'Control de Combustible'}
             {activeTab === 'clients' && 'Gestión de Clientes'}
             {activeTab === 'transfers' && 'Registro de Traslados'}
+            {activeTab === 'business' && 'Administración de servicios'}
           </h2>
           <div className="flex items-center gap-3">
             <button
@@ -1567,6 +1589,7 @@ function MainApp({ session }: { session: any }) {
           ) : (
             <>
               {/* DASHBOARD */}
+              {activeTab === 'business' && <React.Suspense fallback={<p className="p-3 text-slate-500">Abriendo administración…</p>}><BusinessWorkspace revision={serviceRegistry.map(s=>`${s.id}:${s.version}`).join('|')} clients={clients} staff={staff} ambulances={ambulances} onChanged={loadData} onEdit={openBusinessService}/></React.Suspense>}
               {activeTab === 'dashboard' && (
                   <>
                     <div className="mb-3 flex flex-wrap items-end justify-between gap-2 px-1">
@@ -1648,6 +1671,7 @@ function MainApp({ session }: { session: any }) {
                     </div>
 
                       <FleetStatusWidget 
+                        services={agendaServices}
                         ambulances={ambulances} 
                         matches={matches} 
                         onAmbulanceClick={(amb) => setViewingAmbulance(amb)}
@@ -2182,6 +2206,8 @@ function MainApp({ session }: { session: any }) {
         onDelete={handleDeleteTransfer}
         transfer={editingTransfer}
         staff={staff}
+        ambulances={ambulances}
+        clients={clients}
       />
       
       <MatchModal

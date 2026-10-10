@@ -75,6 +75,7 @@ export interface AuditLogEntry {
 
 export interface Match {
   id: string;
+  version?: number;
   location: string; // Venue name
   fieldNumber?: string; // Specific field number or detail (e.g. "Cancha 2", "Principal")
   date: string; // ISO Date string YYYY-MM-DD
@@ -132,6 +133,12 @@ export interface AppState {
 }
 export interface Transfer {
   id: string;
+  version?: number;
+  planned_start_at?: string;
+  planned_end_at?: string;
+  ambulance_id?: string;
+  nurse_id?: string;
+  client_id?: string;
   transfer_number?: string;
   driver_id?: string;
   received_by?: string;

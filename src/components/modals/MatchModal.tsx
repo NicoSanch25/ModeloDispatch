@@ -52,6 +52,7 @@ export const MatchModal: React.FC<MatchModalProps> = ({
 
         const matchData: Partial<Match> = {
             id: editingMatch?.id,
+            version: editingMatch?.version,
             date: formData.get('date') as string,
             time: formData.get('time') as string,
             location: formData.get('location') as string,

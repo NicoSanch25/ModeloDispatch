@@ -18,6 +18,7 @@ const mapMatchFromDB = (data: any): Match => {
 
     return {
         id: data.id,
+        version: data.version,
         date: data.date,
         time: data.time?.substring(0, 5), // Remove seconds if present
         location: location,
@@ -168,9 +169,11 @@ export const matchesService = {
 
         if (matchData.id) {
             // Update
-            const { error } = await supabase.from('matches').update(payload).eq('id', matchData.id).select('id').single();
+            let query = supabase.from('matches').update(payload).eq('id', matchData.id);
+            if (matchData.version !== undefined) query = query.eq('version', matchData.version);
+            const { data, error } = await query.select('*, audit_logs(*)').single();
             if (error) throw error;
-            return { id: matchData.id, ...finalData }; // Return optimistic
+            return mapMatchFromDB(data);
         } else {
             // Insert
             const { data, error } = await supabase.from('matches').insert(payload).select();

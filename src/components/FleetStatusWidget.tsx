@@ -3,10 +3,12 @@ import { MapPin, Car, Ambulance } from 'lucide-react';
 import { Ambulance as AmbulanceModel, Match as MatchModel } from '../types';
 import { formatTime24 } from '../utils/formatters';
 import { activeCoverage } from '../utils/scheduling';
+import type { AgendaService } from '../utils/agenda';
 
 interface FleetStatusWidgetProps {
     ambulances: AmbulanceModel[];
     matches: MatchModel[];
+    services?: AgendaService[];
     onAmbulanceClick?: (amb: AmbulanceModel) => void;
 }
 
@@ -19,7 +21,7 @@ const getAmbulanceIcon = (vehicleType?: string, className: string = "w-6 h-6") =
     return <Ambulance className={className} />;
 };
 
-export const FleetStatusWidget: React.FC<FleetStatusWidgetProps> = ({ ambulances, matches, onAmbulanceClick }) => {
+export const FleetStatusWidget: React.FC<FleetStatusWidgetProps> = ({ ambulances, matches, services, onAmbulanceClick }) => {
     const [currentTime, setCurrentTime] = useState(new Date());
     const [filter, setFilter] = useState<'Todos' | 'Disponibles' | 'En Servicio' | 'En Taller'>('Todos');
 
@@ -33,6 +35,7 @@ export const FleetStatusWidget: React.FC<FleetStatusWidgetProps> = ({ ambulances
             let statusText = '';
             let statusColor = 'bg-emerald-500';
             let activeMatch = null;
+            let activeService: AgendaService | undefined;
 
             if (amb.maintenance?.status === 'InRepair') {
                 statusText = 'En Taller';
@@ -41,24 +44,26 @@ export const FleetStatusWidget: React.FC<FleetStatusWidgetProps> = ({ ambulances
                 statusText = 'Fuera de Servicio';
                 statusColor = 'bg-red-500';
             } else {
-                activeMatch = activeCoverage(amb.id, matches, currentTime) || null;
+                if (services) {
+                    activeService = services.find(s => s.ambulanceId === amb.id && !s.closed && (s.operatingNow || s.start !== null && s.end !== null && s.start <= currentTime.getTime() && s.end + 15 * 60000 > currentTime.getTime()));
+                } else activeMatch = activeCoverage(amb.id, matches, currentTime) || null;
 
-                if (activeMatch) {
-                    statusText = 'Cobertura prevista';
+                if (activeMatch || activeService) {
+                    statusText = activeService?.operatingNow ? activeService.status : 'Reserva activa';
                     statusColor = 'bg-blue-500 animate-pulse';
                 } else {
-                    statusText = 'Sin cobertura prevista';
+                    statusText = 'Sin reserva activa';
                     statusColor = 'bg-emerald-500';
                 }
             }
-            return { amb, statusText, statusColor, activeMatch };
+            return { amb, statusText, statusColor, activeMatch, activeService };
         });
-    }, [ambulances, matches, currentTime]);
+    }, [ambulances, matches, services, currentTime]);
 
     const filteredAmbulances = enrichedAmbulances.filter(item => {
         if (filter === 'Todos') return true;
-        if (filter === 'Disponibles') return item.statusText === 'Sin cobertura prevista';
-        if (filter === 'En Servicio') return item.statusText === 'Cobertura prevista';
+        if (filter === 'Disponibles') return item.statusText === 'Sin reserva activa';
+        if (filter === 'En Servicio') return !!item.activeMatch || !!item.activeService;
         if (filter === 'En Taller') return item.statusText === 'En Taller' || item.statusText === 'Fuera de Servicio';
         return true;
     });
@@ -77,17 +82,17 @@ export const FleetStatusWidget: React.FC<FleetStatusWidgetProps> = ({ ambulances
                         onClick={() => setFilter(f as any)}
                         className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap transition-colors font-medium border ${filter === f ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}
                     >
-                        {f === 'Disponibles' ? 'Sin cobertura' : f === 'En Servicio' ? 'Con cobertura' : f}
+                        {f === 'Disponibles' ? 'Sin reserva activa' : f === 'En Servicio' ? 'Con servicio' : f}
                     </button>
                 ))}
             </div>
 
-            <p className="mb-3 text-xs text-slate-500">Estimación por coberturas. Verificá traslados y regreso antes de asignar.</p>
+            <p className="mb-3 text-xs text-slate-500">Según reservas y estados informados. No es ubicación GPS. Verificá bloqueos y regreso antes de asignar.</p>
             <div className="space-y-3 overflow-y-auto max-h-[350px] pr-2 custom-scrollbar">
                 {filteredAmbulances.length === 0 ? (
                     <p className="text-center text-sm text-slate-400 py-4">No hay móviles en este estado.</p>
                 ) : (
-                    filteredAmbulances.map(({ amb, statusText, statusColor, activeMatch }) => (
+                    filteredAmbulances.map(({ amb, statusText, statusColor, activeMatch, activeService }) => (
                         <div 
                             key={amb.id} 
                             onClick={() => onAmbulanceClick && onAmbulanceClick(amb)}
@@ -104,7 +109,7 @@ export const FleetStatusWidget: React.FC<FleetStatusWidgetProps> = ({ ambulances
                                             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">En Taller</span>
                                         )}
                                     </div>
-                                    {activeMatch ? (
+                                    {activeService ? <div className="flex flex-col"><span className="text-xs font-bold text-blue-700">{activeService.title}</span><span className="text-xs text-blue-600">{statusText}</span></div> : activeMatch ? (
                                         <div className="flex flex-col">
                                             <span className="text-xs font-bold text-blue-700 flex items-center gap-1">
                                                 <MapPin className="w-3 h-3" /> {activeMatch.location}

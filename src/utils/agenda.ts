@@ -1,5 +1,6 @@
 import type { Match, Transfer } from '../types';
 import { coverageWindow } from './scheduling';
+import type { Service } from '../services/business';
 
 // A common read model. Original records remain the source of truth.
 export interface AgendaService {
@@ -10,12 +11,22 @@ export interface AgendaService {
   detail: string;
   status: string;
   closed: boolean;
+  operatingNow?: boolean;
   start: number | null;
   end: number | null;
   crew: string[];
   ambulanceId?: string;
   warnings: string[];
   source: Match | Transfer;
+}
+export function applyServiceRegistry(agenda: AgendaService[],registry: Service[]): AgendaService[] {
+  const labels={scheduled:'Programado',en_route:'En camino',in_service:'En servicio',finished:'Finalizó · regreso pendiente',returning:'Regresando',closed:'Cerrado',cancelled:'Cancelado'};
+  const indexed=new Map(registry.map(s=>[`${s.kind}:${s.coverage_id||s.transfer_id}`,s]));
+  return agenda.map(row=>{
+    const s=indexed.get(row.key);if(!s)return row;
+    return {...row,status:labels[s.state],closed:s.state==='closed'||s.state==='cancelled',operatingNow:['en_route','in_service','finished','returning'].includes(s.state),crew:s.crew,ambulanceId:s.ambulance_id,
+      start:s.start_at?Date.parse(s.start_at):row.start,end:s.end_at?Date.parse(s.end_at):row.end};
+  });
 }
 export interface AgendaConflict {
   other: AgendaService;
@@ -47,8 +58,8 @@ export function buildAgenda(matches: Match[], transfers: Transfer[]): AgendaServ
   const journeys: AgendaService[] = transfers.map(transfer => {
     // These are checkpoint hours, not a new planned reservation or a GPS report.
     const first = transfer.departure_base_time || transfer.arrival_origin_time || transfer.departure_origin_time || transfer.arrival_destination_time || transfer.departure_destination_time;
-    const start = timestamp(transfer.date, first);
-    let end = timestamp(transfer.date, transfer.arrival_base_time);
+    const start = transfer.planned_start_at ? Date.parse(transfer.planned_start_at) : timestamp(transfer.date, first);
+    let end = transfer.planned_end_at ? Date.parse(transfer.planned_end_at) : timestamp(transfer.date, transfer.arrival_base_time);
     if (start !== null && end !== null && end < start) end += 86_400_000;
     if (start === null || end === start) end = null;
     return {
@@ -57,8 +68,8 @@ export function buildAgenda(matches: Match[], transfers: Transfer[]): AgendaServ
       detail: transfer.transfer_number ? `Traslado ${transfer.transfer_number}` : 'Traslado',
       status: transfer.status === 'Completed' ? 'Finalizado' : transfer.status === 'Cancelled' ? 'Cancelado' : 'Pendiente',
       closed: transfer.status === 'Completed' || transfer.status === 'Cancelled',
-      start, end, crew: transfer.driver_id ? [transfer.driver_id] : [], source: transfer,
-      warnings: [start === null && 'Horario pendiente', end === null && 'Regreso sin horario: ocupación por verificar', !transfer.driver_id && 'Chofer pendiente', 'Móvil y tripulación del traslado sin reserva registrada'].filter((value): value is string => !!value)
+      start, end, crew: [transfer.driver_id, transfer.nurse_id].filter((id): id is string => !!id), ambulanceId: transfer.ambulance_id, source: transfer,
+      warnings: [start === null && 'Horario pendiente', end === null && 'Regreso sin horario: ocupación por verificar', !transfer.driver_id && 'Chofer pendiente', !transfer.ambulance_id && 'Móvil y tripulación del traslado sin reserva registrada'].filter((value): value is string => !!value)
     };
   });
   return [...coverages, ...journeys].sort((a, b) => a.date.localeCompare(b.date) || (a.start ?? Infinity) - (b.start ?? Infinity) || a.key.localeCompare(b.key));
@@ -68,7 +79,7 @@ export function servicesForDay(services: AgendaService[], date: string, includeC
   const dayStart = timestamp(date, '00:00');
   if (dayStart === null) return [];
   return services.filter(service => (includeClosed || !service.closed) &&
-    (service.date === date || (service.start !== null && service.end !== null && service.start < dayStart + 86_400_000 && service.end > dayStart))
+    (service.date === date || (service.operatingNow && date === new Date().toLocaleDateString('en-CA',{timeZone:'America/Argentina/Buenos_Aires'})) || (service.start !== null && service.end !== null && service.start < dayStart + 86_400_000 && service.end > dayStart))
   ).sort((a, b) => (a.start ?? Infinity) - (b.start ?? Infinity) || a.key.localeCompare(b.key));
 }
 

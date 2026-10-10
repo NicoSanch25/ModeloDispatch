@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Save, Trash2, Ambulance } from 'lucide-react';
-import { Transfer, Staff } from '../../types';
+import { Transfer, Staff, Ambulance as AmbulanceModel, Client } from '../../types';
 import { localDate } from '../../utils/statistics';
 import { DateInput } from '../DateInput';
 
@@ -11,10 +11,12 @@ interface TransferModalProps {
     onDelete?: (id: string) => void;
     transfer: Partial<Transfer> | null;
     staff: Staff[];
+    ambulances?: AmbulanceModel[];
+    clients?: Client[];
 }
 
 export const TransferModal: React.FC<TransferModalProps> = ({
-    isOpen, onClose, onSave, onDelete, transfer, staff
+    isOpen, onClose, onSave, onDelete, transfer, staff, ambulances = [], clients = []
 }) => {
     const [formData, setFormData] = useState<Partial<Transfer>>({
         date: localDate(),
@@ -52,8 +54,8 @@ export const TransferModal: React.FC<TransferModalProps> = ({
         setError('');
         try {
             await onSave(formData);
-        } catch {
-            setError('No se pudo guardar el traslado. Revisá la conexión y volvé a intentar.');
+        } catch (e: any) {
+            setError(e.message || 'No se pudo guardar el traslado. Revisá la conexión y volvé a intentar.');
         } finally {
             submitting.current = false;
             setIsSaving(false);
@@ -69,6 +71,13 @@ export const TransferModal: React.FC<TransferModalProps> = ({
     };
 
     const drivers = staff.filter(s => s.role === 'Chofer');
+    const planValue = (key: 'planned_start_at' | 'planned_end_at') => formData[key] ? new Date(Date.parse(formData[key]!) - 3 * 3600000).toISOString().slice(0, 16) : '';
+    const setPlan = (key: 'planned_start_at' | 'planned_end_at', part: 'date' | 'time', value: string) => {
+        const old = planValue(key);
+        const date = part === 'date' ? value : old.slice(0, 10) || formData.date || localDate();
+        const time = part === 'time' ? value : old.slice(11, 16) || '09:00';
+        setFormData(prev => ({ ...prev, [key]: date && time ? `${date}T${time}:00-03:00` : undefined }));
+    };
 
     return (
         <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-2 md:p-4">
@@ -114,6 +123,19 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                             </div>
                         </div>
 
+                        <section className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-3 space-y-3">
+                            <h4 className="text-sm font-bold text-slate-700">Programación y reserva de recursos</h4>
+                            <p className="text-xs text-slate-500">La reserva incluye el regreso a base. Los horarios reales se registran más abajo.</p>
+                            <div className="grid grid-cols-2 gap-3">
+                                {(['planned_start_at', 'planned_end_at'] as const).map(key => <React.Fragment key={key}>
+                                    <label className="min-w-0 text-xs text-slate-600">{key === 'planned_start_at' ? 'Fecha de salida prevista' : 'Fecha de regreso previsto'}<DateInput aria-label={key === 'planned_start_at' ? 'Fecha de salida prevista' : 'Fecha de regreso previsto'} value={planValue(key).slice(0,10)} onChange={e => setPlan(key,'date',e.target.value)} className="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2"/></label>
+                                    <label className="min-w-0 text-xs text-slate-600">{key === 'planned_start_at' ? 'Hora de salida prevista' : 'Hora de regreso prevista'}<input type="time" aria-label={key === 'planned_start_at' ? 'Hora de salida prevista' : 'Hora de regreso prevista'} value={planValue(key).slice(11,16)} onChange={e => setPlan(key,'time',e.target.value)} className="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2"/></label>
+                                </React.Fragment>)}
+                                <label className="text-xs text-slate-600">Móvil<select aria-label="Móvil del traslado" name="ambulance_id" className="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2" value={formData.ambulance_id || ''} onChange={handleChange}><option value="">Pendiente</option>{ambulances.map(a=><option key={a.id} value={a.id} disabled={!!a.maintenance?.status && a.maintenance.status !== 'Active'}>Móvil {a.number}{a.maintenance?.status && a.maintenance.status !== 'Active'?' · No disponible':''}</option>)}</select></label>
+                                <label className="text-xs text-slate-600">Enfermero/a<select aria-label="Enfermero del traslado" name="nurse_id" className="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2" value={formData.nurse_id || ''} onChange={handleChange}><option value="">Pendiente</option>{staff.filter(s=>s.role !== 'Chofer').map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
+                                <label className="col-span-2 text-xs text-slate-600">Cliente<select aria-label="Cliente del traslado" name="client_id" className="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2" value={formData.client_id || ''} onChange={handleChange}><option value="">Pendiente</option>{clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+                            </div>
+                        </section>
                         {/* Patient Info */}
                         <h4 className="text-sm font-bold text-slate-700 border-b pb-2">Información del Paciente</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
