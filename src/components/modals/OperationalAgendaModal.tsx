@@ -46,7 +46,7 @@ export function OperationalAgendaModal({ date, setDate, onClose, services, staff
       </div>
       <div className="flex-1 overflow-y-auto bg-slate-50 p-3 sm:p-4">
         {dataError && <p role="alert" className="mb-3 rounded-lg bg-amber-50 p-2 text-xs text-amber-800">{dataError}</p>}
-        <p className="mb-3 text-xs text-slate-500">Horarios registrados; no confirman salida ni disponibilidad real. Cruces con margen de 15 minutos. Los traslados todavía no reservan móvil ni tripulación.</p>
+        <p className="mb-3 text-xs text-slate-500">Horarios registrados; no confirman salida ni disponibilidad real. Cruces con margen de 15 minutos. Los traslados sin móvil o tripulación asignados no participan en el control de cruces de esos recursos.</p>
         <AgendaList services={day} allServices={services} date={date} staff={staff} ambulances={ambulances} onOpen={onOpen} />
       </div>
       <footer className="border-t p-3"><button onClick={onStaffSchedule} className="flex items-center gap-2 text-xs font-semibold text-slate-600"><Users className="h-4 w-4" />Cronograma de coberturas por personal</button></footer>

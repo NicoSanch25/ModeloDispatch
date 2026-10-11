@@ -163,13 +163,20 @@ export const MatchModal: React.FC<MatchModalProps> = ({
         setShowSuspensionReason(val === 'Suspended');
     };
 
+    useEffect(() => {
+        if (!isOpen) return;
+        const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape' && !submitting.current) onClose(); };
+        document.addEventListener('keydown', onKey);
+        return () => document.removeEventListener('keydown', onKey);
+    }, [isOpen, onClose]);
+
     if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-                <form onSubmit={handleSubmit} className="flex flex-col h-full">
-                    <div className="p-6 border-b bg-slate-50 rounded-t-xl flex justify-between items-center">
+            <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+                <form onSubmit={handleSubmit} className="flex flex-col min-h-0 max-h-[90vh]">
+                    <div className="shrink-0 px-4 py-4 sm:p-6 border-b bg-slate-50 rounded-t-xl flex justify-between items-center gap-2">
                         <div className="flex items-center gap-4">
                             <h3 className="text-xl font-bold text-slate-800">{editingMatch?.id ? 'Editar Cobertura' : 'Nueva Cobertura'}</h3>
                             {editingMatch?.status === 'Completed' && (
@@ -187,7 +194,7 @@ export const MatchModal: React.FC<MatchModalProps> = ({
                         <button type="button" disabled={isLoading} aria-label="Cerrar cobertura" onClick={onClose}><X className="w-6 h-6 text-slate-400" /></button>
                     </div>
 
-                    <div className={`p-4 sm:p-6 space-y-4 ${isReadOnly ? 'opacity-80 pointer-events-none grayscale-[0.5]' : ''}`}>
+                    <div className={`flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-4 ${isReadOnly ? 'opacity-80 pointer-events-none grayscale-[0.5]' : ''}`}>
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                             <div className="md:col-span-1">
                                 <label className="block text-sm font-medium text-slate-700 mb-1">Fecha</label>
@@ -344,7 +351,7 @@ export const MatchModal: React.FC<MatchModalProps> = ({
                         </div>
                     </div>
 
-                    <div className="p-6 border-t bg-slate-50 rounded-b-xl flex flex-col md:flex-row justify-between gap-3">
+                    <div className="shrink-0 p-4 sm:p-6 border-t bg-slate-50 rounded-b-xl flex flex-col md:flex-row justify-between gap-3">
                         {editingMatch?.id && !isReadOnly && (
                             <button type="button" disabled={isLoading} onClick={handleDelete} className="px-4 py-2 rounded-lg text-red-600 hover:bg-red-50 border border-red-200 font-medium flex items-center justify-center gap-2 order-2 md:order-1">
                                 <Trash2 className="w-4 h-4" /> Eliminar

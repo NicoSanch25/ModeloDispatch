@@ -25,10 +25,12 @@ export const TransferModal: React.FC<TransferModalProps> = ({
     });
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState('');
+    const [missing, setMissing] = useState<string[]>([]);
     const submitting = useRef(false);
 
     useEffect(() => {
         setError('');
+        setMissing([]);
         if (transfer) {
             setFormData({
                 date: localDate(),
@@ -44,11 +46,26 @@ export const TransferModal: React.FC<TransferModalProps> = ({
         }
     }, [transfer, isOpen]);
 
+    useEffect(() => {
+        if (!isOpen) return;
+        const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape' && !submitting.current) onClose(); };
+        document.addEventListener('keydown', onKey);
+        return () => document.removeEventListener('keydown', onKey);
+    }, [isOpen, onClose]);
+
     if (!isOpen) return null;
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (submitting.current) return;
+        // Registros anteriores sin origen/destino siguen editables; la exigencia aplica a traslados nuevos.
+        const empty = transfer?.id ? [] : (['origin', 'destination'] as const).filter(key => !String(formData[key] ?? '').trim());
+        setMissing(empty);
+        if (empty.length) {
+            setError('Completá origen y destino para guardar el traslado.');
+            (document.querySelector(`#transfer-form [name="${empty[0]}"]`) as HTMLInputElement | null)?.focus();
+            return;
+        }
         submitting.current = true;
         setIsSaving(true);
         setError('');
@@ -64,6 +81,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value, type } = e.target;
+        if (missing.includes(name) && value.trim()) setMissing(prev => prev.filter(key => key !== name));
         setFormData(prev => ({
             ...prev,
             [name]: type === 'number' ? (value ? Number(value) : undefined) : value
@@ -186,12 +204,14 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                                 </select>
                             </div>
                             <div className="md:col-span-1">
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Origen (Traslado Desde)</label>
-                                <input type="text" name="origin" value={formData.origin || ''} onChange={handleChange} className="w-full p-2 border border-slate-200 rounded-lg" placeholder="Ej: San Fernando" />
+                                <label htmlFor="transfer-origin" className="block text-xs font-bold text-slate-500 uppercase mb-1">Origen (Traslado Desde) *</label>
+                                <input id="transfer-origin" type="text" name="origin" aria-invalid={missing.includes('origin')} value={formData.origin || ''} onChange={handleChange} className={`w-full p-2 border rounded-lg ${missing.includes('origin') ? 'border-rose-400 bg-rose-50' : 'border-slate-200'}`} placeholder="Ej: San Fernando" />
+                                {missing.includes('origin') && <p className="mt-1 text-xs text-rose-700">Indicá desde dónde sale el traslado.</p>}
                             </div>
                             <div className="md:col-span-1">
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Destino (Lugar Hasta)</label>
-                                <input type="text" name="destination" value={formData.destination || ''} onChange={handleChange} className="w-full p-2 border border-slate-200 rounded-lg" placeholder="Ej: Hospital Gutierrez" />
+                                <label htmlFor="transfer-destination" className="block text-xs font-bold text-slate-500 uppercase mb-1">Destino (Lugar Hasta) *</label>
+                                <input id="transfer-destination" type="text" name="destination" aria-invalid={missing.includes('destination')} value={formData.destination || ''} onChange={handleChange} className={`w-full p-2 border rounded-lg ${missing.includes('destination') ? 'border-rose-400 bg-rose-50' : 'border-slate-200'}`} placeholder="Ej: Hospital Gutierrez" />
+                                {missing.includes('destination') && <p className="mt-1 text-xs text-rose-700">Indicá a dónde va el traslado.</p>}
                             </div>
                         </div>
 
