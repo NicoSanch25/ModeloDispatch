@@ -50,6 +50,8 @@ import { FleetStatusWidget } from './src/components/FleetStatusWidget';
 import { DashboardClock } from './src/components/DashboardClock';
 const BusinessWorkspace = React.lazy(() => import('./src/components/BusinessWorkspace').then(module => ({ default: module.BusinessWorkspace })));
 import { QuickAddModal, QuickAddRow } from './src/components/modals/QuickAddModal';
+import { ModalShell } from './src/components/ui/ModalShell';
+import { askConfirm, FeedbackHost, notify, useSpanishValidation } from './src/components/ui/feedback';
 
 // --- MAPPERS ---
 // Convert DB (snake_case) to App (camelCase) and vice-versa
@@ -355,6 +357,7 @@ export default function App() {
   const [session, setSession] = useState<any>(null);
   const [isLoadingSession, setIsLoadingSession] = useState(true);
   const [sessionError, setSessionError] = useState(false);
+  useSpanishValidation();
 
   // Check auth session
   useEffect(() => {
@@ -395,7 +398,7 @@ export default function App() {
     });
   }} />;
 
-  return <MainApp key={session.user.id} session={session} />;
+  return <><MainApp key={session.user.id} session={session} /><FeedbackHost /></>;
 }
 
 function MainApp({ session }: { session: any }) {
@@ -646,7 +649,7 @@ function MainApp({ session }: { session: any }) {
         nurseNotified: flags.nurse_notified ?? m.nurseNotified
       }));
     } catch {
-      alert('No se pudo guardar el estado del aviso. Revisá la conexión y volvé a intentar.');
+      notify.error('No se pudo guardar el estado del aviso. Revisá la conexión y volvé a intentar.');
     }
   };
 
@@ -668,7 +671,7 @@ function MainApp({ session }: { session: any }) {
         failed++;
       }
     }
-    if (failed) alert('No se pudo guardar el aviso en ' + failed + ' cobertura(s). Esas marcas quedaron pendientes.');
+    if (failed) notify.error('No se pudo guardar el aviso en ' + failed + ' cobertura(s). Esas marcas quedaron pendientes.');
   };
 
   const handleSaveMatch = async (matchData: Partial<MatchModel>) => {
@@ -757,12 +760,12 @@ function MainApp({ session }: { session: any }) {
       setEditingMatch(null);
 
     } catch (err: any) {
-      alert("Error guardando cobertura: " + err.message);
+      notify.error("Error guardando cobertura: " + err.message);
     }
   };
 
   const handleDeleteMatch = async (matchId: string) => {
-    if (window.confirm("¿Confirma ELIMINAR esta cobertura? No se podrá recuperar.")) {
+    if ((await askConfirm({ title: "¿Confirma ELIMINAR esta cobertura? No se podrá recuperar.", confirmLabel: 'Eliminar', danger: true }))) {
       try {
         const { error } = await supabase.from('matches').delete().eq('id', matchId);
         if (error) throw error;
@@ -773,8 +776,9 @@ function MainApp({ session }: { session: any }) {
         }
 
         await loadData();
+        notify.success('Cobertura eliminada.');
       } catch (err: any) {
-        alert("Error eliminando: " + err.message);
+        notify.error("Error eliminando: " + err.message);
       }
     }
   };
@@ -795,14 +799,15 @@ function MainApp({ session }: { session: any }) {
       try {
         await matchesService.addAuditLog(reportingMatch.id, 'Reporte de incidente actualizado / Cobertura completada');
       } catch {
-        alert('El reporte se guardó, pero no se pudo registrar el historial. Avisá al administrador.');
+        notify.error('El reporte se guardó, pero no se pudo registrar el historial. Avisá al administrador.');
       }
 
       await loadData();
       setIsIncidentModalOpen(false);
       setReportingMatch(null);
+      notify.success('Reporte guardado.');
     } catch (err: any) {
-      alert("Error guardando reporte: " + err.message);
+      notify.error("Error guardando reporte: " + err.message);
     }
   };
 
@@ -822,18 +827,20 @@ function MainApp({ session }: { session: any }) {
       await loadData();
       setIsTransferModalOpen(false);
       setEditingTransfer(null);
+      notify.success(payload.id ? 'Traslado actualizado.' : 'Traslado registrado.');
   };
 
   const handleDeleteTransfer = async (id: string) => {
-    if (!confirm('¿Seguro que deseas eliminar este traslado?')) return;
+    if (!(await askConfirm({ title: '¿Seguro que deseas eliminar este traslado?', confirmLabel: 'Eliminar', danger: true }))) return;
     try {
       const { error } = await supabase.from('transfers').delete().eq('id', id);
       if (error) throw error;
       await loadData();
       setIsTransferModalOpen(false);
       setEditingTransfer(null);
+      notify.success('Traslado eliminado.');
     } catch (err: any) {
-      alert("Error al eliminar traslado: " + err.message);
+      notify.error("Error al eliminar traslado: " + err.message);
     }
   };
 
@@ -858,8 +865,9 @@ function MainApp({ session }: { session: any }) {
       if (error) throw error;
       await loadData();
       setIsQuickAddModalOpen(false);
+      notify.success(newMatchesPayload.length === 1 ? 'Cobertura creada.' : `${newMatchesPayload.length} coberturas creadas.`);
     } catch (err: any) {
-      alert("Error carga rápida: " + err.message);
+      notify.error("Error carga rápida: " + err.message);
     }
   };
 
@@ -896,7 +904,7 @@ function MainApp({ session }: { session: any }) {
       }
       await loadData();
       setIsStaffModalOpen(false);
-    } catch (err: any) { alert(err.message); }
+    } catch (err: any) { notify.error(err.message); }
   };
 
   const handleSaveAmbulance = async (e: React.FormEvent) => {
@@ -909,20 +917,20 @@ function MainApp({ session }: { session: any }) {
     if (yearInput && yearInput.toString().trim() !== '') {
       year = parseInt(yearInput.toString(), 10);
       if (isNaN(year)) {
-        alert("El año ingresado no es válido.");
+        notify.error("El año ingresado no es válido.");
         return;
       }
       // Validation for realistic years
       const currentYear = new Date().getFullYear();
       if (year < 1900 || year > currentYear + 1) {
-        alert(`El año debe estar entre 1900 y ${currentYear + 1}`);
+        notify.error(`El año debe estar entre 1900 y ${currentYear + 1}`);
         return;
       }
     }
 
     const numberVal = form.get('number');
     if (!numberVal || numberVal.toString().trim() === '') {
-      alert("El número de móvil es obligatorio.");
+      notify.error("El número de móvil es obligatorio.");
       return;
     }
 
@@ -988,7 +996,7 @@ function MainApp({ session }: { session: any }) {
       } else {
         msg = String(err);
       }
-      alert(`Error al guardar móvil: ${msg}`);
+      notify.error(`Error al guardar móvil: ${msg}`);
     }
   };
 
@@ -1011,7 +1019,7 @@ function MainApp({ session }: { session: any }) {
       }
       await loadData();
       setIsLocationModalOpen(false);
-    } catch (err: any) { alert(err.message); }
+    } catch (err: any) { notify.error(err.message); }
   };
 
   const handleSaveClient = async (e: React.FormEvent) => {
@@ -1033,7 +1041,7 @@ function MainApp({ session }: { session: any }) {
       }
       await loadData();
       setIsClientModalOpen(false);
-    } catch (err: any) { alert(err.message); }
+    } catch (err: any) { notify.error(err.message); }
   };
 
   const DailyAgendaModal = () => {
@@ -1099,8 +1107,8 @@ function MainApp({ session }: { session: any }) {
     };
 
     return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full flex flex-col max-h-[90vh]">
+      <ModalShell onClose={() => setIsStaffScheduleOpen(false)}>
+        <div className="dispatch-modal-panel bg-white rounded-xl shadow-2xl max-w-4xl w-full flex flex-col max-h-[90vh]">
           <div className="p-4 border-b flex justify-between items-center bg-slate-50 rounded-t-xl">
             <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
               <Calendar className="w-5 h-5 text-indigo-600" /> Coberturas por Personal
@@ -1183,7 +1191,7 @@ function MainApp({ session }: { session: any }) {
             <button onClick={() => { setIsStaffScheduleOpen(false); setIsDailyAgendaOpen(true); }} className="px-6 py-2 bg-slate-800 text-white hover:bg-slate-700 rounded-lg">Volver a agenda</button>
           </div>
         </div>
-      </div>
+      </ModalShell>
     );
   };
 
@@ -1193,8 +1201,8 @@ function MainApp({ session }: { session: any }) {
       .sort((a, b) => b.date.localeCompare(a.date));
 
     return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[85vh] flex flex-col">
+      <ModalShell onClose={() => setViewingStaff(null)}>
+        <div className="dispatch-modal-panel bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[85vh] flex flex-col">
           <div className="p-4 border-b flex justify-between items-center bg-slate-50 rounded-t-xl">
             <div>
               <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
@@ -1242,7 +1250,7 @@ function MainApp({ session }: { session: any }) {
             </table>
           </div>
         </div>
-      </div>
+      </ModalShell>
     );
   };
 
@@ -1251,8 +1259,8 @@ function MainApp({ session }: { session: any }) {
     if (!isAuditModalOpen || !viewingAuditMatch) return null;
 
     return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[80vh] flex flex-col">
+      <ModalShell onClose={() => { setIsAuditModalOpen(false); setViewingAuditMatch(null); }}>
+        <div className="dispatch-modal-panel bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[80vh] flex flex-col">
           <div className="p-4 border-b flex justify-between items-center bg-slate-50 rounded-t-xl">
             <h3 className="font-bold text-slate-800 flex items-center gap-2">
               <HistoryIcon className="w-5 h-5 text-slate-500" /> Historial de Cambios
@@ -1285,7 +1293,7 @@ function MainApp({ session }: { session: any }) {
             <button onClick={() => { setIsAuditModalOpen(false); setViewingAuditMatch(null); }} className="px-4 py-2 bg-slate-800 text-white rounded-lg text-sm">Cerrar</button>
           </div>
         </div>
-      </div>
+      </ModalShell>
     );
   };
 
@@ -1294,8 +1302,8 @@ function MainApp({ session }: { session: any }) {
     if (!isIncidentModalOpen || !reportingMatch) return null;
 
     return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full">
+      <ModalShell onClose={() => { setIsIncidentModalOpen(false); setReportingMatch(null); }}>
+        <div className="dispatch-modal-panel bg-white rounded-xl shadow-2xl max-w-lg w-full">
           <div className="p-4 border-b flex justify-between items-center bg-slate-50 rounded-t-xl">
             <h3 className="font-bold text-slate-800 flex items-center gap-2">
               <ClipboardList className="w-5 h-5 text-indigo-600" /> Reporte de Cobertura
@@ -1361,7 +1369,7 @@ function MainApp({ session }: { session: any }) {
             </button>
           </div>
         </div>
-      </div>
+      </ModalShell>
     );
   };
 
@@ -1407,8 +1415,8 @@ function MainApp({ session }: { session: any }) {
     };
 
     return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-xl shadow-xl w-full max-w-sm">
+      <ModalShell onClose={() => setIsChangePasswordOpen(false)}>
+        <div className="dispatch-modal-panel bg-white rounded-xl shadow-xl w-full max-w-sm">
           <form onSubmit={handleSubmit} className="flex flex-col">
             <div className="p-4 border-b flex justify-between items-center bg-slate-50 rounded-t-xl">
               <h3 className="font-bold text-slate-800 flex items-center gap-2">
@@ -1461,7 +1469,7 @@ function MainApp({ session }: { session: any }) {
             </div>
           </form>
         </div>
-      </div>
+      </ModalShell>
     );
   };
 
@@ -1587,7 +1595,7 @@ function MainApp({ session }: { session: any }) {
               <p>Cargando datos desde la base de datos...</p>
             </div>
           ) : (
-            <>
+            <div key={activeTab} className="animate-section-in space-y-6">
               {/* DASHBOARD */}
               {activeTab === 'business' && <React.Suspense fallback={<p className="p-3 text-slate-500">Abriendo administración…</p>}><BusinessWorkspace revision={serviceRegistry.map(s=>`${s.id}:${s.version}`).join('|')} clients={clients} staff={staff} ambulances={ambulances} onChanged={loadData} onEdit={openBusinessService}/></React.Suspense>}
               {activeTab === 'dashboard' && (
@@ -1722,7 +1730,7 @@ function MainApp({ session }: { session: any }) {
                     </div>
 
                     {showFilters && (
-                      <div className="grid grid-cols-1 gap-4 rounded-2xl border border-indigo-100 bg-white p-4 shadow-sm md:grid-cols-4 animate-in slide-in-from-top-2">
+                      <div className="grid grid-cols-1 gap-4 rounded-2xl border border-indigo-100 bg-white p-4 shadow-sm md:grid-cols-4 animate-slide-down">
                         <div>
                           <label className="block text-xs font-bold text-slate-500 mb-1">Rango de Fechas</label>
                           <div className="flex gap-2">
@@ -2192,7 +2200,7 @@ function MainApp({ session }: { session: any }) {
                   </div>
                 </div>
               )}
-            </>
+            </div>
           )}
 
         </div>

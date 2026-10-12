@@ -5,6 +5,8 @@ import { matchesService } from '../../services/matches';
 import { resourceService } from '../../services/resources';
 import { localDate } from '../../utils/statistics';
 import { DateInput } from '../DateInput';
+import { ModalShell } from '../ui/ModalShell';
+import { askConfirm, notify } from '../ui/feedback';
 
 interface MatchModalProps {
     isOpen: boolean;
@@ -108,15 +110,16 @@ export const MatchModal: React.FC<MatchModalProps> = ({
                     try {
                         await matchesService.addAuditLog(m.id, changes.join(', '));
                     } catch {
-                        alert('La cobertura se guardó, pero no se pudo registrar el cambio en el historial. Avisá al administrador.');
+                        notify.error('La cobertura se guardó, pero no se pudo registrar el cambio en el historial. Avisá al administrador.');
                     }
                 }
             }
 
             onSaveSuccess();
+            notify.success(editingMatch?.id ? 'Cobertura actualizada.' : 'Cobertura creada.');
             onClose();
         } catch (error: any) {
-            alert('Error guardando cobertura: ' + error.message);
+            notify.error('Error guardando cobertura: ' + error.message);
         } finally {
             submitting.current = false;
             setIsLoading(false);
@@ -124,14 +127,15 @@ export const MatchModal: React.FC<MatchModalProps> = ({
     };
 
     const handleDelete = async () => {
-        if (!editingMatch?.id || isLoading || !confirm('¿Seguro que desea eliminar esta cobertura?')) return;
+        if (!editingMatch?.id || isLoading || !(await askConfirm({ title: '¿Seguro que desea eliminar esta cobertura?', confirmLabel: 'Eliminar', danger: true }))) return;
         setIsLoading(true);
         try {
             await matchesService.deleteMatch(editingMatch.id);
             onSaveSuccess();
+            notify.success('Cobertura eliminada.');
             onClose();
         } catch (error: any) {
-            alert('Error eliminando: ' + error.message);
+            notify.error('Error eliminando: ' + error.message);
         } finally {
             setIsLoading(false);
         }
@@ -163,18 +167,11 @@ export const MatchModal: React.FC<MatchModalProps> = ({
         setShowSuspensionReason(val === 'Suspended');
     };
 
-    useEffect(() => {
-        if (!isOpen) return;
-        const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape' && !submitting.current) onClose(); };
-        document.addEventListener('keydown', onKey);
-        return () => document.removeEventListener('keydown', onKey);
-    }, [isOpen, onClose]);
-
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <ModalShell onClose={onClose} busy={isLoading}>
+            <div className="dispatch-modal-panel bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
                 <form onSubmit={handleSubmit} className="flex flex-col min-h-0 max-h-[90vh]">
                     <div className="shrink-0 px-4 py-4 sm:p-6 border-b bg-slate-50 rounded-t-xl flex justify-between items-center gap-2">
                         <div className="flex items-center gap-4">
@@ -249,7 +246,7 @@ export const MatchModal: React.FC<MatchModalProps> = ({
                         </div>
 
                         {showSuspensionReason && (
-                            <div className="bg-red-50 p-4 rounded-lg border border-red-100 animate-in fade-in">
+                            <div className="bg-red-50 p-4 rounded-lg border border-red-100 animate-fade-in">
                                 <label className="block text-sm font-bold text-red-700 mb-1">Motivo de Suspensión</label>
                                 <input name="suspensionReason" defaultValue={editingMatch?.suspensionReason} className="w-full p-2 border border-red-200 rounded-lg focus:ring-2 focus:ring-red-500 text-red-800" placeholder="Ej: Lluvia..." />
                             </div>
@@ -368,6 +365,6 @@ export const MatchModal: React.FC<MatchModalProps> = ({
                     </div>
                 </form>
             </div>
-        </div>
+        </ModalShell>
     );
 };

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Match } from '../../types';
 import { History, X } from 'lucide-react';
+import { ModalShell } from '../ui/ModalShell';
 
 interface AuditModalProps {
     isOpen: boolean;
@@ -12,8 +13,8 @@ export const AuditModal: React.FC<AuditModalProps> = ({ isOpen, onClose, match }
     if (!isOpen || !match) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[80vh] flex flex-col">
+        <ModalShell onClose={onClose}>
+            <div className="dispatch-modal-panel bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[80vh] flex flex-col">
                 <div className="p-4 border-b flex justify-between items-center bg-slate-50 rounded-t-xl">
                     <h3 className="font-bold text-slate-800 flex items-center gap-2">
                         <History className="w-5 h-5 text-slate-500" /> Historial de Cambios
@@ -46,6 +47,6 @@ export const AuditModal: React.FC<AuditModalProps> = ({ isOpen, onClose, match }
                     <button onClick={onClose} className="px-4 py-2 bg-slate-800 text-white rounded-lg text-sm">Cerrar</button>
                 </div>
             </div>
-        </div>
+        </ModalShell>
     );
 };

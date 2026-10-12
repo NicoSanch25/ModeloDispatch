@@ -3,6 +3,7 @@ import { X, Save, Trash2, Ambulance } from 'lucide-react';
 import { Transfer, Staff, Ambulance as AmbulanceModel, Client } from '../../types';
 import { localDate } from '../../utils/statistics';
 import { DateInput } from '../DateInput';
+import { ModalShell } from '../ui/ModalShell';
 
 interface TransferModalProps {
     isOpen: boolean;
@@ -45,13 +46,6 @@ export const TransferModal: React.FC<TransferModalProps> = ({
             });
         }
     }, [transfer, isOpen]);
-
-    useEffect(() => {
-        if (!isOpen) return;
-        const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape' && !submitting.current) onClose(); };
-        document.addEventListener('keydown', onKey);
-        return () => document.removeEventListener('keydown', onKey);
-    }, [isOpen, onClose]);
 
     if (!isOpen) return null;
 
@@ -98,8 +92,8 @@ export const TransferModal: React.FC<TransferModalProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-2 md:p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+        <ModalShell onClose={onClose} busy={isSaving}>
+            <div className="dispatch-modal-panel bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
                 <div className="flex items-center justify-between p-4 md:p-6 border-b border-slate-100 bg-slate-50">
                     <h3 className="text-lg md:text-xl font-bold text-slate-800 flex items-center gap-2">
                         <Ambulance className="w-5 h-5 text-indigo-600" />
@@ -317,7 +311,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                 </div>
 
             </div>
-        </div>
+        </ModalShell>
     );
 };
 

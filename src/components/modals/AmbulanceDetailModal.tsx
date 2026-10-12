@@ -3,6 +3,7 @@ import { Ambulance, Match, FuelRecord } from '../../types';
 import { Truck, X, Wrench, Gauge, Activity, FileText, Check, Shield, ClipboardCheck, Hash, AlertCircle, Fuel, Edit2 } from 'lucide-react';
 import { matchHelpers } from '../../services/matches';
 import { formatDateAR, formatTime24 } from '../../utils/formatters';
+import { ModalShell } from '../ui/ModalShell';
 
 interface AmbulanceDetailModalProps {
     isOpen: boolean;
@@ -45,8 +46,8 @@ export const AmbulanceDetailModal: React.FC<AmbulanceDetailModalProps> = ({ isOp
     );
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-            <div className="bg-white rounded-xl shadow-2xl max-w-5xl w-full flex flex-col max-h-[90vh]">
+        <ModalShell onClose={onClose}>
+            <div className="dispatch-modal-panel bg-white rounded-xl shadow-2xl max-w-5xl w-full flex flex-col max-h-[90vh]">
                 <div className="p-4 border-b flex justify-between items-center bg-slate-50 rounded-t-xl">
                     <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                         <Truck className="w-5 h-5 text-indigo-600" /> Detalle del Móvil {ambulance.number}
@@ -183,6 +184,6 @@ export const AmbulanceDetailModal: React.FC<AmbulanceDetailModalProps> = ({ isOp
                     </div>
                 </div>
             </div>
-        </div>
+        </ModalShell>
     );
 };

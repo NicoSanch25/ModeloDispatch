@@ -26,6 +26,22 @@
   .dispatch-table th { @apply px-4 py-3 text-left; }
   .dispatch-table td { @apply px-4 py-3; }
 }
+/* Modales: hoja desde abajo en celular, tarjeta centrada en escritorio. */
+@keyframes dispatch-pop { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes dispatch-sheet { from { opacity: 0; transform: translateY(32px); } to { opacity: 1; transform: none; } }
+.dispatch-modal-panel { animation: dispatch-pop 200ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@media (max-width: 639px) {
+  .dispatch-modal-panel {
+    width: 100%;
+    max-height: 92dvh !important;
+    border-bottom-left-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+    padding-bottom: env(safe-area-inset-bottom);
+    animation: dispatch-sheet 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+}
+/* Campos inválidos se marcan sólo después de que la persona interactúa o intenta guardar. */
+input:user-invalid, select:user-invalid, textarea:user-invalid { border-color: #fb7185 !important; background-color: #fff1f2; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }

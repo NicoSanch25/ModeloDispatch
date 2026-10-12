@@ -1,7 +1,9 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { Location } from '../../types';
 import { MapPin, X, ExternalLink, Phone } from 'lucide-react';
 import { resourceService } from '../../services/resources';
+import { ModalShell } from '../ui/ModalShell';
+import { askConfirm, notify } from '../ui/feedback';
 
 interface LocationModalProps {
     isOpen: boolean;
@@ -17,14 +19,15 @@ export const LocationModal: React.FC<LocationModalProps> = ({ isOpen, onClose, o
 
     const handleDelete = async () => {
         if (!editingLocation?.id) return;
-        if (!window.confirm('¿Seguro que deseas eliminar este lugar?')) return;
+        if (!(await askConfirm({ title: '¿Seguro que deseas eliminar este lugar?', confirmLabel: 'Eliminar', danger: true }))) return;
         setIsLoading(true);
         try {
             await resourceService.deleteLocation(editingLocation.id);
             onSaveSuccess();
+            notify.success('Lugar eliminado.');
             onClose();
         } catch (err: any) {
-            alert('Error al eliminar: ' + err.message);
+            notify.error('Error al eliminar: ' + err.message);
         } finally {
             setIsLoading(false);
         }
@@ -47,17 +50,18 @@ export const LocationModal: React.FC<LocationModalProps> = ({ isOpen, onClose, o
         try {
             await resourceService.saveLocation(locationData);
             onSaveSuccess();
+            notify.success(editingLocation?.id ? 'Lugar actualizado.' : 'Lugar agregado.');
             onClose();
         } catch (error: any) {
-            alert('Error guardando lugar: ' + error.message);
+            notify.error('Error guardando lugar: ' + error.message);
         } finally {
             setIsLoading(false);
         }
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform transition-all">
+        <ModalShell onClose={onClose} busy={isLoading}>
+            <div className="dispatch-modal-panel bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform transition-all">
                 <form onSubmit={handleSubmit} className="flex flex-col max-h-[85vh]">
                     {/* Header */}
                     <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
@@ -115,7 +119,7 @@ export const LocationModal: React.FC<LocationModalProps> = ({ isOpen, onClose, o
                     </div>
                 </form>
             </div>
-        </div>
+        </ModalShell>
     );
 };
 

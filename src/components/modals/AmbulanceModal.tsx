@@ -4,6 +4,8 @@ import { Truck, X, User, Check } from 'lucide-react';
 import { resourceService } from '../../services/resources';
 import { formatDateAR } from '../../utils/formatters';
 import { DateInput } from '../DateInput';
+import { ModalShell } from '../ui/ModalShell';
+import { askConfirm, notify } from '../ui/feedback';
 
 interface AmbulanceModalProps {
     isOpen: boolean;
@@ -23,25 +25,19 @@ export const AmbulanceModal: React.FC<AmbulanceModalProps> = ({ isOpen, onClose,
         setShowWorkshop(editingAmbulance?.maintenance?.status === 'InRepair');
     }, [editingAmbulance, isOpen]);
 
-    useEffect(() => {
-        if (!isOpen) return;
-        const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape' && !isLoading) onClose(); };
-        document.addEventListener('keydown', onKey);
-        return () => document.removeEventListener('keydown', onKey);
-    }, [isOpen, isLoading, onClose]);
-
     if (!isOpen) return null;
 
     const handleDelete = async () => {
         if (!editingAmbulance?.id) return;
-        if (!window.confirm('¿Seguro que deseas eliminar este móvil?')) return;
+        if (!(await askConfirm({ title: '¿Seguro que deseas eliminar este móvil?', confirmLabel: 'Eliminar', danger: true }))) return;
         setIsLoading(true);
         try {
             await resourceService.deleteAmbulance(editingAmbulance.id);
             onSaveSuccess();
+            notify.success('Móvil eliminado.');
             onClose();
         } catch (err: any) {
-            alert('Error al eliminar: ' + err.message);
+            notify.error('Error al eliminar: ' + err.message);
         } finally {
             setIsLoading(false);
         }
@@ -85,17 +81,18 @@ export const AmbulanceModal: React.FC<AmbulanceModalProps> = ({ isOpen, onClose,
         try {
             await resourceService.saveAmbulance(ambulanceData);
             onSaveSuccess();
+            notify.success(editingAmbulance?.id ? 'Móvil actualizado.' : 'Móvil agregado.');
             onClose();
         } catch (error: any) {
-            alert('Error guardando móvil: ' + error.message);
+            notify.error('Error guardando móvil: ' + error.message);
         } finally {
             setIsLoading(false);
         }
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden transform transition-all">
+        <ModalShell onClose={onClose} busy={isLoading}>
+            <div className="dispatch-modal-panel bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden transform transition-all">
                 <form onSubmit={handleSubmit} className="flex flex-col max-h-[90vh]">
                     {/* Header */}
                     <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
@@ -164,7 +161,7 @@ export const AmbulanceModal: React.FC<AmbulanceModalProps> = ({ isOpen, onClose,
                                         <label htmlFor="isOutsourcedAmb" className="text-sm font-medium text-slate-700 cursor-pointer">Es móvil externo / terciarizado</label>
                                     </div>
                                     {showOutsourced && (
-                                        <div className="mt-3 pl-8 animate-in slide-in-from-top-1">
+                                        <div className="mt-3 pl-8 animate-slide-down">
                                             <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Nombre Empresa / Dueño</label>
                                             <div className="relative">
                                                 <input list="outsourced-staff-list" name="outsourcedCompanyName" defaultValue={editingAmbulance?.outsourcedCompanyName} placeholder="Buscar personal externo..." className="w-full pl-3 pr-8 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm bg-white" autoComplete="off" />
@@ -197,7 +194,7 @@ export const AmbulanceModal: React.FC<AmbulanceModalProps> = ({ isOpen, onClose,
                                     </div>
 
                                     {showWorkshop && (
-                                        <div className="bg-amber-50 p-3 rounded-lg border border-amber-200 animate-in slide-in-from-top-2">
+                                        <div className="bg-amber-50 p-3 rounded-lg border border-amber-200 animate-slide-down">
                                             <h5 className="text-xs font-bold text-amber-700 uppercase mb-2">Datos del Taller</h5>
                                             <div className="space-y-2">
                                                 <input name="workshopName" defaultValue={editingAmbulance?.maintenance?.workshopName} placeholder="Nombre del Taller" className="w-full px-2 py-1 border border-amber-200 rounded text-sm focus:ring-2 focus:ring-amber-500" />
@@ -280,7 +277,7 @@ export const AmbulanceModal: React.FC<AmbulanceModalProps> = ({ isOpen, onClose,
                     </div>
                 </form>
             </div>
-        </div>
+        </ModalShell>
     );
 };
 
