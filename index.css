@@ -40,6 +40,12 @@
     animation: dispatch-sheet 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
   }
 }
+/* Barra de navegación inferior (celular): respeta el área del indicador de inicio del iPhone
+   y el contenido deja lugar para no quedar tapado. Desde `lg` se usa el menú lateral. */
+.dispatch-tabbar { padding-bottom: env(safe-area-inset-bottom); }
+@media (max-width: 1023.98px) {
+  .dispatch-tabbar-offset { padding-bottom: calc(3.5rem + env(safe-area-inset-bottom)); }
+}
 /* Campos inválidos se marcan sólo después de que la persona interactúa o intenta guardar. */
 input:user-invalid, select:user-invalid, textarea:user-invalid { border-color: #fb7185 !important; background-color: #fff1f2; }
 @media (prefers-reduced-motion: reduce) {

@@ -11,7 +11,7 @@
 - Backend / Base de Datos: Supabase (Auth + PostgreSQL)
 
 ## Arquitectura Actual
-- **Estado Global:** La aplicación es un monolito en App.tsx que maneja todo el estado global mediante hooks useState (matches, mbulances, staff, locations, clients, 	ransfers, etc.).
+- **Estado Global:** La aplicación es un monolito en App.tsx que maneja todo el estado global mediante hooks useState (matches, ambulances, staff, locations, clients, transfers, etc.).
 - **Data Fetching:** Se centraliza en la función loadData() dentro de App.tsx que hace un Promise.all a Supabase para cargar todas las tablas. Tiene manejo de errores (captura si la sesión caducó y muestra un banner al usuario sin borrar el estado local).
 - **Componentes / Modales:** Las operaciones CRUD (Crear, Editar) de cada entidad se hacen a través de Modales separados (ej. AmbulanceModal.tsx, TransferModal.tsx) que reciben el estado y callbacks (onSave, onClose) desde App.tsx.
 
@@ -30,5 +30,13 @@
 - **locations & clients:** Gestión de sedes y clientes.
 
 ## Protocolo de Trabajo (Antigravity & Codex)
-- **Ramas:** Coordinar trabajo en ramas separadas si se van a hacer cambios grandes (ej. eat/nuevo-modulo) y unir en main.
+- **Ramas:** Coordinar trabajo en ramas separadas si se van a hacer cambios grandes (ej. feat/nuevo-modulo) y unir en main.
 - **Commits:** Mensajes claros, idealmente siguiendo la convención semántica (feat, fix, refactor).
+
+## Documentación de referencia
+- **Rediseño UX/UI (plan, estado y decisiones):** `docs/REDISENO_UX_UI.md`. Leerlo antes de tocar la interfaz y actualizarlo al cerrar cada mejora.
+- **Plan general y entregas:** `docs/PLAN_MAESTRO_MODELO_DISPATCH.md`, `docs/FASE_0_ESTABILIZACION.md`, `docs/ENTREGA_02_AGENDA.md`, `docs/ENTREGA_03_GESTION_EMPRESARIAL.md`.
+
+## Verificación antes de subir cambios
+- `npm run typecheck && npm test && npm run build` deben pasar.
+- Cambios de interfaz: probar con datos ficticios (`node tests/ui/server.mjs` → `http://127.0.0.1:3100/tests/ui/harness.html`) en 390×844 y 1366×850. No usar la base real.

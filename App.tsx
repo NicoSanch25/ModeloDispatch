@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import {
-  Ambulance, Users, LayoutDashboard, Plus, AlertTriangle, Trash2, Edit2,
-  Check, Clock, Menu, X, Send, Siren, Calendar, MapPin, Filter, Truck,
+  Ambulance, Users, Plus, AlertTriangle, Trash2, Edit2,
+  Check, Clock, X, Send, Siren, Calendar, MapPin, Filter, Truck,
   History, ExternalLink, Car, Stethoscope, ChevronDown, XCircle, Phone, User,
   Wrench, Gauge, Activity, FileText, Shield, ClipboardCheck, Hash, AlertCircle,
   ArrowRightCircle, ClipboardList, Briefcase, History as HistoryIcon, ArrowRight,
@@ -48,6 +48,8 @@ import { TransferModal } from './src/components/modals/TransferModal';
 import { FuelBatchModal } from './src/components/modals/FuelBatchModal';
 import { FleetStatusWidget } from './src/components/FleetStatusWidget';
 import { DashboardClock } from './src/components/DashboardClock';
+import { MobileTabBar, SECTIONS, sectionTitle, type SectionId } from './src/components/AppNavigation';
+import { TransfersList } from './src/components/TransfersList';
 const BusinessWorkspace = React.lazy(() => import('./src/components/BusinessWorkspace').then(module => ({ default: module.BusinessWorkspace })));
 import { QuickAddModal, QuickAddRow } from './src/components/modals/QuickAddModal';
 import { ModalShell } from './src/components/ui/ModalShell';
@@ -402,7 +404,7 @@ export default function App() {
 }
 
 function MainApp({ session }: { session: any }) {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'matches' | 'history' | 'fleet' | 'staff' | 'locations' | 'fuel' | 'clients' | 'transfers' | 'business'>('dashboard');
+  const [activeTab, setActiveTab] = useState<SectionId>('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Data State
@@ -871,10 +873,23 @@ function MainApp({ session }: { session: any }) {
     }
   };
 
-  const handleNav = (tab: typeof activeTab) => {
+  const handleNav = (tab: SectionId) => {
     setActiveTab(tab);
     setIsMobileMenuOpen(false);
+    // Cada sección arranca desde arriba; tocar la actual también vuelve al inicio.
+    window.scrollTo({ top: 0 });
   };
+
+  useEffect(() => {
+    if (!isMobileMenuOpen) return;
+    // Si hay un modal abierto encima (p. ej. Cambiar Contraseña), Escape cierra sólo ese modal.
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented || document.querySelector('[aria-modal="true"]')) return;
+      setIsMobileMenuOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isMobileMenuOpen]);
 
   useEffect(() => {
     if (isMatchModalOpen && editingMatch?.status === 'Completed') {
@@ -1484,49 +1499,26 @@ function MainApp({ session }: { session: any }) {
       )}
 
       {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-64 dispatch-sidebar text-white transform transition-transform duration-200 ease-in-out lg:relative lg:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col dispatch-sidebar text-white transform transition-transform duration-200 ease-in-out lg:relative lg:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-6 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src="/logo.png" alt="Logo" className="h-10 w-auto object-contain bg-white rounded-lg p-1.5" />
             <h1 className="text-xl font-bold tracking-tight">Modelo Dispatch</h1>
           </div>
-          <button onClick={() => setIsMobileMenuOpen(false)} className="lg:hidden text-slate-400 hover:text-white">
+          <button onClick={() => setIsMobileMenuOpen(false)} aria-label="Cerrar menú" className="lg:hidden text-slate-400 hover:text-white">
             <X className="w-6 h-6" />
           </button>
         </div>
 
-        <nav className="p-4 space-y-1">
-          <button onClick={() => handleNav('dashboard')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'dashboard' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-            <LayoutDashboard className="w-5 h-5" /> Tablero
-          </button>
-          <button onClick={() => handleNav('matches')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'matches' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-            <ClipboardCheck className="w-5 h-5" /> Coberturas
-          </button>
-          <button onClick={() => handleNav('transfers')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'transfers' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-            <Ambulance className="w-5 h-5" /> Traslados
-          </button>
-          <button onClick={() => handleNav('history')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'history' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-            <History className="w-5 h-5" /> Historial
-          </button>
-          <button onClick={() => handleNav('clients')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'clients' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-            <Building className="w-5 h-5" /> Clientes
-          </button>
-          <button onClick={() => handleNav('business')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'business' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><ReceiptText size={20}/> Administración</button>
-          <button onClick={() => handleNav('fleet')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'fleet' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-            <Truck className="w-5 h-5" /> Flota
-          </button>
-          <button onClick={() => handleNav('staff')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'staff' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-            <Users className="w-5 h-5" /> Personal
-          </button>
-          <button onClick={() => handleNav('locations')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'locations' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-            <MapPin className="w-5 h-5" /> Lugares
-          </button>
-          <button onClick={() => handleNav('fuel')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'fuel' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-            <Fuel className="w-5 h-5" /> Combustible
-          </button>
+        <nav aria-label="Secciones" className="flex-1 overflow-y-auto p-4 space-y-1">
+          {SECTIONS.map(({ id, label, icon: Icon }) => (
+            <button key={id} onClick={() => handleNav(id)} aria-current={activeTab === id ? 'page' : undefined} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${activeTab === id ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
+              <Icon className="w-5 h-5" /> {label}
+            </button>
+          ))}
         </nav>
 
-        <div className="absolute bottom-4 left-0 w-full px-4 space-y-2">
+        <div className="p-4 space-y-2 border-t border-slate-800/60">
           <button onClick={() => setIsChangePasswordOpen(true)} className="w-full flex items-center gap-2 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors text-sm">
             <Key className="w-4 h-4" /> Cambiar Contraseña
           </button>
@@ -1537,30 +1529,17 @@ function MainApp({ session }: { session: any }) {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 min-w-0 overflow-auto">
+      <main className="dispatch-tabbar-offset flex-1 min-w-0 overflow-auto">
         {/* Header */}
-        <header className="bg-white/95 backdrop-blur border-b border-slate-200 sticky top-0 z-30 px-4 md:px-6 py-3 flex items-center justify-between shadow-sm">
-          <button className="lg:hidden text-slate-500" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
-            <Menu className="w-6 h-6" />
-          </button>
-          <h2 className="text-xl font-bold text-slate-800 hidden lg:block">
-            {activeTab === 'dashboard' && 'Tablero de Control'}
-            {activeTab === 'matches' && 'Agenda de Coberturas'}
-            {activeTab === 'history' && 'Historial de Servicios'}
-            {activeTab === 'fleet' && 'Gestión de Flota'}
-            {activeTab === 'staff' && 'Personal Médico y Choferes'}
-            {activeTab === 'locations' && 'Lugares y Sedes'}
-            {activeTab === 'fuel' && 'Control de Combustible'}
-            {activeTab === 'clients' && 'Gestión de Clientes'}
-            {activeTab === 'transfers' && 'Registro de Traslados'}
-            {activeTab === 'business' && 'Administración de servicios'}
-          </h2>
-          <div className="flex items-center gap-3">
+        <header className="bg-white/95 backdrop-blur border-b border-slate-200 sticky top-0 z-30 px-4 md:px-6 py-2 flex items-center justify-between gap-3 shadow-sm">
+          <h2 className="min-w-0 truncate text-lg font-bold text-slate-800 lg:text-xl">{sectionTitle(activeTab)}</h2>
+          <div className="flex shrink-0 items-center gap-3">
             <button
               onClick={() => { setDailyAgendaDate(localDate()); setIsDailyAgendaOpen(true); }}
-              className="flex items-center gap-2 px-3 py-2 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 text-sm font-medium transition-colors"
+              aria-label="Agenda Diaria"
+              className="flex min-h-11 min-w-11 items-center justify-center gap-2 px-3 py-2 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 text-sm font-medium transition-colors"
             >
-              <Calendar className="w-4 h-4" /> Agenda Diaria
+              <Calendar className="w-5 h-5 sm:w-4 sm:h-4" /> <span className="hidden sm:inline">Agenda Diaria</span>
             </button>
             <div className="h-8 w-8 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-700 font-bold border border-indigo-200">
               A
@@ -2148,56 +2127,12 @@ function MainApp({ session }: { session: any }) {
                   <SectionHeader eyebrow="Movimientos" title="Registro de traslados" description="Seguimiento de pacientes, recorridos y estado de cada traslado." icon={Ambulance} actions={
                     <button onClick={() => { setEditingTransfer(null); setIsTransferModalOpen(true); }} className="dispatch-primary-action"><Plus className="w-4 h-4"/> Nuevo traslado</button>
                   } />
-                  <div className="dispatch-table-wrap">
-                    <table className="dispatch-table min-w-[900px]">
-                      <thead>
-                        <tr>
-                          <th>Fecha</th>
-                          <th>Paciente</th>
-                          <th>Origen</th>
-                          <th>Destino</th>
-                          <th>Chofer</th>
-                          <th>Estado</th>
-                          <th className="text-center">Acción</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {transfers.map(tr => {
-                          const drv = staff.find(s => s.id === tr.driver_id);
-                          return (
-                            <tr key={tr.id} className="hover:bg-slate-50 transition-colors">
-                              <td>{formatDateAR(tr.date)}</td>
-                              <td className="font-semibold text-slate-800">{tr.patient_name || '--'}</td>
-                              <td className="text-slate-600">{tr.origin || '--'}</td>
-                              <td className="text-slate-600">{tr.destination || '--'}</td>
-                              <td>{drv?.name || '--'}</td>
-                              <td>
-                                <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                                  tr.status === 'Completed' ? 'bg-emerald-100 text-emerald-700' :
-                                  tr.status === 'Cancelled' ? 'bg-red-100 text-red-700' :
-                                  'bg-amber-100 text-amber-700'
-                                }`}>
-                                  {tr.status === 'Completed' ? 'Completado' : tr.status === 'Cancelled' ? 'Cancelado' : 'Pendiente'}
-                                </span>
-                              </td>
-                              <td className="text-center">
-                                <button onClick={() => { setEditingTransfer(tr); setIsTransferModalOpen(true); }} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Editar">
-                                  <Edit2 className="w-4 h-4" />
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                        {transfers.length === 0 && (
-                          <tr>
-                            <td colSpan={7} className="p-8 text-center text-slate-400">
-                              No hay traslados registrados.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+                  <TransfersList
+                    transfers={transfers}
+                    staff={staff}
+                    ambulances={ambulances}
+                    onEdit={transfer => { setEditingTransfer(transfer); setIsTransferModalOpen(true); }}
+                  />
                 </div>
               )}
             </div>
@@ -2205,6 +2140,13 @@ function MainApp({ session }: { session: any }) {
 
         </div>
       </main>
+
+      <MobileTabBar
+        active={activeTab}
+        menuOpen={isMobileMenuOpen}
+        onNavigate={handleNav}
+        onMore={() => setIsMobileMenuOpen(open => !open)}
+      />
 
       {/* Modals */}
       <TransferModal
