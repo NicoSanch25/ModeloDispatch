@@ -38,7 +38,7 @@ Respetan las preferencias registradas en [`AGENTS.md`](../AGENTS.md):
 | # | Mejora | Estado |
 |---|---|---|
 | 3.1 | Barra de navegación inferior en celular (Tablero, Coberturas, Traslados, Flota, Más) y título de la sección en el encabezado | Hecha · en revisión |
-| 3.2 | Traslados en tarjetas en celular: estado y Editar siempre visibles, sin desplazamiento lateral (error 3) | Pendiente |
+| 3.2 | Traslados en tarjetas en celular: estado y Editar siempre visibles, sin desplazamiento lateral (error 3) | Hecha · en revisión |
 | 3.3 | Historial y Personal en tarjetas en celular | Pendiente |
 | 3.4 | Esqueletos de carga y estados vacíos con una acción clara | Pendiente |
 | 3.5 | Colores de estado unificados (pendiente, confirmada, en curso, cerrada, suspendida) en tablero, agenda, flota y administración | Pendiente |
@@ -63,7 +63,7 @@ Después, según prioridad: duplicar servicio y plantillas, vista «hoy por móv
 |---|---|---|---|
 | 1 | Alta | Texto con codificación rota en el formulario de móvil | Resuelto en PR #1 |
 | 2 | Alta | Se podía guardar un traslado vacío | Resuelto en PR #1 |
-| 3 | Media | Tabla de Traslados cortada en celular (estado y Editar fuera de vista) | Etapa 3.2 |
+| 3 | Media | Tabla de Traslados cortada en celular (estado y Editar fuera de vista) | Resuelto en 3.2 |
 | 4 | Media | Cobertura y Móvil no cerraban con Escape | Resuelto en PR #1 |
 | 5 | Media | Guardar al fondo del formulario de Cobertura | Resuelto en PR #1 |
 | 6 | Media | Validación nativa en inglés y sin marcar el campo | Resuelto en PR #1 |
@@ -79,3 +79,4 @@ Después, según prioridad: duplicar servicio y plantillas, vista «hoy por móv
 - **11/10/2026** — Revisión, propuesta y plan en 4 etapas. Etapas 1 y 2 implementadas en PR #1.
 - **12/10/2026** — Se incorporan al plan la franja «Requiere atención», colores de estado unificados, legibilidad y confirmar en un toque. Este documento pasa a ser la referencia del rediseño. Se inicia la Etapa 3.
 - **12/10/2026** — 3.1: barra inferior en celular, título de sección visible, secciones definidas en un único lugar (`src/components/AppNavigation.tsx`) y menú que se desplaza en celulares bajos.
+- **12/10/2026** — 3.2: Traslados en tarjetas en celular y tablet (horario, estado, origen → destino, chofer, móvil y Editar de 44 px), con faltantes marcados en ámbar. La lista pasa a `src/components/TransfersList.tsx`; el horario usa `transferWindow` de `src/utils/agenda.ts`, el mismo cálculo que la Agenda.

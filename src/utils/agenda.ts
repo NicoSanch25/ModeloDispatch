@@ -41,6 +41,17 @@ function timestamp(date: string, time?: string) {
   return Number.isFinite(value) ? value : null;
 }
 
+/** Inicio y fin de un traslado: plan explícito o, si falta, sus horas de control. */
+export function transferWindow(transfer: Transfer): { start: number | null; end: number | null } {
+  // These are checkpoint hours, not a new planned reservation or a GPS report.
+  const first = transfer.departure_base_time || transfer.arrival_origin_time || transfer.departure_origin_time || transfer.arrival_destination_time || transfer.departure_destination_time;
+  const start = transfer.planned_start_at ? Date.parse(transfer.planned_start_at) : timestamp(transfer.date, first);
+  let end = transfer.planned_end_at ? Date.parse(transfer.planned_end_at) : timestamp(transfer.date, transfer.arrival_base_time);
+  if (start !== null && end !== null && end < start) end += 86_400_000;
+  if (start === null || end === start) end = null;
+  return { start, end };
+}
+
 export function buildAgenda(matches: Match[], transfers: Transfer[]): AgendaService[] {
   const coverages: AgendaService[] = matches.map(match => {
     const window = coverageWindow(match);
@@ -56,12 +67,7 @@ export function buildAgenda(matches: Match[], transfers: Transfer[]): AgendaServ
     };
   });
   const journeys: AgendaService[] = transfers.map(transfer => {
-    // These are checkpoint hours, not a new planned reservation or a GPS report.
-    const first = transfer.departure_base_time || transfer.arrival_origin_time || transfer.departure_origin_time || transfer.arrival_destination_time || transfer.departure_destination_time;
-    const start = transfer.planned_start_at ? Date.parse(transfer.planned_start_at) : timestamp(transfer.date, first);
-    let end = transfer.planned_end_at ? Date.parse(transfer.planned_end_at) : timestamp(transfer.date, transfer.arrival_base_time);
-    if (start !== null && end !== null && end < start) end += 86_400_000;
-    if (start === null || end === start) end = null;
+    const { start, end } = transferWindow(transfer);
     return {
       key: `transfer:${transfer.id}`, kind: 'transfer', date: transfer.date,
       title: `${transfer.origin || 'Origen pendiente'} → ${transfer.destination || 'Destino pendiente'}`,

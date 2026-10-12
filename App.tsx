@@ -49,6 +49,7 @@ import { FuelBatchModal } from './src/components/modals/FuelBatchModal';
 import { FleetStatusWidget } from './src/components/FleetStatusWidget';
 import { DashboardClock } from './src/components/DashboardClock';
 import { MobileTabBar, SECTIONS, sectionTitle, type SectionId } from './src/components/AppNavigation';
+import { TransfersList } from './src/components/TransfersList';
 const BusinessWorkspace = React.lazy(() => import('./src/components/BusinessWorkspace').then(module => ({ default: module.BusinessWorkspace })));
 import { QuickAddModal, QuickAddRow } from './src/components/modals/QuickAddModal';
 import { ModalShell } from './src/components/ui/ModalShell';
@@ -2126,56 +2127,12 @@ function MainApp({ session }: { session: any }) {
                   <SectionHeader eyebrow="Movimientos" title="Registro de traslados" description="Seguimiento de pacientes, recorridos y estado de cada traslado." icon={Ambulance} actions={
                     <button onClick={() => { setEditingTransfer(null); setIsTransferModalOpen(true); }} className="dispatch-primary-action"><Plus className="w-4 h-4"/> Nuevo traslado</button>
                   } />
-                  <div className="dispatch-table-wrap">
-                    <table className="dispatch-table min-w-[900px]">
-                      <thead>
-                        <tr>
-                          <th>Fecha</th>
-                          <th>Paciente</th>
-                          <th>Origen</th>
-                          <th>Destino</th>
-                          <th>Chofer</th>
-                          <th>Estado</th>
-                          <th className="text-center">Acción</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {transfers.map(tr => {
-                          const drv = staff.find(s => s.id === tr.driver_id);
-                          return (
-                            <tr key={tr.id} className="hover:bg-slate-50 transition-colors">
-                              <td>{formatDateAR(tr.date)}</td>
-                              <td className="font-semibold text-slate-800">{tr.patient_name || '--'}</td>
-                              <td className="text-slate-600">{tr.origin || '--'}</td>
-                              <td className="text-slate-600">{tr.destination || '--'}</td>
-                              <td>{drv?.name || '--'}</td>
-                              <td>
-                                <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                                  tr.status === 'Completed' ? 'bg-emerald-100 text-emerald-700' :
-                                  tr.status === 'Cancelled' ? 'bg-red-100 text-red-700' :
-                                  'bg-amber-100 text-amber-700'
-                                }`}>
-                                  {tr.status === 'Completed' ? 'Completado' : tr.status === 'Cancelled' ? 'Cancelado' : 'Pendiente'}
-                                </span>
-                              </td>
-                              <td className="text-center">
-                                <button onClick={() => { setEditingTransfer(tr); setIsTransferModalOpen(true); }} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Editar">
-                                  <Edit2 className="w-4 h-4" />
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                        {transfers.length === 0 && (
-                          <tr>
-                            <td colSpan={7} className="p-8 text-center text-slate-400">
-                              No hay traslados registrados.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+                  <TransfersList
+                    transfers={transfers}
+                    staff={staff}
+                    ambulances={ambulances}
+                    onEdit={transfer => { setEditingTransfer(transfer); setIsTransferModalOpen(true); }}
+                  />
                 </div>
               )}
             </div>
