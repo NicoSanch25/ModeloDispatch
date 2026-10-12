@@ -3,6 +3,7 @@ import { Staff, Match, Ambulance } from '../../types';
 import { History, X } from 'lucide-react';
 import { matchHelpers } from '../../services/matches';
 import { formatTime24, formatDateAR } from '../../utils/formatters';
+import { ModalShell } from '../ui/ModalShell';
 
 interface StaffHistoryModalProps {
     isOpen: boolean;
@@ -18,8 +19,8 @@ export const StaffHistoryModal: React.FC<StaffHistoryModalProps> = ({ isOpen, on
     const history = matchHelpers.getStaffHistory(staff.id, matches);
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full flex flex-col max-h-[90vh]">
+        <ModalShell onClose={onClose}>
+            <div className="dispatch-modal-panel bg-white rounded-xl shadow-2xl max-w-4xl w-full flex flex-col max-h-[90vh]">
                 <div className="p-4 border-b flex justify-between items-center bg-slate-50 rounded-t-xl">
                     <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                         <History className="w-5 h-5 text-indigo-600" /> Historial de Asignaciones
@@ -92,6 +93,6 @@ export const StaffHistoryModal: React.FC<StaffHistoryModalProps> = ({ isOpen, on
                     )}
                 </div>
             </div>
-        </div>
+        </ModalShell>
     );
 };

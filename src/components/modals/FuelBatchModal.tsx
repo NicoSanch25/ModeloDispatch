@@ -3,6 +3,8 @@ import { CalendarDays, ListPlus, Plus, ReceiptText, Trash2, UserRoundPlus, X } f
 import type { Ambulance, FuelRecord, Staff } from '../../types';
 import { supabase } from '../../lib/supabase';
 import { localDate } from '../../utils/statistics';
+import { ModalShell } from '../ui/ModalShell';
+import { notify } from '../ui/feedback';
 
 interface FuelBatchModalProps {
   isOpen: boolean;
@@ -86,6 +88,7 @@ export const FuelBatchModal: React.FC<FuelBatchModalProps> = ({ isOpen, onClose,
       const { error: saveError } = await supabase.from('fuel_records').insert(records);
       if (saveError) throw saveError;
       await onSaveSuccess();
+      notify.success(records.length === 1 ? 'Movimiento de combustible guardado.' : `${records.length} movimientos de combustible guardados.`);
       onClose();
     } catch (saveError: any) {
       setError(`No se pudo guardar: ${saveError.message}`);
@@ -95,8 +98,8 @@ export const FuelBatchModal: React.FC<FuelBatchModalProps> = ({ isOpen, onClose,
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end bg-slate-950/55 sm:items-center sm:justify-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="fuel-modal-title">
-      <div className="flex max-h-[94dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-slate-50 shadow-2xl sm:max-w-2xl sm:rounded-3xl">
+    <ModalShell onClose={onClose} busy={saving} labelledBy="fuel-modal-title">
+      <div className="dispatch-modal-panel flex max-h-[94dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-slate-50 shadow-2xl sm:max-w-2xl sm:rounded-3xl">
         <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 sm:px-5">
           <div className="flex min-w-0 items-center gap-3">
             <span className="rounded-xl bg-indigo-50 p-2 text-indigo-600"><ListPlus className="h-5 w-5" /></span>
@@ -189,6 +192,6 @@ export const FuelBatchModal: React.FC<FuelBatchModalProps> = ({ isOpen, onClose,
           </div>
         </div>
       </div>
-    </div>
+    </ModalShell>
   );
 };

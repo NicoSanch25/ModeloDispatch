@@ -3,6 +3,7 @@ import { Match, Staff, Ambulance } from '../../types';
 import { Calendar, X, Clock4, Send, Copy } from 'lucide-react';
 import { formatTime24 } from '../../utils/formatters';
 import { timeUtils } from '../../services/matches';
+import { ModalShell } from '../ui/ModalShell';
 
 interface DailyAgendaModalProps {
     isOpen: boolean;
@@ -99,8 +100,8 @@ export const DailyAgendaModal: React.FC<DailyAgendaModalProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full flex flex-col max-h-[90vh]">
+        <ModalShell onClose={onClose}>
+            <div className="dispatch-modal-panel bg-white rounded-xl shadow-2xl max-w-4xl w-full flex flex-col max-h-[90vh]">
                 <div className="p-4 border-b flex justify-between items-center bg-slate-50 rounded-t-xl">
                     <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                         <Calendar className="w-5 h-5 text-indigo-600" /> Agenda Diaria por Personal
@@ -185,6 +186,6 @@ export const DailyAgendaModal: React.FC<DailyAgendaModalProps> = ({
                     <button onClick={onClose} className="px-6 py-2 bg-slate-800 text-white hover:bg-slate-700 rounded-lg">Cerrar</button>
                 </div>
             </div>
-        </div>
+        </ModalShell>
     );
 };

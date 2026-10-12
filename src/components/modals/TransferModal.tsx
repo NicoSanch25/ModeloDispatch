@@ -3,6 +3,7 @@ import { X, Save, Trash2, Ambulance } from 'lucide-react';
 import { Transfer, Staff, Ambulance as AmbulanceModel, Client } from '../../types';
 import { localDate } from '../../utils/statistics';
 import { DateInput } from '../DateInput';
+import { ModalShell } from '../ui/ModalShell';
 
 interface TransferModalProps {
     isOpen: boolean;
@@ -25,10 +26,12 @@ export const TransferModal: React.FC<TransferModalProps> = ({
     });
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState('');
+    const [missing, setMissing] = useState<string[]>([]);
     const submitting = useRef(false);
 
     useEffect(() => {
         setError('');
+        setMissing([]);
         if (transfer) {
             setFormData({
                 date: localDate(),
@@ -49,6 +52,14 @@ export const TransferModal: React.FC<TransferModalProps> = ({
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (submitting.current) return;
+        // Registros anteriores sin origen/destino siguen editables; la exigencia aplica a traslados nuevos.
+        const empty = transfer?.id ? [] : (['origin', 'destination'] as const).filter(key => !String(formData[key] ?? '').trim());
+        setMissing(empty);
+        if (empty.length) {
+            setError('Completá origen y destino para guardar el traslado.');
+            (document.querySelector(`#transfer-form [name="${empty[0]}"]`) as HTMLInputElement | null)?.focus();
+            return;
+        }
         submitting.current = true;
         setIsSaving(true);
         setError('');
@@ -64,6 +75,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value, type } = e.target;
+        if (missing.includes(name) && value.trim()) setMissing(prev => prev.filter(key => key !== name));
         setFormData(prev => ({
             ...prev,
             [name]: type === 'number' ? (value ? Number(value) : undefined) : value
@@ -80,8 +92,8 @@ export const TransferModal: React.FC<TransferModalProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-2 md:p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+        <ModalShell onClose={onClose} busy={isSaving}>
+            <div className="dispatch-modal-panel bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
                 <div className="flex items-center justify-between p-4 md:p-6 border-b border-slate-100 bg-slate-50">
                     <h3 className="text-lg md:text-xl font-bold text-slate-800 flex items-center gap-2">
                         <Ambulance className="w-5 h-5 text-indigo-600" />
@@ -186,12 +198,14 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                                 </select>
                             </div>
                             <div className="md:col-span-1">
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Origen (Traslado Desde)</label>
-                                <input type="text" name="origin" value={formData.origin || ''} onChange={handleChange} className="w-full p-2 border border-slate-200 rounded-lg" placeholder="Ej: San Fernando" />
+                                <label htmlFor="transfer-origin" className="block text-xs font-bold text-slate-500 uppercase mb-1">Origen (Traslado Desde) *</label>
+                                <input id="transfer-origin" type="text" name="origin" aria-invalid={missing.includes('origin')} value={formData.origin || ''} onChange={handleChange} className={`w-full p-2 border rounded-lg ${missing.includes('origin') ? 'border-rose-400 bg-rose-50' : 'border-slate-200'}`} placeholder="Ej: San Fernando" />
+                                {missing.includes('origin') && <p className="mt-1 text-xs text-rose-700">Indicá desde dónde sale el traslado.</p>}
                             </div>
                             <div className="md:col-span-1">
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Destino (Lugar Hasta)</label>
-                                <input type="text" name="destination" value={formData.destination || ''} onChange={handleChange} className="w-full p-2 border border-slate-200 rounded-lg" placeholder="Ej: Hospital Gutierrez" />
+                                <label htmlFor="transfer-destination" className="block text-xs font-bold text-slate-500 uppercase mb-1">Destino (Lugar Hasta) *</label>
+                                <input id="transfer-destination" type="text" name="destination" aria-invalid={missing.includes('destination')} value={formData.destination || ''} onChange={handleChange} className={`w-full p-2 border rounded-lg ${missing.includes('destination') ? 'border-rose-400 bg-rose-50' : 'border-slate-200'}`} placeholder="Ej: Hospital Gutierrez" />
+                                {missing.includes('destination') && <p className="mt-1 text-xs text-rose-700">Indicá a dónde va el traslado.</p>}
                             </div>
                         </div>
 
@@ -297,7 +311,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                 </div>
 
             </div>
-        </div>
+        </ModalShell>
     );
 };
 

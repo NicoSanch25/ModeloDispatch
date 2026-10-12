@@ -1,7 +1,9 @@
-﻿import React, { useState, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { Client } from '../../types';
 import { Building, X } from 'lucide-react';
 import { resourceService } from '../../services/resources';
+import { ModalShell } from '../ui/ModalShell';
+import { askConfirm, notify } from '../ui/feedback';
 
 interface ClientModalProps {
     isOpen: boolean;
@@ -18,14 +20,15 @@ export const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSav
 
     const handleDelete = async () => {
         if (!editingClient?.id) return;
-        if (!window.confirm('¿Seguro que deseas eliminar este cliente?')) return;
+        if (!(await askConfirm({ title: '¿Seguro que deseas eliminar este cliente?', confirmLabel: 'Eliminar', danger: true }))) return;
         setIsLoading(true);
         try {
             await resourceService.deleteClient(editingClient.id);
             onSaveSuccess();
+            notify.success('Cliente eliminado.');
             onClose();
         } catch (err: any) {
-            alert('Error al eliminar: ' + err.message);
+            notify.error('Error al eliminar: ' + err.message);
         } finally {
             submitting.current = false;
             setIsLoading(false);
@@ -51,9 +54,10 @@ export const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSav
         try {
             await resourceService.saveClient(clientData);
             onSaveSuccess();
+            notify.success(editingClient?.id ? 'Cliente actualizado.' : 'Cliente agregado.');
             onClose();
         } catch (error: any) {
-            alert('Error guardando cliente: ' + error.message);
+            notify.error('Error guardando cliente: ' + error.message);
         } finally {
             submitting.current = false;
             setIsLoading(false);
@@ -61,8 +65,8 @@ export const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSav
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform transition-all">
+        <ModalShell onClose={onClose} busy={isLoading}>
+            <div className="dispatch-modal-panel bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform transition-all">
                 <form onSubmit={handleSubmit} className="flex flex-col max-h-[85vh]">
                     {/* Header */}
                     <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
@@ -116,7 +120,7 @@ export const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSav
                     </div>
                 </form>
             </div>
-        </div>
+        </ModalShell>
     );
 };
 

@@ -5,6 +5,7 @@ import { localDate } from '../../utils/statistics';
 import { servicesForDay, shiftAgendaDate, type AgendaService } from '../../utils/agenda';
 import { DateInput } from '../DateInput';
 import { AgendaList } from '../AgendaList';
+import { ModalShell } from '../ui/ModalShell';
 
 interface Props {
   date: string; setDate: (date: string) => void; onClose: () => void;
@@ -24,7 +25,6 @@ export function OperationalAgendaModal({ date, setDate, onClose, services, staff
     const previous = document.activeElement as HTMLElement | null;
     dialog.current?.querySelector<HTMLButtonElement>('button')?.focus();
     const keydown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
       if (event.key !== 'Tab') return;
       const controls = Array.from(dialog.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input, select') || []);
       const first = controls[0], last = controls[controls.length - 1];
@@ -35,8 +35,8 @@ export function OperationalAgendaModal({ date, setDate, onClose, services, staff
     return () => { document.removeEventListener('keydown', keydown); previous?.focus(); };
   }, []);
   const day = servicesForDay(services, date, includeClosed).filter(service => (kind === 'all' || service.kind === kind) && (!staffId || service.crew.includes(staffId)));
-  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-2 sm:p-4">
-    <section ref={dialog} role="dialog" aria-modal="true" aria-labelledby="agenda-title" className="flex max-h-[92dvh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
+  return <ModalShell onClose={onClose} labelledBy="agenda-title">
+    <section ref={dialog} className="dispatch-modal-panel flex max-h-[92dvh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
       <header className="flex items-center justify-between gap-2 border-b p-3 sm:p-4"><h3 id="agenda-title" className="flex items-center gap-2 font-bold text-slate-800"><CalendarDays className="h-5 w-5 text-indigo-600" />Agenda de servicios</h3><button onClick={onClose} aria-label="Cerrar agenda" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button></header>
       <div className="space-y-2 border-b bg-slate-50 p-3">
         <div className="flex items-center gap-2"><button aria-label="Día anterior" onClick={() => setDate(shiftAgendaDate(date, -1))} className="rounded-lg border bg-white p-2"><ChevronLeft className="h-4 w-4" /></button><div className="min-w-0 flex-1"><DateInput aria-label="Fecha de agenda" value={date} required onChange={event => { if (event.target.value) setDate(event.target.value); }} className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white p-2 text-sm" /></div><button aria-label="Día siguiente" onClick={() => setDate(shiftAgendaDate(date, 1))} className="rounded-lg border bg-white p-2"><ChevronRight className="h-4 w-4" /></button><button onClick={() => setDate(localDate())} className="rounded-lg bg-indigo-50 px-3 py-2 text-sm font-semibold text-indigo-700">Hoy</button></div>
@@ -46,10 +46,10 @@ export function OperationalAgendaModal({ date, setDate, onClose, services, staff
       </div>
       <div className="flex-1 overflow-y-auto bg-slate-50 p-3 sm:p-4">
         {dataError && <p role="alert" className="mb-3 rounded-lg bg-amber-50 p-2 text-xs text-amber-800">{dataError}</p>}
-        <p className="mb-3 text-xs text-slate-500">Horarios registrados; no confirman salida ni disponibilidad real. Cruces con margen de 15 minutos. Los traslados todavía no reservan móvil ni tripulación.</p>
+        <p className="mb-3 text-xs text-slate-500">Horarios registrados; no confirman salida ni disponibilidad real. Cruces con margen de 15 minutos. Los traslados sin móvil o tripulación asignados no participan en el control de cruces de esos recursos.</p>
         <AgendaList services={day} allServices={services} date={date} staff={staff} ambulances={ambulances} onOpen={onOpen} />
       </div>
       <footer className="border-t p-3"><button onClick={onStaffSchedule} className="flex items-center gap-2 text-xs font-semibold text-slate-600"><Users className="h-4 w-4" />Cronograma de coberturas por personal</button></footer>
     </section>
-  </div>;
+  </ModalShell>;
 }

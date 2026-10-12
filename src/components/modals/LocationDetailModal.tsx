@@ -3,6 +3,7 @@ import { safeWebUrl } from '../../utils/security';
 import { Location, Match } from '../../types';
 import { MapPin, Phone, History, Edit2, X, ExternalLink, Calendar } from 'lucide-react';
 import { formatDateAR, formatTime24 } from '../../utils/formatters';
+import { ModalShell } from '../ui/ModalShell';
 
 interface LocationDetailModalProps {
     isOpen: boolean;
@@ -38,8 +39,8 @@ export const LocationDetailModal: React.FC<LocationDetailModalProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className={`bg-white rounded-xl shadow-xl w-full flex flex-col transition-all ${showHistory ? 'max-w-4xl max-h-[90vh]' : 'max-w-md'}`}>
+        <ModalShell onClose={onClose}>
+            <div className={`dispatch-modal-panel bg-white rounded-xl shadow-xl w-full flex flex-col transition-all ${showHistory ? 'max-w-4xl max-h-[90vh]' : 'max-w-md'}`}>
 
                 {/* Header */}
                 <div className="p-4 border-b flex justify-between items-center bg-slate-50 rounded-t-xl">
@@ -192,6 +193,6 @@ export const LocationDetailModal: React.FC<LocationDetailModalProps> = ({
                     </div>
                 )}
             </div>
-        </div>
+        </ModalShell>
     );
 };

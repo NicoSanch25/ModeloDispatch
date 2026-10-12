@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Key, X } from 'lucide-react';
 import { authService } from '../../services/auth';
+import { ModalShell } from '../ui/ModalShell';
 
 interface ChangePasswordModalProps {
     isOpen: boolean;
@@ -44,8 +45,8 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-sm">
+        <ModalShell onClose={onClose}>
+            <div className="dispatch-modal-panel bg-white rounded-xl shadow-xl w-full max-w-sm">
                 <form onSubmit={handleSubmit} className="flex flex-col">
                     <div className="p-4 border-b flex justify-between items-center bg-slate-50 rounded-t-xl">
                         <h3 className="font-bold text-slate-800 flex items-center gap-2">
@@ -88,6 +89,6 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen
                     </div>
                 </form>
             </div>
-        </div>
+        </ModalShell>
     );
 };

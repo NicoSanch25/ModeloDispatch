@@ -3,6 +3,7 @@ import { MatchType, Location, Ambulance, Staff, Match } from '../../types';
 import { Zap, X, Plus, AlertTriangle } from 'lucide-react';
 import { getConflicts } from '../../utils/scheduling';
 import { DateInput } from '../DateInput';
+import { ModalShell } from '../ui/ModalShell';
 
 interface QuickAddRow {
     id: string;
@@ -90,8 +91,8 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] flex flex-col">
+        <ModalShell onClose={onClose} busy={isSaving}>
+            <div className="dispatch-modal-panel bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] flex flex-col">
                 <div className="p-4 border-b flex justify-between items-center bg-slate-50 rounded-t-xl">
                     <div>
                         <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
@@ -244,7 +245,7 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
                     </button>
                 </div>
             </div>
-        </div>
+        </ModalShell>
     );
 };
 
