@@ -28,8 +28,8 @@ Respetan las preferencias registradas en [`AGENTS.md`](../AGENTS.md):
 
 | Etapa | Contenido | Estado |
 |---|---|---|
-| 1. Arreglos | Errores 1, 2, 4, 5, 8 y 9 de la revisión | Hecha · PR #1 (`6286d84`), pendiente de merge |
-| 2. Base de diseño | `ModalShell`, avisos y confirmaciones propios, validación en español, transiciones | Hecha · PR #1 (`0986be4`), pendiente de merge |
+| 1. Arreglos | Errores 1, 2, 4, 5, 8 y 9 de la revisión | Hecha · PR #1 (`6286d84`), mergeado el 12/10 |
+| 2. Base de diseño | `ModalShell`, avisos y confirmaciones propios, validación en español, transiciones | Hecha · PR #1 (`0986be4`), mergeado el 12/10 |
 | 3. Navegación, listas y sistema visual móvil | Ver detalle abajo | En curso |
 | 4. Mecánicas operativas | Ver detalle abajo | Pendiente |
 
@@ -80,3 +80,4 @@ Después, según prioridad: duplicar servicio y plantillas, vista «hoy por móv
 - **12/10/2026** — Se incorporan al plan la franja «Requiere atención», colores de estado unificados, legibilidad y confirmar en un toque. Este documento pasa a ser la referencia del rediseño. Se inicia la Etapa 3.
 - **12/10/2026** — 3.1: barra inferior en celular, título de sección visible, secciones definidas en un único lugar (`src/components/AppNavigation.tsx`) y menú que se desplaza en celulares bajos.
 - **12/10/2026** — 3.2: Traslados en tarjetas en celular y tablet (horario, estado, origen → destino, chofer, móvil y Editar de 44 px), con faltantes marcados en ámbar. La lista pasa a `src/components/TransfersList.tsx`; el horario usa `transferWindow` de `src/utils/agenda.ts`, el mismo cálculo que la Agenda.
+- **12/10/2026** — PR #1 (etapas 1 y 2) mergeado en `main` (`811b309`).
