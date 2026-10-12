@@ -37,7 +37,7 @@ Respetan las preferencias registradas en [`AGENTS.md`](../AGENTS.md):
 
 | # | Mejora | Estado |
 |---|---|---|
-| 3.1 | Barra de navegación inferior en celular (Tablero, Coberturas, Traslados, Flota, Más) y título de la sección en el encabezado | En curso |
+| 3.1 | Barra de navegación inferior en celular (Tablero, Coberturas, Traslados, Flota, Más) y título de la sección en el encabezado | Hecha · en revisión |
 | 3.2 | Traslados en tarjetas en celular: estado y Editar siempre visibles, sin desplazamiento lateral (error 3) | Pendiente |
 | 3.3 | Historial y Personal en tarjetas en celular | Pendiente |
 | 3.4 | Esqueletos de carga y estados vacíos con una acción clara | Pendiente |
@@ -71,10 +71,11 @@ Después, según prioridad: duplicar servicio y plantillas, vista «hoy por móv
 | 8 | Baja | Texto desactualizado en Agenda Diaria | Resuelto en PR #1 |
 | 9 | Baja | Fechas de VTV y batería con input nativo | Resuelto en PR #1 |
 | 10 | Baja | Clases `animate-in` sin efecto | Resuelto en PR #1 |
-| 11 | Baja | Sin título de sección en el encabezado móvil | Etapa 3.1 |
+| 11 | Baja | Sin título de sección en el encabezado móvil | Resuelto en 3.1 |
 | 12 | Baja | Tablero: dato repetido y barras planas | Etapa 3.7 |
 
 ## Registro
 
 - **11/10/2026** — Revisión, propuesta y plan en 4 etapas. Etapas 1 y 2 implementadas en PR #1.
 - **12/10/2026** — Se incorporan al plan la franja «Requiere atención», colores de estado unificados, legibilidad y confirmar en un toque. Este documento pasa a ser la referencia del rediseño. Se inicia la Etapa 3.
+- **12/10/2026** — 3.1: barra inferior en celular, título de sección visible, secciones definidas en un único lugar (`src/components/AppNavigation.tsx`) y menú que se desplaza en celulares bajos.
