@@ -27,7 +27,7 @@ import {
 import { supabase, configurationError } from './src/lib/supabase';
 import { AttentionAlerts, OperationsInsights } from './src/components/OperationsInsights';
 import { localDate } from './src/utils/statistics';
-import { licenseAlerts, licenseLabel, licenseStatus, needsLicense } from './src/utils/licenses';
+import { expiryLabel, licenseAlerts, licenseLabel, licenseStatus, needsLicense } from './src/utils/licenses';
 import { getConflicts } from './src/utils/scheduling';
 import { withTimeout } from './src/utils/requests';
 import { matchesService } from './src/services/matches';
@@ -48,6 +48,7 @@ import { ClientModal } from './src/components/modals/ClientModal';
 import { TransferModal } from './src/components/modals/TransferModal';
 import { FuelBatchModal } from './src/components/modals/FuelBatchModal';
 import { FuelList } from './src/components/FuelList';
+import { EmptyState, LoadingSkeleton } from './src/components/ui/Skeleton';
 import { FleetStatusWidget } from './src/components/FleetStatusWidget';
 import { DashboardClock } from './src/components/DashboardClock';
 import { MobileTabBar, SECTIONS, sectionTitle, type SectionId } from './src/components/AppNavigation';
@@ -306,7 +307,7 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
           <div>
             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Usuario</label>
             <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5" />
               <input
                 type="text"
                 required
@@ -322,7 +323,7 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
           <div>
             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Contraseña</label>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5" />
               <input
                 type={showPassword ? "text" : "password"}
                 required
@@ -337,7 +338,7 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
                 type="button"
                 aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-600"
               >
                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
@@ -352,7 +353,7 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
             >
               {loading ? <Loader2 className="animate-spin w-5 h-5" /> : 'Ingresar'}
             </button>
-            <p className="text-center text-xs text-slate-400 mt-4">
+            <p className="text-center text-xs text-slate-500 mt-4">
               Sistema privado. Si necesita acceso, contacte al administrador.
             </p>
           </div>
@@ -424,6 +425,8 @@ function MainApp({ session }: { session: any }) {
   const [transfers, setTransfers] = useState<TransferModel[]>([]);
   const [serviceRegistry, setServiceRegistry] = useState<Service[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(false);
+  // Sólo la primera carga tapa la pantalla; al actualizar se mantiene lo visible.
+  const [hasLoadedData, setHasLoadedData] = useState(false);
   const [dataError, setDataError] = useState<string | null>(null);
 
   // Modals State
@@ -536,6 +539,7 @@ function MainApp({ session }: { session: any }) {
       setDataError("No se pudieron actualizar los datos. Revisá la conexión y tus permisos de acceso. Los datos visibles pueden estar desactualizados.");
     } finally {
       setIsLoadingData(false);
+      setHasLoadedData(true);
     }
   };
 
@@ -1140,7 +1144,7 @@ function MainApp({ session }: { session: any }) {
             <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
               <Calendar className="w-5 h-5 text-indigo-600" /> Coberturas por Personal
             </h3>
-            <button aria-label="Cerrar cronograma" onClick={() => setIsStaffScheduleOpen(false)}><X className="w-6 h-6 text-slate-400" /></button>
+            <button aria-label="Cerrar cronograma" onClick={() => setIsStaffScheduleOpen(false)}><X className="w-6 h-6 text-slate-500" /></button>
           </div>
           <div className="p-4 border-b bg-white">
             <label className="block text-sm font-medium text-slate-700 mb-1">Seleccionar Fecha</label>
@@ -1175,7 +1179,7 @@ function MainApp({ session }: { session: any }) {
                           <span className="text-xs bg-slate-100 px-2 py-0.5 rounded text-slate-600">{s.role}</span>
                         </div>
                         <div className="flex flex-col items-end gap-1">
-                          <label className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center gap-1 cursor-pointer">
+                          <label className="text-xs uppercase font-bold text-slate-500 mb-1 flex items-center gap-1 cursor-pointer">
                             <input
                               type="checkbox"
                               checked={useCitation[sid] || false}
@@ -1192,7 +1196,7 @@ function MainApp({ session }: { session: any }) {
                                 value={citationTimes[sid] || ''}
                                 onChange={(e) => setCitationTimes(prev => ({ ...prev, [sid]: e.target.value }))}
                               />
-                              <span className="text-[10px] text-slate-400 font-bold">HS</span>
+                              <span className="text-xs text-slate-500 font-bold">HS</span>
                             </div>
                           )}
                         </div>
@@ -1236,7 +1240,7 @@ function MainApp({ session }: { session: any }) {
                 <HistoryIcon className="w-5 h-5 text-indigo-600" /> Historial: {viewingStaff.name}
               </h3>
             </div>
-            <button onClick={() => setViewingStaff(null)}><X className="w-6 h-6 text-slate-400" /></button>
+            <button onClick={() => setViewingStaff(null)}><X className="w-6 h-6 text-slate-500" /></button>
           </div>
           <div className="p-0 overflow-y-auto flex-1">
             <table className="w-full text-sm">
@@ -1293,7 +1297,7 @@ function MainApp({ session }: { session: any }) {
               <HistoryIcon className="w-5 h-5 text-slate-500" /> Historial de Cambios
             </h3>
             <button onClick={() => { setIsAuditModalOpen(false); setViewingAuditMatch(null); }}>
-              <X className="w-6 h-6 text-slate-400" />
+              <X className="w-6 h-6 text-slate-500" />
             </button>
           </div>
           <div className="p-0 overflow-y-auto flex-1">
@@ -1306,7 +1310,7 @@ function MainApp({ session }: { session: any }) {
                 {[...viewingAuditMatch.auditLog].reverse().map((log, idx) => (
                   <div key={idx} className="p-4 hover:bg-slate-50 transition-colors">
                     <div className="flex justify-between items-start mb-1">
-                      <span className="text-xs font-bold text-slate-400 uppercase">
+                      <span className="text-xs font-bold text-slate-500 uppercase">
                         {new Date(log.date).toLocaleString('es-AR')}
                       </span>
                     </div>
@@ -1336,7 +1340,7 @@ function MainApp({ session }: { session: any }) {
               <ClipboardList className="w-5 h-5 text-indigo-600" /> Reporte de Cobertura
             </h3>
             <button onClick={() => { setIsIncidentModalOpen(false); setReportingMatch(null); }}>
-              <X className="w-6 h-6 text-slate-400 hover:text-red-500" />
+              <X className="w-6 h-6 text-slate-500 hover:text-red-500" />
             </button>
           </div>
           <div className="p-6 space-y-4">
@@ -1449,7 +1453,7 @@ function MainApp({ session }: { session: any }) {
               <h3 className="font-bold text-slate-800 flex items-center gap-2">
                 <Key className="w-5 h-5 text-indigo-600" /> Perfil de Usuario
               </h3>
-              <button type="button" onClick={() => setIsChangePasswordOpen(false)}><X className="w-5 h-5 text-slate-400" /></button>
+              <button type="button" onClick={() => setIsChangePasswordOpen(false)}><X className="w-5 h-5 text-slate-500" /></button>
             </div>
             <div className="p-4 space-y-4">
               {msg && (
@@ -1580,11 +1584,13 @@ function MainApp({ session }: { session: any }) {
 
           <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
 
-          {isLoadingData ? (
-            <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-              <Loader2 className="w-10 h-10 animate-spin mb-4 text-indigo-500" />
-              <p>Cargando datos desde la base de datos...</p>
-            </div>
+          {isLoadingData && hasLoadedData && (
+            <p className="fixed left-1/2 top-3 z-40 -translate-x-1/2 flex items-center gap-2 rounded-full bg-slate-900/90 px-3 py-1.5 text-xs font-semibold text-white shadow-lg" role="status">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Actualizando…
+            </p>
+          )}
+          {isLoadingData && !hasLoadedData ? (
+            <LoadingSkeleton />
           ) : (
             <div key={activeTab} className="animate-section-in space-y-6">
               {/* DASHBOARD */}
@@ -1611,10 +1617,10 @@ function MainApp({ session }: { session: any }) {
                           <ClipboardCheck className="w-5 h-5" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-xs text-slate-500 font-medium truncate">Pendientes</p>
+                          <p className="text-xs text-slate-500 font-medium truncate">Pendientes hoy</p>
                           <div className="flex flex-col md:flex-row md:items-baseline md:gap-2">
-                            <p className="text-lg md:text-xl font-bold text-slate-800 leading-none mt-0.5">{agendaServices.filter(service => !service.closed && service.date >= localDate()).length}</p>
-                            <span className="text-[10px] text-slate-400 font-medium truncate mt-0.5">Hoy: {servicesForDay(agendaServices, localDate()).length}</span>
+                            <p className="text-lg md:text-xl font-bold text-slate-800 leading-none mt-0.5">{agendaServices.filter(service => !service.closed && service.date === localDate()).length}</p>
+                            <span className="text-xs text-slate-500 font-medium truncate mt-0.5">{agendaServices.filter(service => !service.closed && service.date > localDate()).length} más adelante</span>
                           </div>
                         </div>
                       </div>
@@ -1627,7 +1633,7 @@ function MainApp({ session }: { session: any }) {
                           <p className="text-xs text-slate-500 font-medium truncate">Personal</p>
                           <div className="flex flex-col md:flex-row md:items-baseline md:gap-2">
                             <p className="text-lg md:text-xl font-bold text-slate-800 leading-none mt-0.5">{staff.length}</p>
-                            <span className="text-[10px] text-slate-400 font-medium truncate mt-0.5 flex items-center gap-1.5">
+                            <span className="text-xs text-slate-500 font-medium truncate mt-0.5 flex items-center gap-1.5">
                               <span className="flex items-center gap-0.5" title="Choferes"><Car className="w-3 h-3" /> {staff.filter(s => s.role === 'Chofer').length}</span>
                               <span className="flex items-center gap-0.5" title="Enfermeros"><Stethoscope className="w-3 h-3" /> {staff.filter(s => s.role === 'Enfermero/a').length}</span>
                             </span>
@@ -1643,20 +1649,20 @@ function MainApp({ session }: { session: any }) {
                           <p className="text-xs text-slate-500 font-medium truncate">Móviles</p>
                           <div className="flex flex-col md:flex-row md:items-baseline md:gap-2">
                             <p className="text-lg md:text-xl font-bold text-slate-800 leading-none mt-0.5">{ambulances.length}</p>
-                            <span className="text-[10px] text-slate-400 font-medium truncate mt-0.5">{ambulances.filter(a => a.maintenance?.status === 'Active').length} activos</span>
+                            <span className="text-xs text-slate-500 font-medium truncate mt-0.5">{(n => `${n} ${n === 1 ? 'operativo' : 'operativos'}`)(ambulances.filter(a => a.maintenance?.status === 'Active').length)}</span>
                           </div>
                         </div>
                       </div>
 
                       <div onClick={() => { setDailyAgendaDate(localDate()); setIsDailyAgendaOpen(true); }} className="bg-white p-3 rounded-xl shadow-sm border border-slate-100 flex items-center gap-3 cursor-pointer hover:bg-slate-50 hover:border-amber-200 transition-colors active:scale-95 touch-manipulation">
-                        <div className={`p-2 rounded-lg shrink-0 ${superpositionCount > 0 ? 'bg-amber-50 text-amber-600' : 'bg-slate-50 text-slate-400'}`}>
+                        <div className={`p-2 rounded-lg shrink-0 ${superpositionCount > 0 ? 'bg-amber-50 text-amber-600' : 'bg-slate-50 text-slate-500'}`}>
                           <AlertTriangle className="w-5 h-5" />
                         </div>
                         <div className="min-w-0">
                           <p className="text-xs text-slate-500 font-medium truncate">Conflictos</p>
                           <div className="flex flex-col md:flex-row md:items-baseline md:gap-2">
                             <p className={`text-lg md:text-xl font-bold leading-none mt-0.5 ${superpositionCount > 0 ? 'text-amber-600' : 'text-slate-800'}`}>{superpositionCount}</p>
-                            <span className={`text-[10px] font-medium truncate mt-0.5 ${superpositionCount > 0 ? 'text-amber-500' : 'text-slate-400'}`}>{superpositionCount > 0 ? 'Revisar agenda' : 'Sin cruces detectados'}</span>
+                            <span className={`text-xs font-medium truncate mt-0.5 ${superpositionCount > 0 ? 'text-amber-500' : 'text-slate-500'}`}>{superpositionCount > 0 ? 'Revisar agenda' : 'Sin cruces detectados'}</span>
                           </div>
                         </div>
                       </div>
@@ -1761,6 +1767,13 @@ function MainApp({ session }: { session: any }) {
                     )}
                   </div>
 
+                  {filteredMatches.length === 0 && (() => {
+                    const filtered = Object.entries(filters).some(([key, value]) => key === 'status' || key === 'outsourced' ? value !== 'all' : Boolean(value));
+                    const clear = <button onClick={() => setFilters({ location: '', ambulance: '', outsourced: 'all', startDate: '', endDate: '', clientId: '', staffId: '', status: 'all' })} className="dispatch-secondary-action">Limpiar filtros</button>;
+                    return activeTab === 'history'
+                      ? <EmptyState icon={HistoryIcon} title={filtered ? 'Ningún servicio cerrado coincide con los filtros' : 'Todavía no hay servicios cerrados'} detail="Acá aparecen las coberturas completadas o suspendidas." action={filtered ? clear : undefined} />
+                      : <EmptyState icon={Calendar} title={filtered ? 'Ninguna cobertura coincide con los filtros' : 'No hay coberturas próximas'} action={filtered ? clear : <button onClick={() => { setEditingMatch({ date: localDate() }); setIsMatchReadOnly(false); setIsMatchModalOpen(true); }} className="dispatch-primary-action"><Plus className="h-4 w-4" /> Cargar la primera</button>} />;
+                  })()}
                   <div className="space-y-4">
                     {filteredMatches.map((match, index) => {
                       // ... [Mapping of Match Card remains the same]
@@ -1793,12 +1806,12 @@ function MainApp({ session }: { session: any }) {
                             <div className="flex flex-col md:flex-row">
                               <div className="md:w-32 bg-slate-50 p-4 flex flex-row md:flex-col items-center md:justify-center justify-between border-b md:border-b-0 md:border-r border-slate-100 gap-2">
                                 <div className="text-center">
-                                  <span className={`block text-2xl font-bold ${isSuspended ? 'text-slate-400 line-through' : 'text-slate-800'}`}>{formatDateAR(match.date).split('/')[0]}</span>
+                                  <span className={`block text-2xl font-bold ${isSuspended ? 'text-slate-500 line-through' : 'text-slate-800'}`}>{formatDateAR(match.date).split('/')[0]}</span>
                                   <span className="block text-xs uppercase font-bold text-slate-500">{new Date(match.date).toLocaleString('es-AR', { month: 'short' })}</span>
                                 </div>
                                 <div className="text-center md:mt-2">
-                                  <span className={`block text-xl font-bold ${isSuspended ? 'text-slate-400' : isConflicted ? 'text-red-600' : 'text-slate-800'}`}>{formatTime24(match.time)}</span>
-                                  {!isSuspended && <span className="text-xs text-slate-400 block mt-1">fin ~{formatTime24(endTime)} {match.extensionMinutes ? `(+${match.extensionMinutes}m)` : ''}</span>}
+                                  <span className={`block text-xl font-bold ${isSuspended ? 'text-slate-500' : isConflicted ? 'text-red-600' : 'text-slate-800'}`}>{formatTime24(match.time)}</span>
+                                  {!isSuspended && <span className="text-xs text-slate-500 block mt-1">fin ~{formatTime24(endTime)} {match.extensionMinutes ? `(+${match.extensionMinutes}m)` : ''}</span>}
                                 </div>
                               </div>
 
@@ -1840,7 +1853,7 @@ function MainApp({ session }: { session: any }) {
                                         <AlertTriangle className="w-3 h-3" /> Superposición
                                       </span>
                                       {conflicts.slice(0, 2).map((c, idx) => (
-                                        <span key={idx} className="text-[10px] text-red-600 mt-1 max-w-[200px] text-right truncate font-medium">
+                                        <span key={idx} className="text-xs text-red-600 mt-1 max-w-[200px] text-right truncate font-medium">
                                           {c.resources.join(', ')} en {c.match.location} ({formatTime24(c.match.time)})
                                         </span>
                                       ))}
@@ -1852,7 +1865,7 @@ function MainApp({ session }: { session: any }) {
                                         <AlertOctagon className="w-3 h-3" /> Misma Sede / Distinta Cancha
                                       </span>
                                       {sharedConflicts.slice(0, 2).map((c, idx) => (
-                                        <span key={idx} className="text-[10px] text-orange-600 mt-1 max-w-[200px] text-right truncate font-medium">
+                                        <span key={idx} className="text-xs text-orange-600 mt-1 max-w-[200px] text-right truncate font-medium">
                                           {c.resources.join(', ')} comparte con {c.match.fieldNumber || 'otra cancha'}
                                         </span>
                                       ))}
@@ -1867,13 +1880,13 @@ function MainApp({ session }: { session: any }) {
                                 ) : (
                                   <div className="flex flex-col sm:flex-row gap-4 text-sm text-slate-600">
                                     <div className="flex items-center gap-2 min-w-[140px]">
-                                      {getAmbulanceIcon(amb?.vehicleType, "w-4 h-4 text-slate-400")}
+                                      {getAmbulanceIcon(amb?.vehicleType, "w-4 h-4 text-slate-500")}
                                       <span className={amb ? '' : 'text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200 text-xs inline-flex items-center gap-1'}>
                                         {amb ? `Móvil ${amb.number} ${amb.isOutsourced ? `(${amb.plate || 'Ext'})` : ''}` : 'Falta Móvil'}
                                       </span>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                      <Users className="w-4 h-4 text-slate-400" />
+                                      <Users className="w-4 h-4 text-slate-500" />
                                       <div className="flex gap-2 items-center">
                                         {match.isSingleCrew ? (
                                           <span className="text-indigo-600 font-medium bg-indigo-50 px-2 rounded-full text-xs flex items-center">
@@ -1920,7 +1933,7 @@ function MainApp({ session }: { session: any }) {
                                   <div className="pt-2 border-t border-slate-100 text-xs text-slate-500 flex flex-col gap-1">
                                     {(match.clientId || match.hiredBy) && (
                                       <div className="flex items-center gap-2">
-                                        <Briefcase className="w-3 h-3 text-slate-400" />
+                                        <Briefcase className="w-3 h-3 text-slate-500" />
                                         <span>Cliente: <strong className="text-slate-700">{client?.name || match.hiredBy}</strong></span>
                                         {(client?.contactPhone || match.hiredContact) && (
                                           <a href={`https://wa.me/${(client?.contactPhone || match.hiredContact || '').replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer" className="ml-2 bg-green-100 text-green-700 p-1 rounded hover:bg-green-200 transition-colors" title="Contactar">
@@ -1931,7 +1944,7 @@ function MainApp({ session }: { session: any }) {
                                     )}
                                     {match.incidentReport?.details && (
                                       <div className="text-slate-600 italic mt-1 bg-slate-50 p-2 rounded border border-slate-200">
-                                        <FileText className="w-3 h-3 inline mr-1 text-slate-400" />
+                                        <FileText className="w-3 h-3 inline mr-1 text-slate-500" />
                                         {match.incidentReport.details}
                                       </div>
                                     )}
@@ -1959,7 +1972,7 @@ function MainApp({ session }: { session: any }) {
                                         <HistoryIcon className="w-5 h-5" />
                                       </button>
                                     )}
-                                    <button onClick={(e) => { e.stopPropagation(); setEditingMatch(match); setIsMatchModalOpen(true); }} className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg transition-colors" title="Ver Detalles / Editar">
+                                    <button onClick={(e) => { e.stopPropagation(); setEditingMatch(match); setIsMatchModalOpen(true); }} className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors" title="Ver Detalles / Editar">
                                       <Edit2 className="w-5 h-5" />
                                     </button>
                                   </>
@@ -1989,9 +2002,12 @@ function MainApp({ session }: { session: any }) {
                       setIsAmbulanceModalOpen(true);
                     }} className="dispatch-primary-action"><Plus className="h-4 w-4" /> Agregar móvil</button>
                   } />
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {ambulances.map(amb => (
-                      <div key={amb.id} className="dispatch-card p-4 relative overflow-hidden group border-t-4 border-t-indigo-400">
+                  {ambulances.length === 0 && <EmptyState icon={Truck} title="Todavía no hay móviles cargados" />}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {ambulances.map(amb => {
+                      const vtv = licenseStatus(amb.maintenance?.vtvExpiration, localDate());
+                      return (
+                      <div key={amb.id} className="dispatch-card p-3 relative overflow-hidden group border-t-4 border-t-indigo-400">
                         <div className="flex justify-between items-start mb-2">
                           <div className="bg-indigo-50 p-2 rounded-lg text-indigo-600">{getAmbulanceIcon(amb.vehicleType, "w-8 h-8")}</div>
                           <span className={`px-2 py-1 rounded text-xs font-bold border ${amb.maintenance?.status === 'Active' ? 'bg-green-50 text-green-700 border-green-200' : amb.maintenance?.status === 'InRepair' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
@@ -1999,12 +2015,13 @@ function MainApp({ session }: { session: any }) {
                           </span>
                         </div>
                         <h4 className="text-xl font-bold text-slate-800">Móvil {amb.number}</h4>
-                        <p className="text-sm text-slate-500 font-medium mb-3">{amb.vehicleType || 'Vehículo'} {amb.year ? `(${amb.year})` : ''}</p>
-                        <button onClick={() => setViewingAmbulance(amb)} className="dispatch-secondary-action mt-4 w-full">
+                        <p className="text-sm text-slate-500 font-medium">{amb.vehicleType || 'Vehículo'} {amb.year ? `(${amb.year})` : ''}{amb.plate ? ` · ${amb.plate}` : ''}</p>
+                        {!amb.isOutsourced && <p className={`mt-2 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-semibold ${vtv.state === 'expired' ? 'bg-rose-50 text-rose-700' : vtv.state === 'soon' ? 'bg-amber-50 text-amber-800' : vtv.state === 'ok' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}><ClipboardCheck className="h-3.5 w-3.5" /> {vtv.state === 'ok' ? `VTV hasta ${formatDateFull(amb.maintenance?.vtvExpiration)}` : expiryLabel(vtv, 'VTV')}</p>}
+                        <button onClick={() => setViewingAmbulance(amb)} className="dispatch-secondary-action mt-3 w-full">
                           Ver detalles <ArrowRight className="h-4 w-4" />
                         </button>
                       </div>
-                    ))}
+                    ); })}
                   </div>
                 </div>
               )}
@@ -2040,6 +2057,7 @@ function MainApp({ session }: { session: any }) {
                       </div>
                     );
                   })()}
+                  {staff.length === 0 && <EmptyState icon={Users} title="Todavía no hay personal cargado" detail="Cargá choferes y enfermería para poder asignarlos a los servicios." action={<button onClick={() => { setEditingStaff(null); setIsStaffModalOpen(true); }} className="dispatch-primary-action"><UserPlus className="h-4 w-4" /> Agregar personal</button>} />}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     {staff.map(s => {
                       const license = needsLicense(s) ? licenseStatus(s.licenseExpiration, localDate()) : null;
@@ -2052,7 +2070,7 @@ function MainApp({ session }: { session: any }) {
                           {s.phone && <a href={`tel:${s.phone.replace(/[^0-9+]/g, '')}`} onClick={e => e.stopPropagation()} className="text-sm text-slate-600 inline-flex items-center gap-1 mt-0.5 hover:text-indigo-700"><Phone className="w-3.5 h-3.5" /> {s.phone}</a>}
                           {license && <p className={`mt-1 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-semibold ${license.state === 'expired' ? 'bg-rose-50 text-rose-700' : license.state === 'soon' ? 'bg-amber-50 text-amber-800' : license.state === 'ok' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}><IdCard className="h-3.5 w-3.5" /> {license.state === 'ok' ? `Licencia hasta ${formatDateFull(s.licenseExpiration)}` : licenseLabel(license)}</p>}
                         </div>
-                        <button aria-label={`Editar ${s.name}`} onClick={(e) => { e.stopPropagation(); setEditingStaff(s); setIsStaffModalOpen(true); }} className="absolute top-1.5 right-1.5 flex h-11 w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-indigo-600"><Edit2 className="w-4 h-4" /></button>
+                        <button aria-label={`Editar ${s.name}`} onClick={(e) => { e.stopPropagation(); setEditingStaff(s); setIsStaffModalOpen(true); }} className="absolute top-1.5 right-1.5 flex h-11 w-11 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-indigo-600"><Edit2 className="w-4 h-4" /></button>
                       </div>
                     ); })}
                   </div>
@@ -2063,6 +2081,7 @@ function MainApp({ session }: { session: any }) {
                   <SectionHeader eyebrow="Cobertura territorial" title="Lugares y sedes" description="Accedé rápido a los puntos habituales y sus contactos operativos." icon={MapPin} actions={
                     <button onClick={() => { setEditingLocation(null); setIsLocationModalOpen(true); }} className="dispatch-primary-action"><Plus className="h-4 w-4" /> Agregar lugar</button>
                   } />
+                  {locations.length === 0 && <EmptyState icon={MapPin} title="Todavía no hay lugares cargados" action={<button onClick={() => { setEditingLocation(null); setIsLocationModalOpen(true); }} className="dispatch-primary-action"><Plus className="h-4 w-4" /> Agregar lugar</button>} />}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {locations.map(l => (
                       <div key={l.id} onClick={() => setViewingLocation(l)} className="dispatch-card cursor-pointer p-4">
@@ -2078,6 +2097,7 @@ function MainApp({ session }: { session: any }) {
                   <SectionHeader eyebrow="Relaciones" title="Clientes" description="Datos de contacto y responsables de cada organización." icon={Building} actions={
                     <button onClick={() => { setEditingClient(null); setIsClientModalOpen(true); }} className="dispatch-primary-action"><Plus className="h-4 w-4" /> Agregar cliente</button>
                   } />
+                  {clients.length === 0 && <EmptyState icon={Building} title="Todavía no hay clientes cargados" action={<button onClick={() => { setEditingClient(null); setIsClientModalOpen(true); }} className="dispatch-primary-action"><Plus className="h-4 w-4" /> Agregar cliente</button>} />}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {clients.map(c => (
                       <div key={c.id} onClick={() => setViewingClient(viewingClient?.id === c.id ? null : c)} className="dispatch-card p-4 cursor-pointer group relative">
@@ -2087,9 +2107,9 @@ function MainApp({ session }: { session: any }) {
                         </div>
                         {viewingClient?.id === c.id && (c.contactName || c.contactPhone || c.email) && (
                           <div className="mt-3 pt-3 border-t border-slate-100 text-sm text-slate-600 space-y-1" onClick={e => e.stopPropagation()}>
-                            {c.contactName && <p className="flex items-center gap-2"><User className="w-4 h-4 text-slate-400" /> {c.contactName}</p>}
-                            {c.contactPhone && <p className="flex items-center gap-2"><Phone className="w-4 h-4 text-slate-400" /> {c.contactPhone}</p>}
-                            {c.email && <p className="flex items-center gap-2"><Mail className="w-4 h-4 text-slate-400" /> {c.email}</p>}
+                            {c.contactName && <p className="flex items-center gap-2"><User className="w-4 h-4 text-slate-500" /> {c.contactName}</p>}
+                            {c.contactPhone && <p className="flex items-center gap-2"><Phone className="w-4 h-4 text-slate-500" /> {c.contactPhone}</p>}
+                            {c.email && <p className="flex items-center gap-2"><Mail className="w-4 h-4 text-slate-500" /> {c.email}</p>}
                             {c.contactPhone && (
                               <div className="flex items-center gap-2 mt-3 pt-2">
                                 <a href={`tel:${c.contactPhone.replace(/[^0-9+]/g, '')}`} className="flex-1 flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 py-1.5 rounded-lg font-medium transition-colors border border-slate-200">

@@ -48,7 +48,7 @@ export const LocationDetailModal: React.FC<LocationDetailModalProps> = ({
                         <MapPin className="w-5 h-5 text-indigo-600" />
                         {showHistory ? `Historial: ${location.name}` : 'Detalles de Lugar'}
                     </h3>
-                    <button onClick={onClose}><X className="w-6 h-6 text-slate-400 hover:text-slate-600" /></button>
+                    <button onClick={onClose}><X className="w-6 h-6 text-slate-500 hover:text-slate-600" /></button>
                 </div>
 
                 {/* Body */}
@@ -75,7 +75,7 @@ export const LocationDetailModal: React.FC<LocationDetailModalProps> = ({
                                             <span className="font-semibold text-sm">Ver Mapa</span>
                                         </a>
                                     ) : (
-                                        <div className="flex flex-col items-center justify-center p-4 bg-slate-50 border border-slate-100 rounded-xl text-slate-400">
+                                        <div className="flex flex-col items-center justify-center p-4 bg-slate-50 border border-slate-100 rounded-xl text-slate-500">
                                             <MapPin className="w-8 h-8 mb-2 opacity-30" />
                                             <span className="font-medium text-sm">Sin Mapa</span>
                                         </div>
@@ -92,7 +92,7 @@ export const LocationDetailModal: React.FC<LocationDetailModalProps> = ({
                                             <span className="font-semibold text-sm">Contacto</span>
                                         </a>
                                     ) : (
-                                        <div className="flex flex-col items-center justify-center p-4 bg-slate-50 border border-slate-100 rounded-xl text-slate-400">
+                                        <div className="flex flex-col items-center justify-center p-4 bg-slate-50 border border-slate-100 rounded-xl text-slate-500">
                                             <Phone className="w-8 h-8 mb-2 opacity-30" />
                                             <span className="font-medium text-sm">Sin Contacto</span>
                                         </div>
@@ -136,7 +136,7 @@ export const LocationDetailModal: React.FC<LocationDetailModalProps> = ({
                         <>
                             {/* History View */}
                             {history.length === 0 ? (
-                                <div className="p-12 text-center text-slate-400">Sin historial de coberturas en este lugar.</div>
+                                <div className="p-12 text-center text-slate-500">Sin historial de coberturas en este lugar.</div>
                             ) : (
                                 <table className="w-full text-sm">
                                     <thead className="bg-slate-50 text-slate-600 sticky top-0 z-10">

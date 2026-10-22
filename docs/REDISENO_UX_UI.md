@@ -39,19 +39,26 @@ Respetan las preferencias registradas en [`AGENTS.md`](../AGENTS.md):
 |---|---|---|
 | 3.1 | Barra de navegación inferior en celular (Tablero, Coberturas, Traslados, Flota, Más) y título de la sección en el encabezado | Hecha · en revisión |
 | 3.2 | Traslados en tarjetas en celular: estado y Editar siempre visibles, sin desplazamiento lateral (error 3) | Hecha · en revisión |
-| 3.3 | Historial y Personal en tarjetas en celular | Pendiente |
-| 3.4 | Esqueletos de carga y estados vacíos con una acción clara | Pendiente |
+| 3.3 | Historial y Personal en tarjetas en celular | Hecha · Personal en tarjetas compactas con teléfono para llamar; Historial ya usaba tarjetas |
+| 3.4 | Esqueletos de carga y estados vacíos con una acción clara | Hecha · esqueleto sólo en la primera carga; al actualizar se mantiene la pantalla con un aviso «Actualizando…» |
 | 3.5 | Colores de estado unificados (pendiente, confirmada, en curso, cerrada, suspendida) en tablero, agenda, flota y administración | Pendiente |
-| 3.6 | Legibilidad: textos de 10 px a 12 px como mínimo y grises con contraste AA | Pendiente |
-| 3.7 | Tablero: dato repetido en «Pendientes» y barras planas en días sin actividad (error 12) | Pendiente |
+| 3.6 | Legibilidad: textos de 10 px a 12 px como mínimo y grises con contraste AA | Hecha · `text-slate-400` pasa a `text-slate-500` sobre fondo claro (el menú oscuro no cambia) |
+| 3.7 | Tablero: dato repetido en «Pendientes» y barras planas en días sin actividad (error 12) | Hecha |
+
+### Pedidos de Nico (22/10)
+
+| # | Mejora | Estado |
+|---|---|---|
+| N.1 | Licencia de conducir de choferes (número, categoría, vencimiento): avisos de vencida y por vencer a 30 días en tablero y Personal, y marca al asignar | Hecha · requiere migración `202610220004_staff_driver_license.sql` |
+| N.2 | Combustible: orden por fecha, resumen mensual por móvil, corregir y eliminar movimientos, litros con coma | Hecha |
 
 ### Etapa 4 — Mecánicas operativas
 
 | # | Mejora | Estado |
 |---|---|---|
-| 4.1 | Franja «Requiere atención»: servicios sin recursos, cruces, vencidos sin cerrar, móviles bloqueados con asignaciones | Pendiente |
+| 4.1 | Franja «Requiere atención»: servicios sin recursos, cruces, vencidos sin cerrar, móviles bloqueados con asignaciones | En curso · la franja ya está arriba del tablero con coberturas sin asignar, VTV y licencias |
 | 4.2 | Cambio de estado en un toque desde la tarjeta (traslados) y confirmar cobertura en un toque | Pendiente |
-| 4.3 | Alertas de vencimientos de flota (VTV, seguro, service por km) con días restantes | Pendiente |
+| 4.3 | Alertas de vencimientos de flota (VTV, seguro, service por km) con días restantes | En curso · VTV con días restantes en Flota y en el tablero; falta seguro y service |
 | 4.4 | Búsqueda global (servicio, móvil, persona) desde el encabezado | Pendiente |
 | 4.5 | Actualización en tiempo real entre operadores (Supabase Realtime) | Pendiente |
 
@@ -72,7 +79,7 @@ Después, según prioridad: duplicar servicio y plantillas, vista «hoy por móv
 | 9 | Baja | Fechas de VTV y batería con input nativo | Resuelto en PR #1 |
 | 10 | Baja | Clases `animate-in` sin efecto | Resuelto en PR #1 |
 | 11 | Baja | Sin título de sección en el encabezado móvil | Resuelto en 3.1 |
-| 12 | Baja | Tablero: dato repetido y barras planas | Etapa 3.7 |
+| 12 | Baja | Tablero: dato repetido y barras planas | Resuelto en 3.7 |
 
 ## Registro
 
@@ -81,3 +88,4 @@ Después, según prioridad: duplicar servicio y plantillas, vista «hoy por móv
 - **12/10/2026** — 3.1: barra inferior en celular, título de sección visible, secciones definidas en un único lugar (`src/components/AppNavigation.tsx`) y menú que se desplaza en celulares bajos.
 - **12/10/2026** — 3.2: Traslados en tarjetas en celular y tablet (horario, estado, origen → destino, chofer, móvil y Editar de 44 px), con faltantes marcados en ámbar. La lista pasa a `src/components/TransfersList.tsx`; el horario usa `transferWindow` de `src/utils/agenda.ts`, el mismo cálculo que la Agenda.
 - **12/10/2026** — PR #1 (etapas 1 y 2) mergeado en `main` (`811b309`).
+- **22/10/2026** — Se retoma el proyecto. Licencias de choferes (N.1) y arreglos de combustible (N.2): la lista salía ordenada por id y el consumo mensual del móvil corría las cargas del día 1 al mes anterior. Etapa 3.3, 3.4, 3.6 y 3.7, franja de avisos arriba del tablero y VTV con días restantes.

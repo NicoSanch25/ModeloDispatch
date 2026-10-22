@@ -21,13 +21,18 @@ export function licenseStatus(expiration: string | undefined | null, onDate: str
 
 export const needsLicense = (person: Pick<Staff, 'role'>) => person.role === 'Chofer';
 
-export function licenseLabel(status: LicenseStatus): string {
-  if (status.state === 'missing') return 'Sin vencimiento cargado';
+/** Texto de un vencimiento (licencia, VTV, seguro...). */
+export function expiryLabel(status: LicenseStatus, noun: string): string {
+  if (status.state === 'missing') return `${noun} sin vencimiento cargado`;
   const days = status.days ?? 0;
-  if (status.state === 'expired') return days === -1 ? 'Licencia vencida ayer' : `Licencia vencida hace ${-days} días`;
-  if (days === 0) return 'Licencia vence hoy';
-  if (status.state === 'soon') return days === 1 ? 'Licencia vence mañana' : `Licencia vence en ${days} días`;
-  return 'Licencia al día';
+  if (status.state === 'expired') return days === -1 ? `${noun} vencida ayer` : `${noun} vencida hace ${-days} días`;
+  if (days === 0) return `${noun} vence hoy`;
+  if (status.state === 'soon') return days === 1 ? `${noun} vence mañana` : `${noun} vence en ${days} días`;
+  return `${noun} al día`;
+}
+
+export function licenseLabel(status: LicenseStatus): string {
+  return status.state === 'missing' ? 'Sin vencimiento cargado' : expiryLabel(status, 'Licencia');
 }
 
 /** Texto para las opciones de chofer al asignar un servicio en una fecha. */

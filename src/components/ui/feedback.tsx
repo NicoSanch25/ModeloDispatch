@@ -78,7 +78,7 @@ export const FeedbackHost: React.FC = () => {
           <div key={toast.id} role={toast.tone === 'error' ? 'alert' : 'status'} className={`pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-xl border p-3 text-sm shadow-lg animate-toast-in ${toneStyles[toast.tone].box}`}>
             {toneStyles[toast.tone].icon}
             <p className="flex-1 leading-5">{toast.message}</p>
-            <button type="button" aria-label="Cerrar aviso" onClick={() => dismiss(toast.id)} className="-m-1 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"><X className="h-4 w-4" /></button>
+            <button type="button" aria-label="Cerrar aviso" onClick={() => dismiss(toast.id)} className="-m-1 rounded-lg p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-600"><X className="h-4 w-4" /></button>
           </div>
         ))}
       </div>

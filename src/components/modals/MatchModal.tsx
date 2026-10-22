@@ -189,7 +189,7 @@ export const MatchModal: React.FC<MatchModalProps> = ({
                                 )
                             )}
                         </div>
-                        <button type="button" disabled={isLoading} aria-label="Cerrar cobertura" onClick={onClose}><X className="w-6 h-6 text-slate-400" /></button>
+                        <button type="button" disabled={isLoading} aria-label="Cerrar cobertura" onClick={onClose}><X className="w-6 h-6 text-slate-500" /></button>
                     </div>
 
                     <div className={`flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-4 ${isReadOnly ? 'opacity-80 pointer-events-none grayscale-[0.5]' : ''}`}>

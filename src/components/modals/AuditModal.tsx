@@ -20,7 +20,7 @@ export const AuditModal: React.FC<AuditModalProps> = ({ isOpen, onClose, match }
                         <History className="w-5 h-5 text-slate-500" /> Historial de Cambios
                     </h3>
                     <button onClick={onClose}>
-                        <X className="w-6 h-6 text-slate-400" />
+                        <X className="w-6 h-6 text-slate-500" />
                     </button>
                 </div>
                 <div className="p-0 overflow-y-auto flex-1">
@@ -33,7 +33,7 @@ export const AuditModal: React.FC<AuditModalProps> = ({ isOpen, onClose, match }
                             {[...match.auditLog].reverse().map((log, idx) => (
                                 <div key={idx} className="p-4 hover:bg-slate-50 transition-colors">
                                     <div className="flex justify-between items-start mb-1">
-                                        <span className="text-xs font-bold text-slate-400 uppercase">
+                                        <span className="text-xs font-bold text-slate-500 uppercase">
                                             {new Date(log.date).toLocaleString('es-AR')}
                                         </span>
                                     </div>

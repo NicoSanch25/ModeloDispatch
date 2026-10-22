@@ -155,14 +155,14 @@ export const FuelBatchModal: React.FC<FuelBatchModalProps> = ({ isOpen, onClose,
               <section key={row.key} className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4" aria-label={`Movimiento ${index + 1}`}>
                 <div className="mb-3 flex items-center justify-between">
                   <span className="text-sm font-bold text-slate-800">{editing ? 'Movimiento' : `Movimiento ${index + 1}`}</span>
-                  {!editing && <button type="button" onClick={() => removeRow(index)} className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600" aria-label={`Quitar movimiento ${index + 1}`}><Trash2 className="h-4 w-4" /></button>}
+                  {!editing && <button type="button" onClick={() => removeRow(index)} className="rounded-lg p-1.5 text-slate-500 hover:bg-rose-50 hover:text-rose-600" aria-label={`Quitar movimiento ${index + 1}`}><Trash2 className="h-4 w-4" /></button>}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <label className="min-w-0 text-xs font-semibold text-slate-600">
                     Fecha
                     <span className="relative mt-1 block">
-                      <span className={`${fieldClass} flex items-center justify-between`}><span>{(row.date || localDate()).split('-').reverse().join('/')}</span><CalendarDays className="h-4 w-4 text-slate-400" /></span>
+                      <span className={`${fieldClass} flex items-center justify-between`}><span>{(row.date || localDate()).split('-').reverse().join('/')}</span><CalendarDays className="h-4 w-4 text-slate-500" /></span>
                       <input type="date" value={row.date || ''} onChange={event => updateRow(index, { date: event.target.value })} className="absolute inset-0 h-full w-full cursor-pointer opacity-0" aria-label={`Fecha del movimiento ${index + 1}`} />
                     </span>
                   </label>
@@ -186,7 +186,7 @@ export const FuelBatchModal: React.FC<FuelBatchModalProps> = ({ isOpen, onClose,
                     <label className="col-span-2 text-xs font-semibold text-slate-600">
                       Nombre del chofer externo
                       <span className="relative mt-1 block">
-                        <UserRoundPlus className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                        <UserRoundPlus className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-500" />
                         <input type="text" value={row.externalDriverName || ''} onChange={event => updateRow(index, { externalDriverName: event.target.value })} placeholder="Nombre y apellido" className={`${fieldClass} pl-9`} autoFocus />
                       </span>
                     </label>
@@ -207,9 +207,9 @@ export const FuelBatchModal: React.FC<FuelBatchModalProps> = ({ isOpen, onClose,
                   </label>
 
                   <label className="col-span-2 text-xs font-semibold text-slate-600">
-                    Compra en la estación <span className="font-normal text-slate-400">(opcional)</span>
+                    Compra en la estación <span className="font-normal text-slate-500">(opcional)</span>
                     <span className="relative mt-1 block">
-                      <ReceiptText className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                      <ReceiptText className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-500" />
                       <input type="text" value={row.items || ''} onChange={event => updateRow(index, { items: event.target.value })} placeholder="Ej: franela, aceite, agua destilada" className={`${fieldClass} pl-9`} />
                     </span>
                   </label>

@@ -92,7 +92,7 @@ export const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, onSaveS
                             </div>
                             {editingStaff ? 'Editar Personal' : 'Nuevo Personal'}
                         </h3>
-                        <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-full transition-colors"><X className="w-5 h-5" /></button>
+                        <button type="button" onClick={onClose} className="text-slate-500 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-full transition-colors"><X className="w-5 h-5" /></button>
                     </div>
 
                     {/* Body */}
@@ -149,7 +149,7 @@ export const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, onSaveS
                                 <label htmlFor="isOutsourced" className="text-sm font-medium text-slate-700 cursor-pointer">Es personal externo / terciarizado</label>
                             </div>
                             <div className="pl-8">
-                                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Empresa</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Empresa</label>
                                 <input name="companyName" defaultValue={editingStaff?.companyName} placeholder="Nombre de la empresa" className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm bg-white" />
                             </div>
                         </div>

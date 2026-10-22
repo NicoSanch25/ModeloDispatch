@@ -103,7 +103,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                         <Ambulance className="w-5 h-5 text-indigo-600" />
                         {transfer?.id ? 'Editar Traslado' : 'Nuevo Traslado'}
                     </h3>
-                    <button onClick={onClose} disabled={isSaving} aria-label="Cerrar traslado" className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-50">
+                    <button onClick={onClose} disabled={isSaving} aria-label="Cerrar traslado" className="p-2 text-slate-500 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-50">
                         <X className="w-5 h-5" />
                     </button>
                 </div>

@@ -58,7 +58,7 @@ export const AmbulanceDetailModal: React.FC<AmbulanceDetailModalProps> = ({ isOp
                                 <Edit2 className="w-4 h-4" /> Editar
                             </button>
                         )}
-                        <button onClick={onClose}><X className="w-6 h-6 text-slate-400 hover:text-red-500" /></button>
+                        <button onClick={onClose}><X className="w-6 h-6 text-slate-500 hover:text-red-500" /></button>
                     </div>
                 </div>
 
@@ -72,7 +72,7 @@ export const AmbulanceDetailModal: React.FC<AmbulanceDetailModalProps> = ({ isOp
 
                         <div className="space-y-4">
                             <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
-                                <h5 className="text-xs font-bold text-slate-400 uppercase mb-2 flex items-center gap-2"><FileText className="w-3 h-3" /> Datos Generales</h5>
+                                <h5 className="text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-2"><FileText className="w-3 h-3" /> Datos Generales</h5>
                                 <div className="space-y-2 text-sm">
                                     <div className="flex justify-between border-b border-slate-50 pb-1">
                                         <span className="text-slate-500">Patente</span>
@@ -90,7 +90,7 @@ export const AmbulanceDetailModal: React.FC<AmbulanceDetailModalProps> = ({ isOp
                             </div>
 
                             <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
-                                <h5 className="text-xs font-bold text-slate-400 uppercase mb-2 flex items-center gap-2"><Gauge className="w-3 h-3" /> Mantenimiento</h5>
+                                <h5 className="text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-2"><Gauge className="w-3 h-3" /> Mantenimiento</h5>
                                 <div className="space-y-2 text-sm">
                                     <div className="flex justify-between items-center bg-slate-50 p-2 rounded">
                                         <span className="text-slate-500">Kilometraje</span>
@@ -99,7 +99,7 @@ export const AmbulanceDetailModal: React.FC<AmbulanceDetailModalProps> = ({ isOp
                                     <div className="flex justify-between border-b border-slate-50 pb-1">
                                         <span className="text-slate-500">Combustible (Mes)</span>
                                         <span className="font-bold text-slate-700 flex items-center gap-1">
-                                            <Fuel className="w-3 h-3 text-slate-400" />
+                                            <Fuel className="w-3 h-3 text-slate-500" />
                                             {currentMonthFuel > 0 ? `${currentMonthFuel} L` : '--'}
                                         </span>
                                     </div>
@@ -117,20 +117,20 @@ export const AmbulanceDetailModal: React.FC<AmbulanceDetailModalProps> = ({ isOp
                             </div>
 
                             <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
-                                <h5 className="text-xs font-bold text-slate-400 uppercase mb-2 flex items-center gap-2"><Activity className="w-3 h-3" /> Mecánica</h5>
+                                <h5 className="text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-2"><Activity className="w-3 h-3" /> Mecánica</h5>
                                 <div className="space-y-2 text-sm">
                                     <div>
-                                        <span className="text-[10px] text-slate-400 uppercase block">Aceite</span>
+                                        <span className="text-xs text-slate-500 uppercase block">Aceite</span>
                                         <span className="font-medium text-slate-700">{ambulance.maintenance?.oilType || '--'}</span>
                                     </div>
                                     <div>
-                                        <span className="text-[10px] text-slate-400 uppercase block">Cubiertas</span>
+                                        <span className="text-xs text-slate-500 uppercase block">Cubiertas</span>
                                         <span className="font-medium text-slate-700">{ambulance.maintenance?.tireType || '--'}</span>
                                     </div>
                                     <div>
-                                        <span className="text-[10px] text-slate-400 uppercase block">Batería</span>
+                                        <span className="text-xs text-slate-500 uppercase block">Batería</span>
                                         <span className="font-medium text-slate-700">{ambulance.maintenance?.batteryType || '--'}</span>
-                                        <span className="text-xs text-slate-400 block">Ult. Cambio: {formatDateAR(ambulance.maintenance?.batteryLastChange)}</span>
+                                        <span className="text-xs text-slate-500 block">Ult. Cambio: {formatDateAR(ambulance.maintenance?.batteryLastChange)}</span>
                                     </div>
                                 </div>
                             </div>
@@ -144,7 +144,7 @@ export const AmbulanceDetailModal: React.FC<AmbulanceDetailModalProps> = ({ isOp
                         </div>
                         <div className="overflow-y-auto flex-1 p-0">
                             {history.length === 0 ? (
-                                <div className="p-12 text-center text-slate-400">Sin historial de servicios</div>
+                                <div className="p-12 text-center text-slate-500">Sin historial de servicios</div>
                             ) : (
                                 <table className="w-full text-sm">
                                     <thead className="bg-slate-50 text-slate-600 sticky top-0">

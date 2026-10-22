@@ -106,13 +106,13 @@ export const DailyAgendaModal: React.FC<DailyAgendaModalProps> = ({
                     <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                         <Calendar className="w-5 h-5 text-indigo-600" /> Agenda Diaria por Personal
                     </h3>
-                    <button onClick={onClose}><X className="w-6 h-6 text-slate-400" /></button>
+                    <button onClick={onClose}><X className="w-6 h-6 text-slate-500" /></button>
                 </div>
                 <div className="p-4 border-b border-slate-200 bg-white">
                     <label className="block text-sm font-medium text-slate-700 mb-2">Seleccionar Fecha</label>
                     <div className="relative w-full bg-white border border-slate-300 rounded-xl overflow-hidden flex items-center justify-between px-3 py-2.5 focus-within:ring-2 focus-within:ring-indigo-500">
                         <span className="text-slate-800 font-medium">{date.split('-').reverse().join('/')}</span>
-                        <Calendar className="w-5 h-5 text-slate-400" />
+                        <Calendar className="w-5 h-5 text-slate-500" />
                         <input
                             type="date"
                             value={date}
@@ -143,7 +143,7 @@ export const DailyAgendaModal: React.FC<DailyAgendaModalProps> = ({
                                                 <span className="text-xs bg-slate-100 px-2 py-0.5 rounded text-slate-600">{s.role}</span>
                                             </div>
                                             <div className="flex flex-col items-end gap-1">
-                                                <label className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center gap-1 cursor-pointer">
+                                                <label className="text-xs uppercase font-bold text-slate-500 mb-1 flex items-center gap-1 cursor-pointer">
                                                     <input
                                                         type="checkbox"
                                                         checked={useCitation[sid] || false}
@@ -160,7 +160,7 @@ export const DailyAgendaModal: React.FC<DailyAgendaModalProps> = ({
                                                             value={citationTimes[sid] || ''}
                                                             onChange={(e) => setCitationTimes(prev => ({ ...prev, [sid]: e.target.value }))}
                                                         />
-                                                        <span className="text-[10px] text-slate-400 font-bold">HS</span>
+                                                        <span className="text-xs text-slate-500 font-bold">HS</span>
                                                     </div>
                                                 )}
                                             </div>

@@ -76,7 +76,7 @@ export const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSav
                             </div>
                             {editingClient ? 'Editar Cliente' : 'Nuevo Cliente'}
                         </h3>
-                        <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-full transition-colors"><X className="w-5 h-5" /></button>
+                        <button type="button" onClick={onClose} className="text-slate-500 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-full transition-colors"><X className="w-5 h-5" /></button>
                     </div>
 
                     {/* Body */}

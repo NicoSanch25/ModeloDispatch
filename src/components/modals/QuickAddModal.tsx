@@ -101,7 +101,7 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
                         </h3>
                         <p className="text-xs text-slate-500 mt-1">Ingrese múltiples partidos para una misma fecha rápidamente.</p>
                     </div>
-                    <button onClick={onClose}><X className="w-6 h-6 text-slate-400" /></button>
+                    <button onClick={onClose}><X className="w-6 h-6 text-slate-500" /></button>
                 </div>
 
                 <div className="p-4 border-b bg-white flex items-center gap-4">
@@ -214,7 +214,7 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
                                         </div>
                                     </td>
                                     <td className="p-2 text-center">
-                                        <button onClick={() => removeQuickRow(row.id)} className="text-slate-400 hover:text-red-500">
+                                        <button onClick={() => removeQuickRow(row.id)} className="text-slate-500 hover:text-red-500">
                                             <X className="w-4 h-4" />
                                         </button>
                                     </td>

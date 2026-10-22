@@ -53,7 +53,7 @@ export const TransfersList: React.FC<TransfersListProps> = ({ transfers, staff, 
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-900">
-                    <Clock className="h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
+                    <Clock className="h-4 w-4 shrink-0 text-slate-500" aria-hidden="true" />
                     {formatDateAR(transfer.date)} · {schedule(transfer)}
                   </p>
                   {transfer.transfer_number && <p className="mt-0.5 text-xs text-slate-500">N.º {transfer.transfer_number}</p>}
@@ -64,22 +64,22 @@ export const TransfersList: React.FC<TransfersListProps> = ({ transfers, staff, 
               <p className="mt-3 font-semibold text-slate-900">{transfer.patient_name || <span className="font-normal text-slate-500">Paciente sin cargar</span>}</p>
 
               <p className="mt-1.5 flex items-start gap-1.5 text-sm text-slate-700">
-                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" aria-hidden="true" />
                 <span className="min-w-0 break-words">
                   {transfer.origin || <Missing>Origen pendiente</Missing>}
-                  <ArrowRight className="mx-1 inline h-3.5 w-3.5 text-slate-400" aria-hidden="true" /><span className="sr-only"> hacia </span>
+                  <ArrowRight className="mx-1 inline h-3.5 w-3.5 text-slate-500" aria-hidden="true" /><span className="sr-only"> hacia </span>
                   {transfer.destination || <Missing>Destino pendiente</Missing>}
                 </span>
               </p>
 
               <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-700">
                 <span className="flex items-center gap-1.5">
-                  <Car className="h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" /><span className="sr-only">Chofer:</span>
+                  <Car className="h-4 w-4 shrink-0 text-slate-500" aria-hidden="true" /><span className="sr-only">Chofer:</span>
                   {driver || <Missing>Chofer pendiente</Missing>}
                 </span>
                 {ambulance && (
                   <span className="flex items-center gap-1.5">
-                    <AmbulanceIcon className="h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
+                    <AmbulanceIcon className="h-4 w-4 shrink-0 text-slate-500" aria-hidden="true" />
                     Móvil {ambulance}
                   </span>
                 )}

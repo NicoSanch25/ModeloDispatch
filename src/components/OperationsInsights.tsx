@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Activity, ArrowUpRight, BarChart3, CalendarDays, Droplet, Truck, AlertCircle, IdCard } from 'lucide-react';
 import type { Ambulance, FuelRecord, Match, Staff, Transfer } from '../types';
-import { licenseAlerts, licenseLabel } from '../utils/licenses';
+import { licenseAlerts, licenseLabel, licenseStatus } from '../utils/licenses';
 import { localDate, summarizeOperations } from '../utils/statistics';
 
 interface Props {
@@ -17,12 +17,15 @@ interface AlertsProps {
 export function AttentionAlerts({ matches, ambulances, staff, onAgenda, onFleet, onStaff }: AlertsProps) {
   const today = localDate();
   const unassigned = matches.filter(m => m.date === today && !['Completed', 'Suspended'].includes(m.status) && (!m.ambulanceId || !m.driverId || (!m.isSingleCrew && !m.nurseId))).length;
-  const expired = ambulances.filter(a => a.maintenance?.vtvExpiration && a.maintenance.vtvExpiration < today).length;
+  const vtv = ambulances.filter(a => !a.isOutsourced).map(a => licenseStatus(a.maintenance?.vtvExpiration, today));
+  const expired = vtv.filter(v => v.state === 'expired').length;
+  const vtvSoon = vtv.filter(v => v.state === 'soon').length;
   const licenses = useMemo(() => licenseAlerts(staff, today), [staff, today]);
   return <>
-    {(unassigned > 0 || expired > 0 || licenses.expired.length > 0 || licenses.soon.length > 0) && <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 mb-3" role="region" aria-label="Requiere atención">
+    {(unassigned > 0 || expired > 0 || vtvSoon > 0 || licenses.expired.length > 0 || licenses.soon.length > 0) && <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 mb-3" role="region" aria-label="Requiere atención">
       {unassigned > 0 && <button onClick={onAgenda} className="flex-1 flex items-center gap-2 text-left text-sm bg-amber-50 text-amber-900 border border-amber-200 rounded-xl px-3 py-2.5"><AlertCircle size={17} /><span className="flex-1">{unassigned} {unassigned === 1 ? 'cobertura de hoy sin asignación completa' : 'coberturas de hoy sin asignación completa'}</span><ArrowUpRight size={16} /></button>}
       {expired > 0 && <button onClick={onFleet} className="flex-1 flex items-center gap-2 text-left text-sm bg-rose-50 text-rose-900 border border-rose-200 rounded-xl px-3 py-2.5"><AlertCircle size={17} /><span className="flex-1">{expired} {expired === 1 ? 'móvil con VTV vencida' : 'móviles con VTV vencida'}</span><ArrowUpRight size={16} /></button>}
+      {vtvSoon > 0 && <button onClick={onFleet} className="flex-1 flex items-center gap-2 text-left text-sm bg-amber-50 text-amber-900 border border-amber-200 rounded-xl px-3 py-2.5"><AlertCircle size={17} /><span className="flex-1">{vtvSoon} {vtvSoon === 1 ? 'móvil con VTV por vencer' : 'móviles con VTV por vencer'} en 30 días</span><ArrowUpRight size={16} /></button>}
       {licenses.expired.length > 0 && <button onClick={onStaff} className="flex-1 flex items-center gap-2 text-left text-sm bg-rose-50 text-rose-900 border border-rose-200 rounded-xl px-3 py-2.5"><IdCard size={17} /><span className="flex-1">{licenses.expired.length === 1 ? `${licenses.expired[0].person.name} tiene la licencia vencida` : `${licenses.expired.length} choferes con licencia vencida`}</span><ArrowUpRight size={16} /></button>}
       {licenses.soon.length > 0 && <button onClick={onStaff} className="flex-1 flex items-center gap-2 text-left text-sm bg-amber-50 text-amber-900 border border-amber-200 rounded-xl px-3 py-2.5"><IdCard size={17} /><span className="flex-1">{licenses.soon.length === 1 ? `${licenses.soon[0].person.name}: ${licenseLabel(licenses.soon[0].status).toLowerCase()}` : `${licenses.soon.length} licencias vencen en los próximos 30 días`}</span><ArrowUpRight size={16} /></button>}
     </div>}
@@ -52,24 +55,24 @@ export function OperationsInsights({ matches, transfers, fuelRecords }: Props) {
         ].map(({ label, value, detail, icon: Icon }) => <div className="rounded-xl bg-slate-50 p-3" key={label}>
           <div className="flex items-center justify-between gap-2 text-slate-500 text-xs"><span>{label}</span><Icon size={15} /></div>
           <p className="text-2xl font-bold tracking-tight mt-1 text-slate-900">{value}</p>
-          <p className="text-[11px] text-slate-500 mt-1">{detail}</p>
+          <p className="text-xs text-slate-500 mt-1">{detail}</p>
         </div>)}
       </div>
       <div className="px-4 pb-3">
         <div className="flex items-end gap-1 h-20" role="img" aria-label={`Actividad diaria: ${summary.coverage} coberturas y ${summary.transfers} traslados en los últimos ${days} días. Detalle disponible debajo.`}>
           {summary.series.map(d => <div key={d.date} className="flex-1 h-full flex flex-col justify-end gap-0.5" title={`${d.date}: ${d.coverage} coberturas, ${d.transfers} traslados`}>
             <div className="bg-teal-400 rounded-t-sm" style={{ height: `${d.transfers / max * 90}%` }} />
-            <div className="bg-indigo-500 rounded-t-sm" style={{ height: `${d.coverage / max * 90}%`, minHeight: d.coverage + d.transfers === 0 ? 2 : 0 }} />
+            {d.coverage + d.transfers === 0 ? <div className="h-0.5 rounded-full bg-slate-200" /> : <div className="bg-indigo-500 rounded-t-sm" style={{ height: `${d.coverage / max * 90}%` }} />}
           </div>)}
         </div>
-        <div className="flex justify-between text-[11px] text-slate-500 mt-2"><span>{summary.start.split('-').reverse().join('/')}</span><span>Hasta hoy · {today.split('-').reverse().join('/')}</span></div>
+        <div className="flex justify-between text-xs text-slate-500 mt-2"><span>{summary.start.split('-').reverse().join('/')}</span><span>Hasta hoy · {today.split('-').reverse().join('/')}</span></div>
         <div className="flex gap-4 text-xs text-slate-600 mt-3"><span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-indigo-500" />Coberturas</span><span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-teal-400" />Traslados</span></div>
         {!summary.coverage && !summary.transfers && <p className="text-sm text-slate-500 mt-2">No hay servicios registrados en este período.</p>}
         <details className="mt-3 text-xs text-slate-500">
           <summary className="cursor-pointer py-1">Ver detalle diario</summary>
           <div className="max-h-48 overflow-auto mt-2"><table className="w-full text-left"><caption className="sr-only">Servicios por fecha</caption><thead><tr><th scope="col">Fecha</th><th scope="col">Coberturas</th><th scope="col">Traslados</th></tr></thead><tbody>{summary.series.map(d => <tr key={d.date} className="border-t border-slate-100"><td className="py-1">{d.date.split('-').reverse().join('/')}</td><td>{d.coverage}</td><td>{d.transfers}</td></tr>)}</tbody></table></div>
         </details>
-        <p className="mt-2 text-[11px] text-slate-400">Calculado sobre los registros cargados. Incluye todos los estados, salvo en finalización.</p>
+        <p className="mt-2 text-xs text-slate-500">Calculado sobre los registros cargados. Incluye todos los estados, salvo en finalización.</p>
       </div>
     </div>
   </section>;

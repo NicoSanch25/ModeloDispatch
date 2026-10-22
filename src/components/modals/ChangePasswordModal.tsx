@@ -52,7 +52,7 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen
                         <h3 className="font-bold text-slate-800 flex items-center gap-2">
                             <Key className="w-5 h-5 text-indigo-600" /> Cambiar Contraseña
                         </h3>
-                        <button type="button" onClick={onClose}><X className="w-5 h-5 text-slate-400" /></button>
+                        <button type="button" onClick={onClose}><X className="w-5 h-5 text-slate-500" /></button>
                     </div>
                     <div className="p-4 space-y-4">
                         {msg && (
