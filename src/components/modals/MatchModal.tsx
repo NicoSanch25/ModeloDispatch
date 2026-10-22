@@ -5,6 +5,7 @@ import { matchesService } from '../../services/matches';
 import { resourceService } from '../../services/resources';
 import { localDate } from '../../utils/statistics';
 import { DateInput } from '../DateInput';
+import { driverOptionLabel } from '../../utils/licenses';
 import { ModalShell } from '../ui/ModalShell';
 import { askConfirm, notify } from '../ui/feedback';
 
@@ -325,7 +326,7 @@ export const MatchModal: React.FC<MatchModalProps> = ({
                                     <label className="block text-xs font-bold text-indigo-800 uppercase mb-1">Chofer</label>
                                     <select name="driverId" defaultValue={editingMatch?.driverId} className="w-full p-2 border border-indigo-200 rounded text-sm focus:ring-2 focus:ring-indigo-500">
                                         <option value="">Sin Asignar</option>
-                                        {staff.filter(s => s.role === 'Chofer').map(s => <option key={s.id} value={s.id}>{s.name} {s.isOutsourced ? '(Ext)' : ''}</option>)}
+                                        {staff.filter(s => s.role === 'Chofer').map(s => <option key={s.id} value={s.id}>{driverOptionLabel(s, editingMatch?.date || localDate())}</option>)}
                                     </select>
                                 </div>
                                 <div>

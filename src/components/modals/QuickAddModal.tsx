@@ -3,6 +3,7 @@ import { MatchType, Location, Ambulance, Staff, Match } from '../../types';
 import { Zap, X, Plus, AlertTriangle } from 'lucide-react';
 import { getConflicts } from '../../utils/scheduling';
 import { DateInput } from '../DateInput';
+import { driverOptionLabel } from '../../utils/licenses';
 import { ModalShell } from '../ui/ModalShell';
 
 interface QuickAddRow {
@@ -195,7 +196,7 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
                                                 title={getFieldConflictTooltip(row.id, 'driverId')}
                                             >
                                                 <option value="">--</option>
-                                                {staff.filter(s => s.role === 'Chofer').map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                                {staff.filter(s => s.role === 'Chofer').map(s => <option key={s.id} value={s.id}>{driverOptionLabel(s, date)}</option>)}
                                             </select>
                                         </div>
                                     </td>

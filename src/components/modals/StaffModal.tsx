@@ -1,9 +1,12 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Staff } from '../../types';
-import { Users, X, Check } from 'lucide-react';
+import { Users, X, Check, IdCard } from 'lucide-react';
 import { resourceService } from '../../services/resources';
 import { ModalShell } from '../ui/ModalShell';
 import { askConfirm, notify } from '../ui/feedback';
+import { DateInput } from '../DateInput';
+import { licenseLabel, licenseStatus } from '../../utils/licenses';
+import { localDate } from '../../utils/statistics';
 
 interface StaffModalProps {
     isOpen: boolean;
@@ -15,8 +18,18 @@ interface StaffModalProps {
 export const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, onSaveSuccess, editingStaff }) => {
     const [isLoading, setIsLoading] = useState(false);
     const submitting = useRef(false);
+    const [role, setRole] = useState(editingStaff?.role || 'Chofer');
+    const [licenseExpiration, setLicenseExpiration] = useState(editingStaff?.licenseExpiration || '');
+
+    useEffect(() => {
+        if (!isOpen) return;
+        setRole(editingStaff?.role || 'Chofer');
+        setLicenseExpiration(editingStaff?.licenseExpiration || '');
+    }, [isOpen, editingStaff]);
 
     if (!isOpen) return null;
+    const license = licenseStatus(licenseExpiration, localDate());
+    const licenseTone = { expired: 'bg-rose-50 text-rose-700 border-rose-200', soon: 'bg-amber-50 text-amber-800 border-amber-200', ok: 'bg-emerald-50 text-emerald-700 border-emerald-200', missing: 'bg-slate-50 text-slate-600 border-slate-200' }[license.state];
 
     const handleDelete = async () => {
         if (!editingStaff?.id) return;
@@ -49,6 +62,9 @@ export const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, onSaveS
             phone: formData.get('phone') as string,
             isOutsourced: formData.get('isOutsourced') === 'on',
             companyName: formData.get('companyName') as string,
+            licenseNumber: (formData.get('licenseNumber') as string) || undefined,
+            licenseCategory: (formData.get('licenseCategory') as string) || undefined,
+            licenseExpiration: (formData.get('licenseExpiration') as string) || undefined,
         };
 
         try {
@@ -89,7 +105,7 @@ export const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, onSaveS
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Rol</label>
-                                <select name="role" defaultValue={editingStaff?.role || 'Chofer'} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white">
+                                <select name="role" value={role} onChange={e => setRole(e.target.value as Staff['role'])} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white">
                                     <option value="Chofer">Chofer</option>
                                     <option value="Enfermero/a">Enfermero/a</option>
                                     <option value="Médico/a">Médico/a</option>
@@ -100,6 +116,29 @@ export const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, onSaveS
                                 <input name="phone" defaultValue={editingStaff?.phone} placeholder="Ej: 11 1234 5678" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
                             </div>
                         </div>
+
+                        {role === 'Chofer' && (
+                            <fieldset className="rounded-lg border border-slate-200 p-4 space-y-3">
+                                <legend className="px-1 text-xs font-bold text-slate-500 uppercase flex items-center gap-1.5"><IdCard className="w-4 h-4" /> Licencia de conducir</legend>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label htmlFor="licenseNumber" className="block text-xs font-semibold text-slate-600 mb-1">Número</label>
+                                        <input id="licenseNumber" name="licenseNumber" defaultValue={editingStaff?.licenseNumber} placeholder="Ej: 30123456" inputMode="numeric" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
+                                    </div>
+                                    <div>
+                                        <label htmlFor="licenseCategory" className="block text-xs font-semibold text-slate-600 mb-1">Categoría</label>
+                                        <input id="licenseCategory" name="licenseCategory" defaultValue={editingStaff?.licenseCategory} placeholder="Ej: D1" className="w-full px-3 py-2 border border-slate-300 rounded-lg uppercase focus:ring-2 focus:ring-indigo-500 outline-none" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <span className="block text-xs font-semibold text-slate-600 mb-1">Vencimiento</span>
+                                    <DateInput name="licenseExpiration" aria-label="Vencimiento de la licencia" value={licenseExpiration} onChange={e => setLicenseExpiration(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white" />
+                                </div>
+                                <p className={`rounded-lg border px-3 py-2 text-sm font-semibold ${licenseTone}`} role="status">
+                                    {license.state === 'missing' ? 'Cargá el vencimiento para que el sistema avise antes de que expire.' : licenseLabel(license)}
+                                </p>
+                            </fieldset>
+                        )}
 
                         <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 space-y-3">
                             <div className="flex items-center gap-3">

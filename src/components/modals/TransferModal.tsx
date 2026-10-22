@@ -3,6 +3,7 @@ import { X, Save, Trash2, Ambulance } from 'lucide-react';
 import { Transfer, Staff, Ambulance as AmbulanceModel, Client } from '../../types';
 import { localDate } from '../../utils/statistics';
 import { DateInput } from '../DateInput';
+import { driverOptionLabel, licenseStatus } from '../../utils/licenses';
 import { ModalShell } from '../ui/ModalShell';
 
 interface TransferModalProps {
@@ -83,6 +84,9 @@ export const TransferModal: React.FC<TransferModalProps> = ({
     };
 
     const drivers = staff.filter(s => s.role === 'Chofer');
+    const serviceDate = formData.date || localDate();
+    const driverExpiration = drivers.find(d => d.id === formData.driver_id)?.licenseExpiration;
+    const driverLicense = licenseStatus(driverExpiration, serviceDate);
     const planValue = (key: 'planned_start_at' | 'planned_end_at') => formData[key] ? new Date(Date.parse(formData[key]!) - 3 * 3600000).toISOString().slice(0, 16) : '';
     const setPlan = (key: 'planned_start_at' | 'planned_end_at', part: 'date' | 'time', value: string) => {
         const old = planValue(key);
@@ -130,8 +134,9 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Chofer</label>
                                 <select name="driver_id" value={formData.driver_id || ''} onChange={handleChange} className="w-full p-2 border border-slate-200 rounded-lg bg-white">
                                     <option value="">Seleccionar...</option>
-                                    {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                                    {drivers.map(d => <option key={d.id} value={d.id}>{driverOptionLabel(d, serviceDate)}</option>)}
                                 </select>
+                                {formData.driver_id && driverLicense.state === 'expired' && <p role="alert" className="mt-1 text-xs font-semibold text-rose-700">⚠ Licencia vencida para la fecha del traslado (venció el {driverExpiration?.split('-').reverse().join('/')}).</p>}
                             </div>
                         </div>
 

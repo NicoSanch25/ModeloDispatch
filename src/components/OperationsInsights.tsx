@@ -1,19 +1,38 @@
 import React, { useMemo, useState } from 'react';
-import { Activity, ArrowUpRight, BarChart3, CalendarDays, Droplet, Truck, AlertCircle } from 'lucide-react';
-import type { Ambulance, FuelRecord, Match, Transfer } from '../types';
+import { Activity, ArrowUpRight, BarChart3, CalendarDays, Droplet, Truck, AlertCircle, IdCard } from 'lucide-react';
+import type { Ambulance, FuelRecord, Match, Staff, Transfer } from '../types';
+import { licenseAlerts, licenseLabel } from '../utils/licenses';
 import { localDate, summarizeOperations } from '../utils/statistics';
 
 interface Props {
-  matches: Match[]; transfers: Transfer[]; fuelRecords: FuelRecord[]; ambulances: Ambulance[];
-  onAgenda: () => void; onFleet: () => void;
+  matches: Match[]; transfers: Transfer[]; fuelRecords: FuelRecord[];
 }
 
-export function OperationsInsights({ matches, transfers, fuelRecords, ambulances, onAgenda, onFleet }: Props) {
+interface AlertsProps {
+  matches: Match[]; ambulances: Ambulance[]; staff: Staff[];
+  onAgenda: () => void; onFleet: () => void; onStaff: () => void;
+}
+
+/** Avisos que requieren acción, arriba del tablero: coberturas sin asignar, VTV y licencias vencidas o por vencer. */
+export function AttentionAlerts({ matches, ambulances, staff, onAgenda, onFleet, onStaff }: AlertsProps) {
+  const today = localDate();
+  const unassigned = matches.filter(m => m.date === today && !['Completed', 'Suspended'].includes(m.status) && (!m.ambulanceId || !m.driverId || (!m.isSingleCrew && !m.nurseId))).length;
+  const expired = ambulances.filter(a => a.maintenance?.vtvExpiration && a.maintenance.vtvExpiration < today).length;
+  const licenses = useMemo(() => licenseAlerts(staff, today), [staff, today]);
+  return <>
+    {(unassigned > 0 || expired > 0 || licenses.expired.length > 0 || licenses.soon.length > 0) && <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 mb-3" role="region" aria-label="Requiere atención">
+      {unassigned > 0 && <button onClick={onAgenda} className="flex-1 flex items-center gap-2 text-left text-sm bg-amber-50 text-amber-900 border border-amber-200 rounded-xl px-3 py-2.5"><AlertCircle size={17} /><span className="flex-1">{unassigned} {unassigned === 1 ? 'cobertura de hoy sin asignación completa' : 'coberturas de hoy sin asignación completa'}</span><ArrowUpRight size={16} /></button>}
+      {expired > 0 && <button onClick={onFleet} className="flex-1 flex items-center gap-2 text-left text-sm bg-rose-50 text-rose-900 border border-rose-200 rounded-xl px-3 py-2.5"><AlertCircle size={17} /><span className="flex-1">{expired} {expired === 1 ? 'móvil con VTV vencida' : 'móviles con VTV vencida'}</span><ArrowUpRight size={16} /></button>}
+      {licenses.expired.length > 0 && <button onClick={onStaff} className="flex-1 flex items-center gap-2 text-left text-sm bg-rose-50 text-rose-900 border border-rose-200 rounded-xl px-3 py-2.5"><IdCard size={17} /><span className="flex-1">{licenses.expired.length === 1 ? `${licenses.expired[0].person.name} tiene la licencia vencida` : `${licenses.expired.length} choferes con licencia vencida`}</span><ArrowUpRight size={16} /></button>}
+      {licenses.soon.length > 0 && <button onClick={onStaff} className="flex-1 flex items-center gap-2 text-left text-sm bg-amber-50 text-amber-900 border border-amber-200 rounded-xl px-3 py-2.5"><IdCard size={17} /><span className="flex-1">{licenses.soon.length === 1 ? `${licenses.soon[0].person.name}: ${licenseLabel(licenses.soon[0].status).toLowerCase()}` : `${licenses.soon.length} licencias vencen en los próximos 30 días`}</span><ArrowUpRight size={16} /></button>}
+    </div>}
+  </>;
+}
+
+export function OperationsInsights({ matches, transfers, fuelRecords }: Props) {
   const [days, setDays] = useState(7);
   const today = localDate();
   const summary = useMemo(() => summarizeOperations(matches, transfers, fuelRecords, today, days), [matches, transfers, fuelRecords, today, days]);
-  const unassigned = matches.filter(m => m.date === today && !['Completed', 'Suspended'].includes(m.status) && (!m.ambulanceId || !m.driverId || (!m.isSingleCrew && !m.nurseId))).length;
-  const expired = ambulances.filter(a => a.maintenance?.vtvExpiration && a.maintenance.vtvExpiration < today).length;
   const max = Math.max(1, ...summary.series.map(d => d.coverage + d.transfers));
   const number = (value: number) => value.toLocaleString('es-AR', { maximumFractionDigits: 1 });
   return <section className="space-y-4" aria-label="Resumen de operaciones">
@@ -53,9 +72,5 @@ export function OperationsInsights({ matches, transfers, fuelRecords, ambulances
         <p className="mt-2 text-[11px] text-slate-400">Calculado sobre los registros cargados. Incluye todos los estados, salvo en finalización.</p>
       </div>
     </div>
-    {(unassigned > 0 || expired > 0) && <div className="flex flex-col sm:flex-row gap-2">
-      {unassigned > 0 && <button onClick={onAgenda} className="flex-1 flex items-center gap-2 text-left text-sm bg-amber-50 text-amber-900 border border-amber-200 rounded-xl px-3 py-2.5"><AlertCircle size={17} /><span className="flex-1">{unassigned} {unassigned === 1 ? 'cobertura de hoy sin asignación completa' : 'coberturas de hoy sin asignación completa'}</span><ArrowUpRight size={16} /></button>}
-      {expired > 0 && <button onClick={onFleet} className="flex-1 flex items-center gap-2 text-left text-sm bg-rose-50 text-rose-900 border border-rose-200 rounded-xl px-3 py-2.5"><AlertCircle size={17} /><span className="flex-1">{expired} {expired === 1 ? 'móvil con VTV vencida' : 'móviles con VTV vencida'}</span><ArrowUpRight size={16} /></button>}
-    </div>}
   </section>;
 }

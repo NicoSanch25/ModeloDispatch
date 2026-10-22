@@ -4,6 +4,7 @@ import { Truck, X, Wrench, Gauge, Activity, FileText, Check, Shield, ClipboardCh
 import { matchHelpers } from '../../services/matches';
 import { formatDateAR, formatTime24 } from '../../utils/formatters';
 import { ModalShell } from '../ui/ModalShell';
+import { localDate } from '../../utils/statistics';
 
 interface AmbulanceDetailModalProps {
     isOpen: boolean;
@@ -20,14 +21,10 @@ export const AmbulanceDetailModal: React.FC<AmbulanceDetailModalProps> = ({ isOp
     const history = matchHelpers.getAmbulanceHistory(ambulance.id, matches);
 
     // Calculate current month's fuel consumption
+    // Se compara el texto AAAA-MM: new Date('AAAA-MM-DD') es UTC y corría las cargas del día 1 al mes anterior.
+    const currentMonth = localDate().slice(0, 7);
     const currentMonthFuel = fuelRecords
-        .filter(r => {
-            const recordDate = new Date(r.date);
-            const now = new Date();
-            return r.ambulanceId === ambulance.id &&
-                recordDate.getMonth() === now.getMonth() &&
-                recordDate.getFullYear() === now.getFullYear();
-        })
+        .filter(r => r.ambulanceId === ambulance.id && r.date?.slice(0, 7) === currentMonth)
         .reduce((sum, r) => sum + r.liters, 0);
 
     // Status badge helper

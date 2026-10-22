@@ -4,7 +4,7 @@ import type { Ambulance, FuelRecord, Staff } from '../../types';
 import { supabase } from '../../lib/supabase';
 import { localDate } from '../../utils/statistics';
 import { ModalShell } from '../ui/ModalShell';
-import { notify } from '../ui/feedback';
+import { askConfirm, notify } from '../ui/feedback';
 
 interface FuelBatchModalProps {
   isOpen: boolean;
@@ -12,9 +12,17 @@ interface FuelBatchModalProps {
   onSaveSuccess: () => void | Promise<void>;
   staff: Staff[];
   ambulances: Ambulance[];
+  /** Movimiento existente para corregir o eliminar. */
+  editing?: FuelRecord | null;
 }
 
-type FuelDraft = Partial<FuelRecord> & { key: string };
+type FuelDraft = Omit<Partial<FuelRecord>, 'liters'> & { key: string; liters: string };
+
+// Acepta coma o punto decimal ("35,5" o "35.5"). Devuelve NaN si no es un número.
+export const parseLiters = (value: string) => {
+  const clean = value.trim().replace(',', '.');
+  return clean === '' ? 0 : Number(clean);
+};
 
 const newRow = (previous?: FuelDraft): FuelDraft => ({
   key: `${Date.now()}-${Math.random()}`,
@@ -23,13 +31,22 @@ const newRow = (previous?: FuelDraft): FuelDraft => ({
   driverId: previous?.driverId,
   externalDriverName: previous?.externalDriverName,
   fuelType: previous?.fuelType || 'Euro Diesel',
-  liters: 0,
+  liters: '',
   items: ''
+});
+
+const fromRecord = (record: FuelRecord): FuelDraft => ({
+  ...record,
+  key: record.id,
+  driverId: record.driverId || undefined,
+  externalDriverName: record.externalDriverName || undefined,
+  liters: record.liters ? String(record.liters).replace('.', ',') : '',
+  items: record.items || ''
 });
 
 const fieldClass = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100';
 
-export const FuelBatchModal: React.FC<FuelBatchModalProps> = ({ isOpen, onClose, onSaveSuccess, staff, ambulances }) => {
+export const FuelBatchModal: React.FC<FuelBatchModalProps> = ({ isOpen, onClose, onSaveSuccess, staff, ambulances, editing }) => {
   const [rows, setRows] = useState<FuelDraft[]>([newRow()]);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -37,10 +54,10 @@ export const FuelBatchModal: React.FC<FuelBatchModalProps> = ({ isOpen, onClose,
 
   useEffect(() => {
     if (isOpen) {
-      setRows([newRow()]);
+      setRows([editing ? fromRecord(editing) : newRow()]);
       setError('');
     }
-  }, [isOpen]);
+  }, [isOpen, editing]);
 
   if (!isOpen) return null;
 
@@ -63,12 +80,13 @@ export const FuelBatchModal: React.FC<FuelBatchModalProps> = ({ isOpen, onClose,
   const handleSave = async () => {
     const invalidRow = rows.findIndex(row => {
       const hasDriver = Boolean(row.driverId || row.externalDriverName?.trim());
-      const hasMovement = Number(row.liters || 0) > 0 || Boolean(row.items?.trim());
-      return !row.ambulanceId || !hasDriver || !hasMovement || Number(row.liters || 0) < 0;
+      const liters = parseLiters(row.liters);
+      const hasMovement = liters > 0 || Boolean(row.items?.trim());
+      return !row.ambulanceId || !hasDriver || !hasMovement || !Number.isFinite(liters) || liters < 0 || liters > 500;
     });
 
     if (invalidRow >= 0) {
-      setError(`Revisá el movimiento ${invalidRow + 1}: elegí móvil y chofer, y cargá litros o una compra.`);
+      setError(`Revisá el movimiento ${invalidRow + 1}: elegí móvil y chofer, y cargá litros (entre 0 y 500) o una compra.`);
       return;
     }
 
@@ -80,18 +98,37 @@ export const FuelBatchModal: React.FC<FuelBatchModalProps> = ({ isOpen, onClose,
       driver_id: row.driverId || null,
       external_driver_name: row.externalDriverName?.trim() || null,
       fuel_type: row.fuelType || 'Euro Diesel',
-      liters: Number(row.liters || 0),
+      liters: parseLiters(row.liters),
       items: row.items?.trim() || null
     }));
 
     try {
-      const { error: saveError } = await supabase.from('fuel_records').insert(records);
+      const { error: saveError } = editing
+        ? await supabase.from('fuel_records').update(records[0]).eq('id', editing.id)
+        : await supabase.from('fuel_records').insert(records);
       if (saveError) throw saveError;
       await onSaveSuccess();
-      notify.success(records.length === 1 ? 'Movimiento de combustible guardado.' : `${records.length} movimientos de combustible guardados.`);
+      notify.success(editing ? 'Movimiento corregido.' : records.length === 1 ? 'Movimiento de combustible guardado.' : `${records.length} movimientos de combustible guardados.`);
       onClose();
     } catch (saveError: any) {
       setError(`No se pudo guardar: ${saveError.message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!editing) return;
+    if (!(await askConfirm({ title: '¿Eliminar este movimiento de combustible?', confirmLabel: 'Eliminar', danger: true }))) return;
+    setSaving(true);
+    try {
+      const { error: deleteError } = await supabase.from('fuel_records').delete().eq('id', editing.id);
+      if (deleteError) throw deleteError;
+      await onSaveSuccess();
+      notify.success('Movimiento eliminado.');
+      onClose();
+    } catch (deleteError: any) {
+      setError(`No se pudo eliminar: ${deleteError.message}`);
     } finally {
       setSaving(false);
     }
@@ -104,7 +141,7 @@ export const FuelBatchModal: React.FC<FuelBatchModalProps> = ({ isOpen, onClose,
           <div className="flex min-w-0 items-center gap-3">
             <span className="rounded-xl bg-indigo-50 p-2 text-indigo-600"><ListPlus className="h-5 w-5" /></span>
             <div className="min-w-0">
-              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-indigo-600">Carga rápida</p>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-indigo-600">{editing ? 'Corregir movimiento' : 'Carga rápida'}</p>
               <h3 id="fuel-modal-title" className="truncate text-lg font-bold text-slate-900">Combustible y compras</h3>
             </div>
           </div>
@@ -117,8 +154,8 @@ export const FuelBatchModal: React.FC<FuelBatchModalProps> = ({ isOpen, onClose,
             return (
               <section key={row.key} className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4" aria-label={`Movimiento ${index + 1}`}>
                 <div className="mb-3 flex items-center justify-between">
-                  <span className="text-sm font-bold text-slate-800">Movimiento {index + 1}</span>
-                  <button type="button" onClick={() => removeRow(index)} className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600" aria-label={`Quitar movimiento ${index + 1}`}><Trash2 className="h-4 w-4" /></button>
+                  <span className="text-sm font-bold text-slate-800">{editing ? 'Movimiento' : `Movimiento ${index + 1}`}</span>
+                  {!editing && <button type="button" onClick={() => removeRow(index)} className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600" aria-label={`Quitar movimiento ${index + 1}`}><Trash2 className="h-4 w-4" /></button>}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -166,7 +203,7 @@ export const FuelBatchModal: React.FC<FuelBatchModalProps> = ({ isOpen, onClose,
                   </label>
                   <label className="min-w-0 text-xs font-semibold text-slate-600">
                     Litros
-                    <input type="number" inputMode="decimal" min="0" step="0.1" value={row.liters ?? 0} onChange={event => updateRow(index, { liters: Number(event.target.value) })} className={`${fieldClass} mt-1`} />
+                    <input type="text" inputMode="decimal" value={row.liters} onChange={event => updateRow(index, { liters: event.target.value.replace(/[^0-9.,]/g, '') })} placeholder="0" className={`${fieldClass} mt-1`} aria-label={`Litros del movimiento ${index + 1}`} />
                   </label>
 
                   <label className="col-span-2 text-xs font-semibold text-slate-600">
@@ -181,14 +218,15 @@ export const FuelBatchModal: React.FC<FuelBatchModalProps> = ({ isOpen, onClose,
             );
           })}
 
-          <button type="button" onClick={addRow} className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-indigo-300 bg-indigo-50/60 text-sm font-semibold text-indigo-700 hover:bg-indigo-50"><Plus className="h-4 w-4" /> Agregar otro movimiento</button>
+          {!editing && <button type="button" onClick={addRow} className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-indigo-300 bg-indigo-50/60 text-sm font-semibold text-indigo-700 hover:bg-indigo-50"><Plus className="h-4 w-4" /> Agregar otro movimiento</button>}
         </div>
 
         <div className="border-t border-slate-200 bg-white p-3 sm:p-4">
           {error && <p className="mb-3 rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700" role="alert">{error}</p>}
-          <div className="grid grid-cols-[auto_1fr] gap-2">
+          <div className={`grid gap-2 ${editing ? 'grid-cols-[auto_auto_1fr]' : 'grid-cols-[auto_1fr]'}`}>
+            {editing && <button type="button" onClick={handleDelete} disabled={saving} className="h-11 rounded-xl px-3 text-sm font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-60">Eliminar</button>}
             <button type="button" onClick={onClose} className="h-11 rounded-xl px-4 text-sm font-semibold text-slate-600 hover:bg-slate-100">Cancelar</button>
-            <button type="button" onClick={handleSave} disabled={saving} className="h-11 rounded-xl bg-indigo-600 px-4 text-sm font-bold text-white shadow-sm hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60">{saving ? 'Guardando…' : rows.length === 1 ? 'Guardar movimiento' : `Guardar ${rows.length} movimientos`}</button>
+            <button type="button" onClick={handleSave} disabled={saving} className="h-11 rounded-xl bg-indigo-600 px-4 text-sm font-bold text-white shadow-sm hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60">{saving ? 'Guardando…' : editing ? 'Guardar cambios' : rows.length === 1 ? 'Guardar movimiento' : `Guardar ${rows.length} movimientos`}</button>
           </div>
         </div>
       </div>

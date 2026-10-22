@@ -8,7 +8,7 @@ import {
   ArrowRightCircle, ClipboardList, Briefcase, History as HistoryIcon, ArrowRight,
   Fuel, Droplet, ListPlus, ReceiptText, Copy, FileStack, UserPlus, Clock4, BatteryCharging, Disc, Share2,
   AlertOctagon, Save, Building, FileSpreadsheet, Download, Ban, CalendarDays, Zap, Mail,
-  Lock, Unlock, LogIn, Loader2, Key, Eye, EyeOff, HelpCircle
+  Lock, Unlock, LogIn, Loader2, Key, Eye, EyeOff, HelpCircle, IdCard
 } from 'lucide-react';
 import {
   Role,
@@ -25,8 +25,9 @@ import {
   Transfer as TransferModel
 } from './src/types';
 import { supabase, configurationError } from './src/lib/supabase';
-import { OperationsInsights } from './src/components/OperationsInsights';
+import { AttentionAlerts, OperationsInsights } from './src/components/OperationsInsights';
 import { localDate } from './src/utils/statistics';
+import { licenseAlerts, licenseLabel, licenseStatus, needsLicense } from './src/utils/licenses';
 import { getConflicts } from './src/utils/scheduling';
 import { withTimeout } from './src/utils/requests';
 import { matchesService } from './src/services/matches';
@@ -46,6 +47,7 @@ import { AmbulanceDetailModal } from './src/components/modals/AmbulanceDetailMod
 import { ClientModal } from './src/components/modals/ClientModal';
 import { TransferModal } from './src/components/modals/TransferModal';
 import { FuelBatchModal } from './src/components/modals/FuelBatchModal';
+import { FuelList } from './src/components/FuelList';
 import { FleetStatusWidget } from './src/components/FleetStatusWidget';
 import { DashboardClock } from './src/components/DashboardClock';
 import { MobileTabBar, SECTIONS, sectionTitle, type SectionId } from './src/components/AppNavigation';
@@ -64,7 +66,10 @@ const mapStaffFromDB = (data: any): StaffModel => ({
   role: data.role,
   phone: data.phone || '',
   isOutsourced: data.is_outsourced,
-  companyName: data.company_name
+  companyName: data.company_name,
+  licenseNumber: data.license_number || undefined,
+  licenseCategory: data.license_category || undefined,
+  licenseExpiration: data.license_expiration || undefined
 });
 
 const mapAmbulanceFromDB = (data: any): AmbulanceModel => ({
@@ -161,6 +166,8 @@ const mapFuelFromDB = (data: any): FuelRecordModel => ({
 });
 
 // --- HELPERS ---
+const formatDateFull = (dateStr?: string) => dateStr ? dateStr.slice(0, 10).split('-').reverse().join('/') : '--/--/----';
+
 const formatDateAR = (dateStr?: string) => {
   if (!dateStr) return '--/--';
   const parts = dateStr.split('-');
@@ -457,6 +464,7 @@ function MainApp({ session }: { session: any }) {
 
   const [isFuelModalOpen, setIsFuelModalOpen] = useState(false);
   const [isBatchFuelModalOpen, setIsBatchFuelModalOpen] = useState(false);
+  const [editingFuel, setEditingFuel] = useState<FuelRecordModel | null>(null);
 
   const [isDailyAgendaOpen, setIsDailyAgendaOpen] = useState(false);
   const [isStaffScheduleOpen, setIsStaffScheduleOpen] = useState(false);
@@ -878,6 +886,10 @@ function MainApp({ session }: { session: any }) {
     setIsMobileMenuOpen(false);
     // Cada sección arranca desde arriba; tocar la actual también vuelve al inicio.
     window.scrollTo({ top: 0 });
+  };
+  const showTodayCoverage = () => {
+    setFilters({ ...filters, startDate: localDate(), endDate: localDate(), status: 'all', location: '', ambulance: '', outsourced: 'all', clientId: '', staffId: '' });
+    handleNav('matches');
   };
 
   useEffect(() => {
@@ -1590,6 +1602,9 @@ function MainApp({ session }: { session: any }) {
                       </div>
                     </div>
   
+                    <AttentionAlerts matches={matches} ambulances={ambulances} staff={staff}
+                      onAgenda={showTodayCoverage} onFleet={() => handleNav('fleet')} onStaff={() => handleNav('staff')} />
+
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-3 mb-4">
                       <div onClick={() => { setDailyAgendaDate(localDate()); setIsDailyAgendaOpen(true); }} className="bg-white p-3 rounded-xl shadow-sm border border-slate-100 flex items-center gap-3 cursor-pointer hover:bg-slate-50 hover:border-blue-200 transition-colors active:scale-95 touch-manipulation">
                         <div className="p-2 bg-blue-50 text-blue-600 rounded-lg shrink-0">
@@ -1664,9 +1679,7 @@ function MainApp({ session }: { session: any }) {
                         onAmbulanceClick={(amb) => setViewingAmbulance(amb)}
                       />
                     </div>
-                    <OperationsInsights matches={matches} transfers={transfers} fuelRecords={fuelRecords} ambulances={ambulances}
-                      onAgenda={() => { setFilters({ ...filters, startDate: localDate(), endDate: localDate(), status: 'all', location: '', ambulance: '', outsourced: 'all', clientId: '', staffId: '' }); handleNav('matches'); }}
-                      onFleet={() => handleNav('fleet')} />
+                    <OperationsInsights matches={matches} transfers={transfers} fuelRecords={fuelRecords} />
                   </>
                 )}
 
@@ -2002,18 +2015,46 @@ function MainApp({ session }: { session: any }) {
                   <SectionHeader eyebrow="Equipo" title="Personal" description="Choferes, enfermería y profesionales disponibles para asignar." icon={Users} actions={
                     <button onClick={() => { setEditingStaff(null); setIsStaffModalOpen(true); }} className="dispatch-primary-action"><UserPlus className="h-4 w-4" /> Agregar personal</button>
                   } />
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {staff.map(s => (
-                      <div key={s.id} onClick={() => setViewingStaff(s)} className="dispatch-card p-4 flex items-center gap-4 cursor-pointer relative group">
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-sm ${s.role === 'Chofer' ? 'bg-slate-600' : s.role === 'Médico/a' ? 'bg-teal-500' : 'bg-indigo-500'}`}>{s.name.charAt(0)}</div>
-                        <div>
-                          <h4 className="font-bold text-slate-800">{s.name}</h4>
-                          <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">{s.role} {s.isOutsourced ? '(Ext)' : ''}</p>
-                          <p className="text-sm text-slate-600 flex items-center gap-1 mt-1"><Phone className="w-3 h-3" /> {s.phone}</p>
+                  {(() => {
+                    const alerts = licenseAlerts(staff, localDate());
+                    const count = alerts.expired.length + alerts.soon.length;
+                    return (alerts.expired.length > 0 || alerts.soon.length > 0 || alerts.missing.length > 0) && (
+                      <div className="dispatch-card p-3 space-y-2" role="region" aria-label="Control de licencias">
+                        <div className="flex flex-wrap items-center gap-2 text-sm">
+                          <IdCard className="h-4 w-4 text-slate-500" />
+                          <span className="font-semibold text-slate-800">Licencias de conducir</span>
+                          {alerts.expired.length > 0 && <span className="rounded-full bg-rose-100 px-2 py-0.5 text-xs font-bold text-rose-700">{alerts.expired.length} {alerts.expired.length === 1 ? 'vencida' : 'vencidas'}</span>}
+                          {alerts.soon.length > 0 && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">{alerts.soon.length} por vencer</span>}
+                          {alerts.missing.length > 0 && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">{alerts.missing.length} sin fecha</span>}
                         </div>
-                        <button aria-label={`Editar ${s.name}`} onClick={(e) => { e.stopPropagation(); setEditingStaff(s); setIsStaffModalOpen(true); }} className="absolute top-2 right-2 p-2 text-slate-400 hover:text-indigo-600 transition-opacity"><Edit2 className="w-4 h-4" /></button>
+                        {count > 0 && <ul className="divide-y divide-slate-100 text-sm">
+                          {[...alerts.expired, ...alerts.soon].map(({ person, status }) => (
+                            <li key={person.id}>
+                              <button onClick={() => { setEditingStaff(person); setIsStaffModalOpen(true); }} className="flex min-h-11 w-full items-center justify-between gap-3 py-1.5 text-left">
+                                <span className="font-medium text-slate-800">{person.name}</span>
+                                <span className={`text-xs font-semibold ${status.state === 'expired' ? 'text-rose-700' : 'text-amber-700'}`}>{licenseLabel(status)} · {formatDateFull(person.licenseExpiration)}</span>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>}
                       </div>
-                    ))}
+                    );
+                  })()}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {staff.map(s => {
+                      const license = needsLicense(s) ? licenseStatus(s.licenseExpiration, localDate()) : null;
+                      return (
+                      <div key={s.id} onClick={() => setViewingStaff(s)} className="dispatch-card p-3 flex items-center gap-3 cursor-pointer relative group">
+                        <div className={`w-11 h-11 shrink-0 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-sm ${s.role === 'Chofer' ? 'bg-slate-600' : s.role === 'Médico/a' ? 'bg-teal-500' : 'bg-indigo-500'}`}>{s.name.charAt(0)}</div>
+                        <div className="min-w-0 flex-1 pr-9">
+                          <h4 className="font-bold text-slate-800 truncate">{s.name}</h4>
+                          <p className="text-xs text-slate-500 font-medium">{s.role}{s.isOutsourced ? ` · Externo${s.companyName ? ` (${s.companyName})` : ''}` : ''}</p>
+                          {s.phone && <a href={`tel:${s.phone.replace(/[^0-9+]/g, '')}`} onClick={e => e.stopPropagation()} className="text-sm text-slate-600 inline-flex items-center gap-1 mt-0.5 hover:text-indigo-700"><Phone className="w-3.5 h-3.5" /> {s.phone}</a>}
+                          {license && <p className={`mt-1 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-semibold ${license.state === 'expired' ? 'bg-rose-50 text-rose-700' : license.state === 'soon' ? 'bg-amber-50 text-amber-800' : license.state === 'ok' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}><IdCard className="h-3.5 w-3.5" /> {license.state === 'ok' ? `Licencia hasta ${formatDateFull(s.licenseExpiration)}` : licenseLabel(license)}</p>}
+                        </div>
+                        <button aria-label={`Editar ${s.name}`} onClick={(e) => { e.stopPropagation(); setEditingStaff(s); setIsStaffModalOpen(true); }} className="absolute top-1.5 right-1.5 flex h-11 w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-indigo-600"><Edit2 className="w-4 h-4" /></button>
+                      </div>
+                    ); })}
                   </div>
                 </div>
               )}
@@ -2069,57 +2110,9 @@ function MainApp({ session }: { session: any }) {
               {activeTab === 'fuel' && (
                 <div className="space-y-4">
                   <SectionHeader eyebrow="Consumo" title="Combustible y compras" description="Registrá cargas y compras de estación de forma rápida." icon={Fuel} actions={
-                    <button onClick={() => setIsBatchFuelModalOpen(true)} className="dispatch-primary-action"><ListPlus className="h-4 w-4" /> Nueva carga</button>
+                    <button onClick={() => { setEditingFuel(null); setIsBatchFuelModalOpen(true); }} className="dispatch-primary-action"><ListPlus className="h-4 w-4" /> Nueva carga</button>
                   } />
-                  <div className="space-y-2 sm:hidden">
-                    {[...fuelRecords].reverse().map(rec => {
-                      const amb = ambulances.find(a => a.id === rec.ambulanceId);
-                      const drv = staff.find(s => s.id === rec.driverId);
-                      return (
-                        <article key={rec.id} className="dispatch-card p-3">
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="text-xs font-semibold text-slate-400">{formatDateAR(rec.date)}</p>
-                              <h3 className="font-bold text-slate-900">Móvil {amb?.number || '--'}</h3>
-                              <p className="mt-0.5 text-sm text-slate-600">{drv?.name || rec.externalDriverName || 'Chofer sin indicar'}</p>
-                            </div>
-                            {rec.liters > 0 ? <span className="shrink-0 rounded-lg bg-cyan-50 px-2 py-1 font-mono text-sm font-semibold text-cyan-700">{rec.liters.toFixed(2)} L</span> : <span className="shrink-0 rounded-lg bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700">Compra</span>}
-                          </div>
-                          {rec.items && <p className="mt-2 flex items-center gap-2 rounded-lg bg-slate-50 px-2.5 py-2 text-sm text-slate-700"><ReceiptText className="h-4 w-4 shrink-0 text-slate-400" /> {rec.items}</p>}
-                        </article>
-                      );
-                    })}
-                    {fuelRecords.length === 0 && <div className="dispatch-card p-10 text-center text-sm text-slate-500"><Droplet className="mx-auto mb-2 h-7 w-7 text-slate-300" />No hay movimientos registrados.</div>}
-                  </div>
-                  <div className="dispatch-table-wrap hidden sm:block">
-                    <table className="dispatch-table">
-                      <thead>
-                        <tr>
-                          <th>Fecha</th>
-                          <th>Móvil</th>
-                          <th>Chofer</th>
-                          <th>Litros</th>
-                          <th>Compra</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {[...fuelRecords].reverse().map(rec => {
-                          const amb = ambulances.find(a => a.id === rec.ambulanceId);
-                          const drv = staff.find(s => s.id === rec.driverId);
-                          return (
-                            <tr key={rec.id} className="hover:bg-slate-50">
-                              <td>{formatDateAR(rec.date)}</td>
-                              <td className="font-semibold text-slate-800">Móvil {amb?.number || '--'}</td>
-                              <td>{drv?.name || rec.externalDriverName || '--'}</td>
-                              <td>{rec.liters > 0 ? <span className="rounded-lg bg-cyan-50 px-2 py-1 font-mono font-semibold text-cyan-700">{rec.liters.toFixed(2)} L</span> : '—'}</td>
-                              <td>{rec.items || '—'}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                    {fuelRecords.length === 0 && <div className="p-10 text-center text-sm text-slate-500"><Droplet className="mx-auto mb-2 h-7 w-7 text-slate-300" />No hay movimientos registrados.</div>}
-                  </div>
+                  <FuelList records={fuelRecords} staff={staff} ambulances={ambulances} onEdit={rec => { setEditingFuel(rec); setIsBatchFuelModalOpen(true); }} />
                 </div>
               )}
               {activeTab === 'transfers' && (
@@ -2204,10 +2197,11 @@ function MainApp({ session }: { session: any }) {
       )}
       <FuelBatchModal
         isOpen={isBatchFuelModalOpen}
-        onClose={() => setIsBatchFuelModalOpen(false)}
+        onClose={() => { setIsBatchFuelModalOpen(false); setEditingFuel(null); }}
         onSaveSuccess={loadData}
         staff={staff}
         ambulances={ambulances}
+        editing={editingFuel}
       />
       {isChangePasswordOpen && <ChangePasswordModal />}
       {viewingStaff && <StaffHistoryModal />}
