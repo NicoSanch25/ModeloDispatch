@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import {
   Ambulance, Users, Plus, AlertTriangle, Trash2, Edit2,
@@ -400,9 +400,20 @@ function MainApp({ session }: { session: any }) {
   const [showFilters, setShowFilters] = useState(false);
 
   // --- DATA LOADING ---
-  const loadData = async () => {
-    setIsLoadingData(true);
-    setDataError(null);
+  // Una sola lectura a la vez: los pedidos que llegan mientras otra corre se agrupan en
+  // una lectura siguiente, así nunca se pisa un dato nuevo con una respuesta vieja.
+  const loader = useRef<{ current: Promise<void>; queued: Promise<void> | null }>({ current: Promise.resolve(), queued: null });
+  const lastLoadedAt = useRef(0);
+  const loadData = (silent?: unknown): Promise<void> => {
+    const state = loader.current;
+    if (state.queued) return state.queued;
+    const next = state.current.then(() => { state.queued = null; return fetchAll(silent === true); });
+    state.queued = next;
+    state.current = next;
+    return next;
+  };
+  const fetchAll = async (silent: boolean) => {
+    if (!silent) setIsLoadingData(true);
     try {
       const [
         { data: staffData, error: e1 },
@@ -435,7 +446,8 @@ function MainApp({ session }: { session: any }) {
       if (fuelData && fuelData.length >= 0) setFuelRecords(fuelData.map(mapFuelFromDB));
       if (transfersData && transfersData.length >= 0) setTransfers(transfersData as TransferModel[]);
       setServiceRegistry(registry);
-
+      setDataError(null);
+      lastLoadedAt.current = Date.now();
     } catch (error) {
       console.error("Error loading data:", error);
       setDataError("No se pudieron actualizar los datos. Revisá la conexión y tus permisos de acceso. Los datos visibles pueden estar desactualizados.");
@@ -450,6 +462,29 @@ function MainApp({ session }: { session: any }) {
       loadData();
     }
   }, [session]);
+
+  // Cambios de otros operadores: tiempo real si la base lo publica y, como respaldo,
+  // relectura al volver a la pestaña y cada dos minutos mientras está visible.
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const soon = () => { clearTimeout(timer); timer = setTimeout(() => loadData(true), 800); };
+    const stale = () => document.visibilityState === 'visible' && Date.now() - lastLoadedAt.current > 30_000 && loadData(true);
+    const channel = typeof supabase.channel === 'function'
+      ? ['matches', 'transfers', 'staff', 'ambulances', 'fuel_records', 'locations', 'clients', 'services']
+        .reduce((ch, table) => ch.on('postgres_changes' as any, { event: '*', schema: 'public', table }, soon), supabase.channel('dispatch-changes'))
+        .subscribe()
+      : null;
+    const interval = setInterval(() => document.visibilityState === 'visible' && Date.now() - lastLoadedAt.current > 110_000 && loadData(true), 120_000);
+    document.addEventListener('visibilitychange', stale);
+    window.addEventListener('online', soon);
+    return () => {
+      clearTimeout(timer);
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', stale);
+      window.removeEventListener('online', soon);
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, []);
 
   // --- Derived Data ---
   const futureMatches = matches.filter(m => m.status !== 'Completed').sort((a, b) => {
