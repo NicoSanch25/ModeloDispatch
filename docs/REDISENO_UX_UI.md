@@ -30,8 +30,8 @@ Respetan las preferencias registradas en [`AGENTS.md`](../AGENTS.md):
 |---|---|---|
 | 1. Arreglos | Errores 1, 2, 4, 5, 8 y 9 de la revisión | Hecha · PR #1 (`6286d84`), mergeado el 12/10 |
 | 2. Base de diseño | `ModalShell`, avisos y confirmaciones propios, validación en español, transiciones | Hecha · PR #1 (`0986be4`), mergeado el 12/10 |
-| 3. Navegación, listas y sistema visual móvil | Ver detalle abajo | En curso |
-| 4. Mecánicas operativas | Ver detalle abajo | Pendiente |
+| 3. Navegación, listas y sistema visual móvil | Ver detalle abajo | Hecha · PR #3 |
+| 4. Mecánicas operativas | Ver detalle abajo | Casi completa · PR #3 (falta seguro y service de flota) |
 
 ### Etapa 3 — Navegación, listas y sistema visual móvil
 
@@ -41,7 +41,7 @@ Respetan las preferencias registradas en [`AGENTS.md`](../AGENTS.md):
 | 3.2 | Traslados en tarjetas en celular: estado y Editar siempre visibles, sin desplazamiento lateral (error 3) | Hecha · en revisión |
 | 3.3 | Historial y Personal en tarjetas en celular | Hecha · Personal en tarjetas compactas con teléfono para llamar; Historial ya usaba tarjetas |
 | 3.4 | Esqueletos de carga y estados vacíos con una acción clara | Hecha · esqueleto sólo en la primera carga; al actualizar se mantiene la pantalla con un aviso «Actualizando…» |
-| 3.5 | Colores de estado unificados (pendiente, confirmada, en curso, cerrada, suspendida) en tablero, agenda, flota y administración | Pendiente |
+| 3.5 | Colores de estado unificados (pendiente, confirmada, en curso, cerrada, suspendida) en tablero, agenda, flota y administración | Hecha · `src/utils/status.ts` y `StatusChip` |
 | 3.6 | Legibilidad: textos de 10 px a 12 px como mínimo y grises con contraste AA | Hecha · `text-slate-400` pasa a `text-slate-500` sobre fondo claro (el menú oscuro no cambia) |
 | 3.7 | Tablero: dato repetido en «Pendientes» y barras planas en días sin actividad (error 12) | Hecha |
 
@@ -57,10 +57,10 @@ Respetan las preferencias registradas en [`AGENTS.md`](../AGENTS.md):
 | # | Mejora | Estado |
 |---|---|---|
 | 4.1 | Franja «Requiere atención»: servicios sin recursos, cruces, vencidos sin cerrar, móviles bloqueados con asignaciones | En curso · la franja ya está arriba del tablero con coberturas sin asignar, VTV y licencias |
-| 4.2 | Cambio de estado en un toque desde la tarjeta (traslados) y confirmar cobertura en un toque | Pendiente |
+| 4.2 | Cambio de estado en un toque desde la tarjeta (traslados) y confirmar cobertura en un toque | Hecha · Finalizar traslado, Confirmar y Finalizar cobertura; Traslados filtra Pendientes por defecto |
 | 4.3 | Alertas de vencimientos de flota (VTV, seguro, service por km) con días restantes | En curso · VTV con días restantes en Flota y en el tablero; falta seguro y service |
-| 4.4 | Búsqueda global (servicio, móvil, persona) desde el encabezado | Pendiente |
-| 4.5 | Actualización en tiempo real entre operadores (Supabase Realtime) | Pendiente |
+| 4.4 | Búsqueda global (servicio, móvil, persona) desde el encabezado | Hecha · botón Buscar, tecla `/` o Ctrl+K (`src/utils/search.ts`) |
+| 4.5 | Actualización en tiempo real entre operadores (Supabase Realtime) | Hecha · requiere migración `202610290005_realtime_publication.sql`; sin ella se actualiza cada 2 min y al volver a la pestaña |
 
 Después, según prioridad: duplicar servicio y plantillas, vista «hoy por móvil», atajos de teclado en escritorio, cola sin conexión e instalación como app (PWA).
 
@@ -89,3 +89,4 @@ Después, según prioridad: duplicar servicio y plantillas, vista «hoy por móv
 - **12/10/2026** — 3.2: Traslados en tarjetas en celular y tablet (horario, estado, origen → destino, chofer, móvil y Editar de 44 px), con faltantes marcados en ámbar. La lista pasa a `src/components/TransfersList.tsx`; el horario usa `transferWindow` de `src/utils/agenda.ts`, el mismo cálculo que la Agenda.
 - **12/10/2026** — PR #1 (etapas 1 y 2) mergeado en `main` (`811b309`).
 - **22/10/2026** — Se retoma el proyecto. Licencias de choferes (N.1) y arreglos de combustible (N.2): la lista salía ordenada por id y el consumo mensual del móvil corría las cargas del día 1 al mes anterior. Etapa 3.3, 3.4, 3.6 y 3.7, franja de avisos arriba del tablero y VTV con días restantes.
+- **29/10/2026** — Revisión de fallos: el campo de incidente aceptaba una sola letra (modal definido dentro de `App`), hooks después de un `return` en Lugar y Contraseña, meses corridos por UTC en coberturas, mensajes de error de Supabase traducidos (`friendlyError`) y código muerto eliminado. Colores de estado (3.5), acciones de un toque (4.2), búsqueda global (4.4), actualización automática (4.5), modales descargados aparte (pantalla inicial 40 % más liviana) y encabezados de sección sin tarjeta en celular.
