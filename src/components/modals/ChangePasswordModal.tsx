@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Key, X } from 'lucide-react';
+import { friendlyError } from '../../utils/requests';
 import { supabase } from '../../lib/supabase';
 import { ModalShell } from '../ui/ModalShell';
 import { notify } from '../ui/feedback';
@@ -33,7 +34,7 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ onClos
       notify.success('Perfil actualizado.');
       onClose();
     } catch (err: any) {
-      setError(err.message || 'No se pudo actualizar el perfil.');
+      setError(friendlyError(err));
     } finally {
       setSaving(false);
     }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Match, MatchType, Location, Client, Staff, Ambulance } from '../../types';
 import { X, Lock, Unlock, Briefcase, Siren, Trash2, UserPlus } from 'lucide-react';
+import { friendlyError } from '../../utils/requests';
 import { matchesService } from '../../services/matches';
 import { resourceService } from '../../services/resources';
 import { localDate } from '../../utils/statistics';
@@ -120,7 +121,7 @@ export const MatchModal: React.FC<MatchModalProps> = ({
             notify.success(editingMatch?.id ? 'Cobertura actualizada.' : 'Cobertura creada.');
             onClose();
         } catch (error: any) {
-            notify.error('Error guardando cobertura: ' + error.message);
+            notify.error('Error guardando cobertura: ' + friendlyError(error));
         } finally {
             submitting.current = false;
             setIsLoading(false);
@@ -136,7 +137,7 @@ export const MatchModal: React.FC<MatchModalProps> = ({
             notify.success('Cobertura eliminada.');
             onClose();
         } catch (error: any) {
-            notify.error('Error eliminando: ' + error.message);
+            notify.error('Error eliminando: ' + friendlyError(error));
         } finally {
             setIsLoading(false);
         }

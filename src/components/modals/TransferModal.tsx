@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Save, Trash2, Ambulance } from 'lucide-react';
+import { friendlyError } from '../../utils/requests';
 import { Transfer, Staff, Ambulance as AmbulanceModel, Client } from '../../types';
 import { localDate } from '../../utils/statistics';
 import { DateInput } from '../DateInput';
@@ -67,7 +68,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
         try {
             await onSave(formData);
         } catch (e: any) {
-            setError(e.message || 'No se pudo guardar el traslado. Revisá la conexión y volvé a intentar.');
+            setError(friendlyError(e));
         } finally {
             submitting.current = false;
             setIsSaving(false);

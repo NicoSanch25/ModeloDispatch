@@ -29,8 +29,9 @@ import { AttentionAlerts, OperationsInsights } from './src/components/Operations
 import { localDate } from './src/utils/statistics';
 import { expiryLabel, licenseAlerts, licenseLabel, licenseStatus, needsLicense } from './src/utils/licenses';
 import { getConflicts } from './src/utils/scheduling';
-import { withTimeout } from './src/utils/requests';
-import { matchesService } from './src/services/matches';
+import { friendlyError, withTimeout } from './src/utils/requests';
+import { mapMatchFromDB, matchesService } from './src/services/matches';
+import { mapAmbulanceFromDB, mapClientFromDB, mapFuelFromDB, mapLocationFromDB, mapStaffFromDB } from './src/services/resources';
 import { AgendaList } from './src/components/AgendaList';
 import { OperationalAgendaModal } from './src/components/modals/OperationalAgendaModal';
 import { agendaConflicts, applyServiceRegistry, buildAgenda, servicesForDay, type AgendaService } from './src/utils/agenda';
@@ -60,114 +61,6 @@ import { TransfersList } from './src/components/TransfersList';
 const BusinessWorkspace = React.lazy(() => import('./src/components/BusinessWorkspace').then(module => ({ default: module.BusinessWorkspace })));
 import { QuickAddModal, QuickAddRow } from './src/components/modals/QuickAddModal';
 import { askConfirm, FeedbackHost, notify, useSpanishValidation } from './src/components/ui/feedback';
-
-// --- MAPPERS ---
-// Convert DB (snake_case) to App (camelCase) and vice-versa
-
-const mapStaffFromDB = (data: any): StaffModel => ({
-  id: data.id,
-  name: data.name,
-  role: data.role,
-  phone: data.phone || '',
-  isOutsourced: data.is_outsourced,
-  companyName: data.company_name,
-  licenseNumber: data.license_number || undefined,
-  licenseCategory: data.license_category || undefined,
-  licenseExpiration: data.license_expiration || undefined
-});
-
-const mapAmbulanceFromDB = (data: any): AmbulanceModel => ({
-  id: data.id,
-  number: data.number,
-  plate: data.plate,
-  year: data.year,
-  isOutsourced: data.is_outsourced,
-  outsourcedCompanyName: data.outsourced_company_name,
-  vehicleType: data.vehicle_type,
-  coachBuilder: data.coach_builder,
-  maintenance: {
-    status: data.maintenance_status,
-    mileage: data.mileage,
-    mileageLastUpdate: data.mileage_last_update,
-    vtvExpiration: data.vtv_expiration,
-    insurance: data.insurance,
-    mechanicNotes: data.mechanic_notes,
-    tireType: data.tire_type,
-    oilType: data.oil_type,
-    batteryType: data.battery_type,
-    batteryLastChange: data.battery_last_change,
-    batteryPurchaseLocation: data.battery_purchase_location,
-    workshopName: data.workshop_name,
-    mechanicContact: data.mechanic_contact
-  }
-});
-
-const mapLocationFromDB = (data: any): LocationModel => ({
-  id: data.id,
-  name: data.name,
-  address: data.address,
-  googleMapsUrl: data.google_maps_url,
-  contactName: data.contact_name,
-  contactPhone: data.contact_phone
-});
-
-const mapClientFromDB = (data: any): ClientModel => ({
-  id: data.id,
-  name: data.name,
-  contactName: data.contact_name,
-  contactPhone: data.contact_phone,
-  email: data.email,
-  notes: data.notes
-});
-
-const mapMatchFromDB = (data: any): MatchModel => ({
-  id: data.id,
-  version: data.version,
-  date: data.date,
-  time: data.time?.substring(0, 5), // Remove seconds if present
-  location: data.location,
-  fieldNumber: data.field_number,
-  type: data.type,
-  durationMinutes: data.duration_minutes,
-  extensionMinutes: data.extension_minutes,
-  chukkers: data.chukkers,
-  status: data.status,
-  suspensionReason: data.suspension_reason,
-  isSingleCrew: data.is_single_crew,
-  driverNotified: data.driver_notified,
-  nurseNotified: data.nurse_notified,
-
-  clientId: data.client_id,
-  ambulanceId: data.ambulance_id,
-  driverId: data.driver_id,
-  nurseId: data.nurse_id,
-  thirdCrewId: data.third_crew_id,
-
-  hiredBy: data.hired_by,
-  hiredContact: data.hired_contact,
-
-  incidentReport: (data.has_incident || data.incident_details) ? {
-    hasIncident: data.has_incident,
-    wasTransferred: data.was_transferred,
-    details: data.incident_details
-  } : undefined,
-
-  auditLog: data.audit_logs?.map((log: any) => ({
-    date: log.date,
-    changes: log.changes
-  }))
-});
-
-const mapFuelFromDB = (data: any): FuelRecordModel => ({
-  id: data.id,
-  date: data.date,
-  ambulanceId: data.ambulance_id,
-  driverId: data.driver_id,
-  externalDriverName: data.external_driver_name,
-  fuelType: data.fuel_type,
-  liters: Number(data.liters),
-  items: data.items
-});
 
 // --- HELPERS ---
 const formatDateFull = (dateStr?: string) => dateStr ? dateStr.slice(0, 10).split('-').reverse().join('/') : '--/--/----';
@@ -681,7 +574,7 @@ function MainApp({ session }: { session: any }) {
         await loadData();
         notify.success('Cobertura eliminada.');
       } catch (err: any) {
-        notify.error("Error eliminando: " + err.message);
+        notify.error("Error eliminando: " + friendlyError(err));
       }
     }
   };
@@ -707,7 +600,7 @@ function MainApp({ session }: { session: any }) {
       setReportingMatch(null);
       notify.success('Cobertura finalizada.');
     } catch (err: any) {
-      notify.error("Error guardando reporte: " + err.message);
+      notify.error("Error guardando reporte: " + friendlyError(err));
     }
   };
 
@@ -740,7 +633,7 @@ function MainApp({ session }: { session: any }) {
       setEditingTransfer(null);
       notify.success('Traslado eliminado.');
     } catch (err: any) {
-      notify.error("Error al eliminar traslado: " + err.message);
+      notify.error("Error al eliminar traslado: " + friendlyError(err));
     }
   };
 
@@ -767,7 +660,7 @@ function MainApp({ session }: { session: any }) {
       setIsQuickAddModalOpen(false);
       notify.success(newMatchesPayload.length === 1 ? 'Cobertura creada.' : `${newMatchesPayload.length} coberturas creadas.`);
     } catch (err: any) {
-      notify.error("Error carga rápida: " + err.message);
+      notify.error("Error carga rápida: " + friendlyError(err));
     }
   };
 

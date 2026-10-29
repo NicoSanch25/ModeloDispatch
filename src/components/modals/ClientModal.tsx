@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Client } from '../../types';
 import { Building, X } from 'lucide-react';
+import { friendlyError } from '../../utils/requests';
 import { resourceService } from '../../services/resources';
 import { ModalShell } from '../ui/ModalShell';
 import { askConfirm, notify } from '../ui/feedback';
@@ -28,7 +29,7 @@ export const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSav
             notify.success('Cliente eliminado.');
             onClose();
         } catch (err: any) {
-            notify.error('Error al eliminar: ' + err.message);
+            notify.error('Error al eliminar: ' + friendlyError(err));
         } finally {
             submitting.current = false;
             setIsLoading(false);
@@ -57,7 +58,7 @@ export const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSav
             notify.success(editingClient?.id ? 'Cliente actualizado.' : 'Cliente agregado.');
             onClose();
         } catch (error: any) {
-            notify.error('Error guardando cliente: ' + error.message);
+            notify.error('Error guardando cliente: ' + friendlyError(error));
         } finally {
             submitting.current = false;
             setIsLoading(false);

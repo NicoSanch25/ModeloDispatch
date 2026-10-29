@@ -2,7 +2,7 @@
 import { Staff, Ambulance, Location, Client, FuelRecord } from '../types';
 
 // Mappers
-const mapStaffFromDB = (data: any): Staff => ({
+export const mapStaffFromDB = (data: any): Staff => ({
     id: data.id,
     name: data.name,
     role: data.role,
@@ -14,7 +14,7 @@ const mapStaffFromDB = (data: any): Staff => ({
     licenseExpiration: data.license_expiration || undefined
 });
 
-const mapAmbulanceFromDB = (data: any): Ambulance => ({
+export const mapAmbulanceFromDB = (data: any): Ambulance => ({
     id: data.id,
     number: data.number,
     plate: data.plate,
@@ -40,7 +40,7 @@ const mapAmbulanceFromDB = (data: any): Ambulance => ({
     }
 });
 
-const mapLocationFromDB = (data: any): Location => ({
+export const mapLocationFromDB = (data: any): Location => ({
     id: data.id,
     name: data.name,
     address: data.address,
@@ -49,7 +49,7 @@ const mapLocationFromDB = (data: any): Location => ({
     contactPhone: data.contact_phone
 });
 
-const mapClientFromDB = (data: any): Client => ({
+export const mapClientFromDB = (data: any): Client => ({
     id: data.id,
     name: data.name,
     contactName: data.contact_name,
@@ -58,7 +58,7 @@ const mapClientFromDB = (data: any): Client => ({
     notes: data.notes
 });
 
-const mapFuelFromDB = (data: any): FuelRecord => ({
+export const mapFuelFromDB = (data: any): FuelRecord => ({
     id: data.id,
     date: data.date,
     ambulanceId: data.ambulance_id,

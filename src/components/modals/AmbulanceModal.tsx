@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Ambulance, Staff } from '../../types';
 import { Truck, X, User, Check } from 'lucide-react';
+import { friendlyError } from '../../utils/requests';
 import { resourceService } from '../../services/resources';
 import { formatDateAR } from '../../utils/formatters';
 import { DateInput } from '../DateInput';
@@ -37,7 +38,7 @@ export const AmbulanceModal: React.FC<AmbulanceModalProps> = ({ isOpen, onClose,
             notify.success('Móvil eliminado.');
             onClose();
         } catch (err: any) {
-            notify.error('Error al eliminar: ' + err.message);
+            notify.error('Error al eliminar: ' + friendlyError(err));
         } finally {
             setIsLoading(false);
         }
@@ -84,7 +85,7 @@ export const AmbulanceModal: React.FC<AmbulanceModalProps> = ({ isOpen, onClose,
             notify.success(editingAmbulance?.id ? 'Móvil actualizado.' : 'Móvil agregado.');
             onClose();
         } catch (error: any) {
-            notify.error('Error guardando móvil: ' + error.message);
+            notify.error('Error guardando móvil: ' + friendlyError(error));
         } finally {
             setIsLoading(false);
         }

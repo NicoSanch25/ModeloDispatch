@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { CalendarDays, ListPlus, Plus, ReceiptText, Trash2, UserRoundPlus, X } from 'lucide-react';
+import { friendlyError } from '../../utils/requests';
 import type { Ambulance, FuelRecord, Staff } from '../../types';
 import { supabase } from '../../lib/supabase';
 import { localDate } from '../../utils/statistics';
@@ -111,7 +112,7 @@ export const FuelBatchModal: React.FC<FuelBatchModalProps> = ({ isOpen, onClose,
       notify.success(editing ? 'Movimiento corregido.' : records.length === 1 ? 'Movimiento de combustible guardado.' : `${records.length} movimientos de combustible guardados.`);
       onClose();
     } catch (saveError: any) {
-      setError(`No se pudo guardar: ${saveError.message}`);
+      setError(`No se pudo guardar: ${friendlyError(saveError)}`);
     } finally {
       setSaving(false);
     }
@@ -128,7 +129,7 @@ export const FuelBatchModal: React.FC<FuelBatchModalProps> = ({ isOpen, onClose,
       notify.success('Movimiento eliminado.');
       onClose();
     } catch (deleteError: any) {
-      setError(`No se pudo eliminar: ${deleteError.message}`);
+      setError(`No se pudo eliminar: ${friendlyError(deleteError)}`);
     } finally {
       setSaving(false);
     }

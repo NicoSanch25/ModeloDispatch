@@ -3,7 +3,7 @@ import { Match } from '../types';
 import { getConflicts, checkSystemConflicts } from '../utils/scheduling';
 
 // --- MAPPERS ---
-const mapMatchFromDB = (data: any): Match => {
+export const mapMatchFromDB = (data: any): Match => {
     let type = data.type;
     let location = data.location;
     

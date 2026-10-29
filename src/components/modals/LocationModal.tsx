@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Location } from '../../types';
 import { MapPin, X, ExternalLink, Phone } from 'lucide-react';
+import { friendlyError } from '../../utils/requests';
 import { resourceService } from '../../services/resources';
 import { ModalShell } from '../ui/ModalShell';
 import { askConfirm, notify } from '../ui/feedback';
@@ -13,9 +14,8 @@ interface LocationModalProps {
 }
 
 export const LocationModal: React.FC<LocationModalProps> = ({ isOpen, onClose, onSaveSuccess, editingLocation }) => {
-    if (!isOpen) return null;
-
     const [isLoading, setIsLoading] = useState(false);
+    if (!isOpen) return null;
 
     const handleDelete = async () => {
         if (!editingLocation?.id) return;
@@ -27,7 +27,7 @@ export const LocationModal: React.FC<LocationModalProps> = ({ isOpen, onClose, o
             notify.success('Lugar eliminado.');
             onClose();
         } catch (err: any) {
-            notify.error('Error al eliminar: ' + err.message);
+            notify.error('Error al eliminar: ' + friendlyError(err));
         } finally {
             setIsLoading(false);
         }
@@ -53,7 +53,7 @@ export const LocationModal: React.FC<LocationModalProps> = ({ isOpen, onClose, o
             notify.success(editingLocation?.id ? 'Lugar actualizado.' : 'Lugar agregado.');
             onClose();
         } catch (error: any) {
-            notify.error('Error guardando lugar: ' + error.message);
+            notify.error('Error guardando lugar: ' + friendlyError(error));
         } finally {
             setIsLoading(false);
         }

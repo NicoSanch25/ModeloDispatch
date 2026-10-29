@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Staff } from '../../types';
 import { Users, X, Check, IdCard } from 'lucide-react';
+import { friendlyError } from '../../utils/requests';
 import { resourceService } from '../../services/resources';
 import { ModalShell } from '../ui/ModalShell';
 import { askConfirm, notify } from '../ui/feedback';
@@ -41,7 +42,7 @@ export const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, onSaveS
             notify.success('Personal eliminado.');
             onClose();
         } catch (err: any) {
-            notify.error('Error al eliminar: ' + err.message);
+            notify.error('Error al eliminar: ' + friendlyError(err));
         } finally {
             submitting.current = false;
             setIsLoading(false);
@@ -73,7 +74,7 @@ export const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, onSaveS
             notify.success(editingStaff?.id ? 'Personal actualizado.' : 'Personal agregado.');
             onClose();
         } catch (error: any) {
-            notify.error('Error guardando personal: ' + error.message);
+            notify.error('Error guardando personal: ' + friendlyError(error));
         } finally {
             submitting.current = false;
             setIsLoading(false);
