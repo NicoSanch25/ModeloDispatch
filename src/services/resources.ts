@@ -66,7 +66,10 @@ export const mapFuelFromDB = (data: any): FuelRecord => ({
     externalDriverName: data.external_driver_name || undefined,
     fuelType: data.fuel_type,
     liters: Number(data.liters),
-    items: data.items
+    items: data.items,
+    ticketNumber: data.ticket_number || undefined,
+    amount: data.amount === null || data.amount === undefined ? undefined : Number(data.amount),
+    odometerKm: data.odometer_km === null || data.odometer_km === undefined ? undefined : Number(data.odometer_km)
 });
 
 export const resourceService = {

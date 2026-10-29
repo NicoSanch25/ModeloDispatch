@@ -1532,6 +1532,7 @@ function MainApp({ session }: { session: any }) {
         staff={staff}
         ambulances={ambulances}
         editing={editingFuel}
+        records={fuelRecords}
       />
       {isSearchOpen && (
         <GlobalSearch data={{ matches, transfers, staff, ambulances, locations, clients }} onClose={() => setIsSearchOpen(false)} onSelect={openSearchResult} />

@@ -124,6 +124,9 @@ export interface FuelRecord {
   fuelType: string; // 'Euro Diesel', 'Nafta Super', etc.
   liters: number;
   items?: string; // Extra items like "Franela", "Aceite"
+  ticketNumber?: string; // Número del ticket de la estación (opcional)
+  amount?: number; // Importe pagado en pesos
+  odometerKm?: number; // Kilometraje del móvil al cargar
 }
 
 export interface AppState {
