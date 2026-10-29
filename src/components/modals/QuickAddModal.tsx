@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react';
 import { MatchType, Location, Ambulance, Staff, Match } from '../../types';
-import { Zap, X, Plus, AlertTriangle } from 'lucide-react';
+import { Zap, X, Plus } from 'lucide-react';
 import { getConflicts } from '../../utils/scheduling';
 import { DateInput } from '../DateInput';
+import { driverOptionLabel } from '../../utils/licenses';
 import { ModalShell } from '../ui/ModalShell';
 
 interface QuickAddRow {
@@ -100,7 +101,7 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
                         </h3>
                         <p className="text-xs text-slate-500 mt-1">Ingrese múltiples partidos para una misma fecha rápidamente.</p>
                     </div>
-                    <button onClick={onClose}><X className="w-6 h-6 text-slate-400" /></button>
+                    <button onClick={onClose}><X className="w-6 h-6 text-slate-500" /></button>
                 </div>
 
                 <div className="p-4 border-b bg-white flex items-center gap-4">
@@ -195,7 +196,7 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
                                                 title={getFieldConflictTooltip(row.id, 'driverId')}
                                             >
                                                 <option value="">--</option>
-                                                {staff.filter(s => s.role === 'Chofer').map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                                {staff.filter(s => s.role === 'Chofer').map(s => <option key={s.id} value={s.id}>{driverOptionLabel(s, date)}</option>)}
                                             </select>
                                         </div>
                                     </td>
@@ -213,7 +214,7 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
                                         </div>
                                     </td>
                                     <td className="p-2 text-center">
-                                        <button onClick={() => removeQuickRow(row.id)} className="text-slate-400 hover:text-red-500">
+                                        <button onClick={() => removeQuickRow(row.id)} className="text-slate-500 hover:text-red-500">
                                             <X className="w-4 h-4" />
                                         </button>
                                     </td>

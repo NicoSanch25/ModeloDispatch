@@ -1,164 +1,85 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import {
-  Ambulance, Users, LayoutDashboard, Plus, AlertTriangle, Trash2, Edit2,
-  Check, Clock, Menu, X, Send, Siren, Calendar, MapPin, Filter, Truck,
-  History, ExternalLink, Car, Stethoscope, ChevronDown, XCircle, Phone, User,
-  Wrench, Gauge, Activity, FileText, Shield, ClipboardCheck, Hash, AlertCircle,
+  Ambulance, Users, Plus, AlertTriangle, Trash2, Edit2,
+  Check, X, Calendar, MapPin, Filter, Truck,
+  History, Car, Stethoscope, Phone, User,
+  FileText, ClipboardCheck, AlertCircle,
   ArrowRightCircle, ClipboardList, Briefcase, History as HistoryIcon, ArrowRight,
-  Fuel, Droplet, ListPlus, ReceiptText, Copy, FileStack, UserPlus, Clock4, BatteryCharging, Disc, Share2,
-  AlertOctagon, Save, Building, FileSpreadsheet, Download, Ban, CalendarDays, Zap, Mail,
-  Lock, Unlock, LogIn, Loader2, Key, Eye, EyeOff, HelpCircle
+  Fuel, ListPlus, UserPlus, 
+  AlertOctagon, Building, FileSpreadsheet, Ban, Zap, Mail,
+  Lock, LogIn, Loader2, Key, Eye, EyeOff, IdCard, Search
 } from 'lucide-react';
 import {
-  Role,
+  
   Staff as StaffModel,
   Ambulance as AmbulanceModel,
   Match as MatchModel,
-  MatchType,
+  
   Location as LocationModel,
-  AmbulanceStatus,
+  
   IncidentReport as IncidentReportModel,
-  AuditLogEntry,
+  
   FuelRecord as FuelRecordModel,
   Client as ClientModel,
   Transfer as TransferModel
 } from './src/types';
 import { supabase, configurationError } from './src/lib/supabase';
-import { OperationsInsights } from './src/components/OperationsInsights';
+import { AttentionAlerts, OperationsInsights } from './src/components/OperationsInsights';
 import { localDate } from './src/utils/statistics';
+import { expiryLabel, licenseAlerts, licenseLabel, licenseStatus, needsLicense } from './src/utils/licenses';
 import { getConflicts } from './src/utils/scheduling';
-import { withTimeout } from './src/utils/requests';
-import { matchesService } from './src/services/matches';
-import { DateInput } from './src/components/DateInput';
+import { friendlyError, withTimeout } from './src/utils/requests';
+import { mapMatchFromDB, matchesService } from './src/services/matches';
+import { mapAmbulanceFromDB, mapClientFromDB, mapFuelFromDB, mapLocationFromDB, mapStaffFromDB } from './src/services/resources';
 import { AgendaList } from './src/components/AgendaList';
-import { OperationalAgendaModal } from './src/components/modals/OperationalAgendaModal';
 import { agendaConflicts, applyServiceRegistry, buildAgenda, servicesForDay, type AgendaService } from './src/utils/agenda';
 import { fetchOperationalTable, fetchServiceRegistry, type Service } from './src/services/business';
 import { csvCell } from './src/utils/security';
 
-import { MatchModal } from './src/components/modals/MatchModal';
-import { StaffModal } from './src/components/modals/StaffModal';
-import { AmbulanceModal } from './src/components/modals/AmbulanceModal';
-import { LocationModal } from './src/components/modals/LocationModal';
-import { LocationDetailModal } from './src/components/modals/LocationDetailModal';
-import { AmbulanceDetailModal } from './src/components/modals/AmbulanceDetailModal';
-import { ClientModal } from './src/components/modals/ClientModal';
-import { TransferModal } from './src/components/modals/TransferModal';
-import { FuelBatchModal } from './src/components/modals/FuelBatchModal';
+import { FuelList } from './src/components/FuelList';
+import { EmptyState, LoadingSkeleton } from './src/components/ui/Skeleton';
 import { FleetStatusWidget } from './src/components/FleetStatusWidget';
 import { DashboardClock } from './src/components/DashboardClock';
+import { MobileTabBar, SECTIONS, sectionTitle, type SectionId } from './src/components/AppNavigation';
+import { TransfersList } from './src/components/TransfersList';
+import type { SearchResult } from './src/utils/search';
+import { StatusChip } from './src/components/ui/StatusChip';
+import { MATCH_STATUS } from './src/utils/status';
 const BusinessWorkspace = React.lazy(() => import('./src/components/BusinessWorkspace').then(module => ({ default: module.BusinessWorkspace })));
-import { QuickAddModal, QuickAddRow } from './src/components/modals/QuickAddModal';
-import { ModalShell } from './src/components/ui/ModalShell';
+import type { QuickAddRow } from './src/components/modals/QuickAddModal';
 import { askConfirm, FeedbackHost, notify, useSpanishValidation } from './src/components/ui/feedback';
 
-// --- MAPPERS ---
-// Convert DB (snake_case) to App (camelCase) and vice-versa
-
-const mapStaffFromDB = (data: any): StaffModel => ({
-  id: data.id,
-  name: data.name,
-  role: data.role,
-  phone: data.phone || '',
-  isOutsourced: data.is_outsourced,
-  companyName: data.company_name
-});
-
-const mapAmbulanceFromDB = (data: any): AmbulanceModel => ({
-  id: data.id,
-  number: data.number,
-  plate: data.plate,
-  year: data.year,
-  isOutsourced: data.is_outsourced,
-  outsourcedCompanyName: data.outsourced_company_name,
-  vehicleType: data.vehicle_type,
-  coachBuilder: data.coach_builder,
-  maintenance: {
-    status: data.maintenance_status,
-    mileage: data.mileage,
-    mileageLastUpdate: data.mileage_last_update,
-    vtvExpiration: data.vtv_expiration,
-    insurance: data.insurance,
-    mechanicNotes: data.mechanic_notes,
-    tireType: data.tire_type,
-    oilType: data.oil_type,
-    batteryType: data.battery_type,
-    batteryLastChange: data.battery_last_change,
-    batteryPurchaseLocation: data.battery_purchase_location,
-    workshopName: data.workshop_name,
-    mechanicContact: data.mechanic_contact
-  }
-});
-
-const mapLocationFromDB = (data: any): LocationModel => ({
-  id: data.id,
-  name: data.name,
-  address: data.address,
-  googleMapsUrl: data.google_maps_url,
-  contactName: data.contact_name,
-  contactPhone: data.contact_phone
-});
-
-const mapClientFromDB = (data: any): ClientModel => ({
-  id: data.id,
-  name: data.name,
-  contactName: data.contact_name,
-  contactPhone: data.contact_phone,
-  email: data.email,
-  notes: data.notes
-});
-
-const mapMatchFromDB = (data: any): MatchModel => ({
-  id: data.id,
-  version: data.version,
-  date: data.date,
-  time: data.time?.substring(0, 5), // Remove seconds if present
-  location: data.location,
-  fieldNumber: data.field_number,
-  type: data.type,
-  durationMinutes: data.duration_minutes,
-  extensionMinutes: data.extension_minutes,
-  chukkers: data.chukkers,
-  status: data.status,
-  suspensionReason: data.suspension_reason,
-  isSingleCrew: data.is_single_crew,
-  driverNotified: data.driver_notified,
-  nurseNotified: data.nurse_notified,
-
-  clientId: data.client_id,
-  ambulanceId: data.ambulance_id,
-  driverId: data.driver_id,
-  nurseId: data.nurse_id,
-  thirdCrewId: data.third_crew_id,
-
-  hiredBy: data.hired_by,
-  hiredContact: data.hired_contact,
-
-  incidentReport: (data.has_incident || data.incident_details) ? {
-    hasIncident: data.has_incident,
-    wasTransferred: data.was_transferred,
-    details: data.incident_details
-  } : undefined,
-
-  auditLog: data.audit_logs?.map((log: any) => ({
-    date: log.date,
-    changes: log.changes
-  }))
-});
-
-const mapFuelFromDB = (data: any): FuelRecordModel => ({
-  id: data.id,
-  date: data.date,
-  ambulanceId: data.ambulance_id,
-  driverId: data.driver_id,
-  externalDriverName: data.external_driver_name,
-  fuelType: data.fuel_type,
-  liters: Number(data.liters),
-  items: data.items
-});
+// Los modales se descargan aparte: la pantalla principal aparece antes y se precargan en segundo plano.
+const modalLoaders: (() => Promise<unknown>)[] = [];
+function lazyModal<T extends React.ComponentType<any>>(load: () => Promise<T>): T {
+  const Lazy = React.lazy(async () => ({ default: await load() }));
+  modalLoaders.push(load);
+  const Wrapped = (props: React.ComponentProps<T>) => <React.Suspense fallback={null}><Lazy {...props} /></React.Suspense>;
+  return Wrapped as unknown as T;
+}
+const preloadModals = () => modalLoaders.forEach(load => load().catch(() => undefined));
+const MatchModal = lazyModal(() => import('./src/components/modals/MatchModal').then(m => m.MatchModal));
+const StaffModal = lazyModal(() => import('./src/components/modals/StaffModal').then(m => m.StaffModal));
+const AmbulanceModal = lazyModal(() => import('./src/components/modals/AmbulanceModal').then(m => m.AmbulanceModal));
+const LocationModal = lazyModal(() => import('./src/components/modals/LocationModal').then(m => m.LocationModal));
+const LocationDetailModal = lazyModal(() => import('./src/components/modals/LocationDetailModal').then(m => m.LocationDetailModal));
+const AmbulanceDetailModal = lazyModal(() => import('./src/components/modals/AmbulanceDetailModal').then(m => m.AmbulanceDetailModal));
+const ClientModal = lazyModal(() => import('./src/components/modals/ClientModal').then(m => m.ClientModal));
+const TransferModal = lazyModal(() => import('./src/components/modals/TransferModal').then(m => m.TransferModal));
+const FuelBatchModal = lazyModal(() => import('./src/components/modals/FuelBatchModal').then(m => m.FuelBatchModal));
+const AuditModal = lazyModal(() => import('./src/components/modals/AuditModal').then(m => m.AuditModal));
+const ChangePasswordModal = lazyModal(() => import('./src/components/modals/ChangePasswordModal').then(m => m.ChangePasswordModal));
+const IncidentModal = lazyModal(() => import('./src/components/modals/IncidentModal').then(m => m.IncidentModal));
+const StaffHistoryModal = lazyModal(() => import('./src/components/modals/StaffHistoryModal').then(m => m.StaffHistoryModal));
+const StaffScheduleModal = lazyModal(() => import('./src/components/modals/StaffScheduleModal').then(m => m.StaffScheduleModal));
+const GlobalSearch = lazyModal(() => import('./src/components/GlobalSearch').then(m => m.GlobalSearch));
+const OperationalAgendaModal = lazyModal(() => import('./src/components/modals/OperationalAgendaModal').then(m => m.OperationalAgendaModal));
+const QuickAddModal = lazyModal(() => import('./src/components/modals/QuickAddModal').then(m => m.QuickAddModal));
 
 // --- HELPERS ---
+const formatDateFull = (dateStr?: string) => dateStr ? dateStr.slice(0, 10).split('-').reverse().join('/') : '--/--/----';
+
 const formatDateAR = (dateStr?: string) => {
   if (!dateStr) return '--/--';
   const parts = dateStr.split('-');
@@ -198,12 +119,6 @@ const calculateEndTime = (timeStr: string, durationMin: number, extensionMin: nu
   return minutesToTime(end);
 };
 
-const subtractTime = (timeStr: string, minutesToSubtract: number) => {
-  const start = timeToMinutes(timeStr);
-  let newTime = start - minutesToSubtract;
-  if (newTime < 0) newTime += 24 * 60;
-  return minutesToTime(newTime);
-};
 
 const downloadCSV = (data: any[], filename: string) => {
   const csvContent = '\uFEFF' + data.map(row => row.map(csvCell).join(',')).join('\r\n');
@@ -236,8 +151,8 @@ interface SectionHeaderProps {
 }
 
 const SectionHeader = ({ eyebrow, title, description, icon: Icon, actions }: SectionHeaderProps) => (
-  <section className="dispatch-section-header" aria-labelledby={`section-${eyebrow.replace(/\s+/g, '-').toLowerCase()}`}>
-    <div className="flex min-w-0 items-start gap-3">
+  <section className={`dispatch-section-header ${actions ? '' : 'hidden lg:flex'}`} aria-labelledby={`section-${eyebrow.replace(/\s+/g, '-').toLowerCase()}`}>
+    <div className="hidden min-w-0 items-start gap-3 lg:flex">
       <div className="dispatch-section-icon"><Icon className="h-5 w-5" /></div>
       <div className="min-w-0">
         <p className="dispatch-eyebrow">{eyebrow}</p>
@@ -245,7 +160,7 @@ const SectionHeader = ({ eyebrow, title, description, icon: Icon, actions }: Sec
         <p className="mt-1 max-w-2xl text-sm text-slate-500">{description}</p>
       </div>
     </div>
-    <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+    <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:justify-end">
       {actions}
     </div>
   </section>
@@ -297,7 +212,7 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
           <div>
             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Usuario</label>
             <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5" />
               <input
                 type="text"
                 required
@@ -313,7 +228,7 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
           <div>
             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Contraseña</label>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5" />
               <input
                 type={showPassword ? "text" : "password"}
                 required
@@ -328,7 +243,7 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
                 type="button"
                 aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-600"
               >
                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
@@ -343,7 +258,7 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
             >
               {loading ? <Loader2 className="animate-spin w-5 h-5" /> : 'Ingresar'}
             </button>
-            <p className="text-center text-xs text-slate-400 mt-4">
+            <p className="text-center text-xs text-slate-500 mt-4">
               Sistema privado. Si necesita acceso, contacte al administrador.
             </p>
           </div>
@@ -402,7 +317,7 @@ export default function App() {
 }
 
 function MainApp({ session }: { session: any }) {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'matches' | 'history' | 'fleet' | 'staff' | 'locations' | 'fuel' | 'clients' | 'transfers' | 'business'>('dashboard');
+  const [activeTab, setActiveTab] = useState<SectionId>('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Data State
@@ -415,6 +330,8 @@ function MainApp({ session }: { session: any }) {
   const [transfers, setTransfers] = useState<TransferModel[]>([]);
   const [serviceRegistry, setServiceRegistry] = useState<Service[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(false);
+  // Sólo la primera carga tapa la pantalla; al actualizar se mantiene lo visible.
+  const [hasLoadedData, setHasLoadedData] = useState(false);
   const [dataError, setDataError] = useState<string | null>(null);
 
   // Modals State
@@ -423,7 +340,6 @@ function MainApp({ session }: { session: any }) {
 
   const [isMatchModalOpen, setIsMatchModalOpen] = useState(false);
   const [editingMatch, setEditingMatch] = useState<Partial<MatchModel> | null>(null);
-  const [isMatchReadOnly, setIsMatchReadOnly] = useState(false);
 
   const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<Partial<StaffModel> | null>(null);
@@ -433,8 +349,6 @@ function MainApp({ session }: { session: any }) {
   const [editingAmbulance, setEditingAmbulance] = useState<Partial<AmbulanceModel> | null>(null);
 
   // Dynamic Form State for Ambulance
-  const [ambFormShowOutsourced, setAmbFormShowOutsourced] = useState(false);
-  const [ambFormShowWorkshop, setAmbFormShowWorkshop] = useState(false);
 
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [editingLocation, setEditingLocation] = useState<Partial<LocationModel> | null>(null);
@@ -446,15 +360,12 @@ function MainApp({ session }: { session: any }) {
   const [viewingLocation, setViewingLocation] = useState<LocationModel | null>(null);
   const [viewingAmbulance, setViewingAmbulance] = useState<AmbulanceModel | null>(null);
 
-  const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
   const [reportingMatch, setReportingMatch] = useState<MatchModel | null>(null);
-  const [incidentForm, setIncidentForm] = useState<IncidentReportModel>({ hasIncident: false, wasTransferred: false, details: '' });
 
-  const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [viewingAuditMatch, setViewingAuditMatch] = useState<MatchModel | null>(null);
 
-  const [isFuelModalOpen, setIsFuelModalOpen] = useState(false);
   const [isBatchFuelModalOpen, setIsBatchFuelModalOpen] = useState(false);
+  const [editingFuel, setEditingFuel] = useState<FuelRecordModel | null>(null);
 
   const [isDailyAgendaOpen, setIsDailyAgendaOpen] = useState(false);
   const [isStaffScheduleOpen, setIsStaffScheduleOpen] = useState(false);
@@ -465,10 +376,25 @@ function MainApp({ session }: { session: any }) {
   const [quickAddDate, setQuickAddDate] = useState<string>('');
   const [quickAddRows, setQuickAddRows] = useState<QuickAddRow[]>([]);
 
-  const [isNewLocationPromptOpen, setIsNewLocationPromptOpen] = useState(false);
-  const [pendingNewLocationName, setPendingNewLocationName] = useState('');
 
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const userName: string = session?.user?.user_metadata?.username || session?.user?.email?.split('@')[0] || '';
+
+  // «/» o Ctrl+K abren la búsqueda cuando no se está escribiendo en un campo.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement;
+      const typing = target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
+      if ((event.key === '/' && !typing) || ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k')) {
+        if (document.querySelector('[aria-modal="true"]')) return;
+        event.preventDefault();
+        setIsSearchOpen(true);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   // Filters State
   const [filters, setFilters] = useState({
@@ -485,9 +411,20 @@ function MainApp({ session }: { session: any }) {
   const [showFilters, setShowFilters] = useState(false);
 
   // --- DATA LOADING ---
-  const loadData = async () => {
-    setIsLoadingData(true);
-    setDataError(null);
+  // Una sola lectura a la vez: los pedidos que llegan mientras otra corre se agrupan en
+  // una lectura siguiente, así nunca se pisa un dato nuevo con una respuesta vieja.
+  const loader = useRef<{ current: Promise<void>; queued: Promise<void> | null }>({ current: Promise.resolve(), queued: null });
+  const lastLoadedAt = useRef(0);
+  const loadData = (silent?: unknown): Promise<void> => {
+    const state = loader.current;
+    if (state.queued) return state.queued;
+    const next = state.current.then(() => { state.queued = null; return fetchAll(silent === true); });
+    state.queued = next;
+    state.current = next;
+    return next;
+  };
+  const fetchAll = async (silent: boolean) => {
+    if (!silent) setIsLoadingData(true);
     try {
       const [
         { data: staffData, error: e1 },
@@ -520,12 +457,14 @@ function MainApp({ session }: { session: any }) {
       if (fuelData && fuelData.length >= 0) setFuelRecords(fuelData.map(mapFuelFromDB));
       if (transfersData && transfersData.length >= 0) setTransfers(transfersData as TransferModel[]);
       setServiceRegistry(registry);
-
+      setDataError(null);
+      lastLoadedAt.current = Date.now();
     } catch (error) {
       console.error("Error loading data:", error);
       setDataError("No se pudieron actualizar los datos. Revisá la conexión y tus permisos de acceso. Los datos visibles pueden estar desactualizados.");
     } finally {
       setIsLoadingData(false);
+      setHasLoadedData(true);
     }
   };
 
@@ -534,6 +473,34 @@ function MainApp({ session }: { session: any }) {
       loadData();
     }
   }, [session]);
+
+  useEffect(() => {
+    const timer = setTimeout(preloadModals, 1200);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Cambios de otros operadores: tiempo real si la base lo publica y, como respaldo,
+  // relectura al volver a la pestaña y cada dos minutos mientras está visible.
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const soon = () => { clearTimeout(timer); timer = setTimeout(() => loadData(true), 800); };
+    const stale = () => document.visibilityState === 'visible' && Date.now() - lastLoadedAt.current > 30_000 && loadData(true);
+    const channel = typeof supabase.channel === 'function'
+      ? ['matches', 'transfers', 'staff', 'ambulances', 'fuel_records', 'locations', 'clients', 'services']
+        .reduce((ch, table) => ch.on('postgres_changes' as any, { event: '*', schema: 'public', table }, soon), supabase.channel('dispatch-changes'))
+        .subscribe()
+      : null;
+    const interval = setInterval(() => document.visibilityState === 'visible' && Date.now() - lastLoadedAt.current > 110_000 && loadData(true), 120_000);
+    document.addEventListener('visibilitychange', stale);
+    window.addEventListener('online', soon);
+    return () => {
+      clearTimeout(timer);
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', stale);
+      window.removeEventListener('online', soon);
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, []);
 
   // --- Derived Data ---
   const futureMatches = matches.filter(m => m.status !== 'Completed').sort((a, b) => {
@@ -566,6 +533,13 @@ function MainApp({ session }: { session: any }) {
       setIsTransferModalOpen(true);
     }
   };
+
+  // Cruces de coberturas activas, calculados una vez por cambio de datos y no en cada render de tarjeta.
+  const coverageConflicts = useMemo(() => {
+    const result = new Map<string, ReturnType<typeof getConflicts>>();
+    matches.forEach(m => { if (m.status !== 'Completed' && m.status !== 'Suspended') result.set(m.id, getConflicts(m, matches)); });
+    return result;
+  }, [matches]);
 
   const filteredMatches = (activeTab === 'history' ? matches : futureMatches).filter(m => {
     if (activeTab === 'history' && m.status !== 'Completed' && m.status !== 'Suspended') return false;
@@ -601,15 +575,6 @@ function MainApp({ session }: { session: any }) {
   // --- Handlers ---
   const handleLogout = async () => {
     await supabase.auth.signOut();
-  };
-
-  const handleChangePassword = async (newPassword: string, newUsername?: string) => {
-    const updates: any = {};
-    if (newPassword) updates.password = newPassword;
-    if (newUsername) updates.data = { username: newUsername };
-
-    const { error } = await supabase.auth.updateUser(updates);
-    if (error) throw error;
   };
 
   const handleExportCSV = () => {
@@ -674,96 +639,6 @@ function MainApp({ session }: { session: any }) {
     if (failed) notify.error('No se pudo guardar el aviso en ' + failed + ' cobertura(s). Esas marcas quedaron pendientes.');
   };
 
-  const handleSaveMatch = async (matchData: Partial<MatchModel>) => {
-    const isPolo = matchData.type?.includes('Polo');
-    const finalData = {
-      ...matchData,
-      chukkers: isPolo ? matchData.chukkers : null
-    };
-
-    // Prepare DB Payload (snake_case)
-    const payload: any = {
-      date: finalData.date,
-      time: finalData.time,
-      location: finalData.location,
-      field_number: finalData.fieldNumber,
-      type: finalData.type,
-      duration_minutes: finalData.durationMinutes,
-      extension_minutes: finalData.extensionMinutes,
-      chukkers: finalData.chukkers,
-      status: finalData.status,
-      suspension_reason: finalData.suspensionReason,
-      is_single_crew: finalData.isSingleCrew,
-      driver_notified: finalData.driverNotified || false,
-      nurse_notified: finalData.nurseNotified || false,
-      client_id: finalData.clientId || null,
-      ambulance_id: finalData.ambulanceId || null,
-      driver_id: finalData.driverId || null,
-      nurse_id: finalData.nurseId || null,
-      third_crew_id: finalData.thirdCrewId || null,
-      hired_by: finalData.hiredBy,
-      hired_contact: finalData.hiredContact,
-      // Incident details are flat columns in DB
-      has_incident: finalData.incidentReport?.hasIncident || false,
-      was_transferred: finalData.incidentReport?.wasTransferred || false,
-      incident_details: finalData.incidentReport?.details || ''
-    };
-
-    try {
-      let savedMatchId = editingMatch?.id;
-
-      if (editingMatch?.id) {
-        // Update
-        const { error } = await supabase.from('matches').update(payload).eq('id', editingMatch.id);
-        if (error) throw error;
-
-        // Audit Log Generation
-        const changes: string[] = [];
-        const m = matches.find(x => x.id === editingMatch.id);
-        if (m) {
-          const norm = (val: any) => (val || '').toString().trim();
-          if (norm(m.status) !== norm(finalData.status)) changes.push(`Estado: ${m.status} -> ${finalData.status}`);
-          if (norm(m.time) !== norm(finalData.time)) changes.push(`Hora: ${m.time} -> ${finalData.time}`);
-          if (norm(m.location) !== norm(finalData.location)) changes.push(`Lugar: ${m.location} -> ${finalData.location}`);
-          if (norm(m.ambulanceId) !== norm(finalData.ambulanceId)) changes.push('Cambio de Móvil');
-          if (norm(m.driverId) !== norm(finalData.driverId)) changes.push('Cambio de Chofer');
-          if (m.isSingleCrew !== finalData.isSingleCrew) changes.push(`Tripulación: ${finalData.isSingleCrew ? 'Simple' : 'Completa'}`);
-        }
-
-        if (changes.length > 0) {
-          await supabase.from('audit_logs').insert({
-            match_id: editingMatch.id,
-            changes: changes.join(', ')
-          });
-        }
-      } else {
-        // Insert
-        const { data, error } = await supabase.from('matches').insert(payload).select();
-        if (error) throw error;
-        savedMatchId = data[0].id;
-      }
-
-      // Check for New Location
-      if (finalData.location) {
-        const locName = finalData.location.trim();
-        const exists = locations.some(l => l.name.toLowerCase() === locName.toLowerCase());
-        if (!exists) {
-          setPendingNewLocationName(locName);
-          await supabase.from('locations').insert({ name: locName });
-          const { data: l } = await supabase.from('locations').select('*');
-          if (l) setLocations(l.map(mapLocationFromDB));
-        }
-      }
-
-      await loadData();
-      setIsMatchModalOpen(false);
-      setEditingMatch(null);
-
-    } catch (err: any) {
-      notify.error("Error guardando cobertura: " + err.message);
-    }
-  };
-
   const handleDeleteMatch = async (matchId: string) => {
     if ((await askConfirm({ title: "¿Confirma ELIMINAR esta cobertura? No se podrá recuperar.", confirmLabel: 'Eliminar', danger: true }))) {
       try {
@@ -778,22 +653,20 @@ function MainApp({ session }: { session: any }) {
         await loadData();
         notify.success('Cobertura eliminada.');
       } catch (err: any) {
-        notify.error("Error eliminando: " + err.message);
+        notify.error("Error eliminando: " + friendlyError(err));
       }
     }
   };
 
-  const handleSaveReport = async () => {
+  const handleSaveReport = async (report: IncidentReportModel) => {
     if (!reportingMatch) return;
     try {
-      const payload = {
-        has_incident: incidentForm.hasIncident,
-        was_transferred: incidentForm.wasTransferred,
-        incident_details: incidentForm.details,
+      const { error } = await supabase.from('matches').update({
+        has_incident: report.hasIncident,
+        was_transferred: report.wasTransferred,
+        incident_details: report.details,
         status: 'Completed'
-      };
-
-      const { error } = await supabase.from('matches').update(payload).eq('id', reportingMatch.id);
+      }).eq('id', reportingMatch.id);
       if (error) throw error;
 
       try {
@@ -803,11 +676,10 @@ function MainApp({ session }: { session: any }) {
       }
 
       await loadData();
-      setIsIncidentModalOpen(false);
       setReportingMatch(null);
-      notify.success('Reporte guardado.');
+      notify.success('Cobertura finalizada.');
     } catch (err: any) {
-      notify.error("Error guardando reporte: " + err.message);
+      notify.error("Error guardando reporte: " + friendlyError(err));
     }
   };
 
@@ -830,6 +702,42 @@ function MainApp({ session }: { session: any }) {
       notify.success(payload.id ? 'Traslado actualizado.' : 'Traslado registrado.');
   };
 
+  // Cambios de estado en un toque: se actualiza la lista al instante y se refresca el resto en segundo plano.
+  const completeTransfer = async (transfer: TransferModel) => {
+    try {
+      let query = supabase.from('transfers').update({ status: 'Completed' }).eq('id', transfer.id);
+      if (transfer.version !== undefined) query = query.eq('version', transfer.version);
+      const { data, error } = await query.select('*').single();
+      if (error) throw error;
+      setTransfers(prev => prev.map(t => t.id === transfer.id ? data as TransferModel : t));
+      notify.success('Traslado finalizado.');
+      loadData();
+    } catch (err: any) {
+      notify.error('No se pudo finalizar: ' + friendlyError(err));
+    }
+  };
+
+  const confirmMatch = async (match: MatchModel) => {
+    try {
+      const saved = await matchesService.saveMatch({ id: match.id, version: match.version, status: 'Confirmed' });
+      if (saved) setMatches(prev => prev.map(m => m.id === match.id ? saved : m));
+      matchesService.addAuditLog(match.id, 'Estado: Pending -> Confirmed').catch(() => undefined);
+      notify.success('Cobertura confirmada.');
+      loadData();
+    } catch (err: any) {
+      notify.error('No se pudo confirmar: ' + friendlyError(err));
+    }
+  };
+
+  const openSearchResult = (result: SearchResult) => {
+    if (result.kind === 'coverage') { const m = matches.find(x => x.id === result.id); if (m) { setEditingMatch(m); setIsMatchModalOpen(true); } }
+    if (result.kind === 'transfer') { const t = transfers.find(x => x.id === result.id); if (t) { setEditingTransfer(t); setIsTransferModalOpen(true); } }
+    if (result.kind === 'staff') { const p = staff.find(x => x.id === result.id); if (p) { handleNav('staff'); setEditingStaff(p); setIsStaffModalOpen(true); } }
+    if (result.kind === 'ambulance') { const a = ambulances.find(x => x.id === result.id); if (a) setViewingAmbulance(a); }
+    if (result.kind === 'location') { const l = locations.find(x => x.id === result.id); if (l) setViewingLocation(l); }
+    if (result.kind === 'client') { const c = clients.find(x => x.id === result.id); if (c) { handleNav('clients'); setViewingClient(c); } }
+  };
+
   const handleDeleteTransfer = async (id: string) => {
     if (!(await askConfirm({ title: '¿Seguro que deseas eliminar este traslado?', confirmLabel: 'Eliminar', danger: true }))) return;
     try {
@@ -840,7 +748,7 @@ function MainApp({ session }: { session: any }) {
       setEditingTransfer(null);
       notify.success('Traslado eliminado.');
     } catch (err: any) {
-      notify.error("Error al eliminar traslado: " + err.message);
+      notify.error("Error al eliminar traslado: " + friendlyError(err));
     }
   };
 
@@ -867,611 +775,32 @@ function MainApp({ session }: { session: any }) {
       setIsQuickAddModalOpen(false);
       notify.success(newMatchesPayload.length === 1 ? 'Cobertura creada.' : `${newMatchesPayload.length} coberturas creadas.`);
     } catch (err: any) {
-      notify.error("Error carga rápida: " + err.message);
+      notify.error("Error carga rápida: " + friendlyError(err));
     }
   };
 
-  const handleNav = (tab: typeof activeTab) => {
+  const handleNav = (tab: SectionId) => {
     setActiveTab(tab);
     setIsMobileMenuOpen(false);
+    // Cada sección arranca desde arriba; tocar la actual también vuelve al inicio.
+    window.scrollTo({ top: 0 });
+  };
+  const showTodayCoverage = () => {
+    setFilters({ ...filters, startDate: localDate(), endDate: localDate(), status: 'all', location: '', ambulance: '', outsourced: 'all', clientId: '', staffId: '' });
+    handleNav('matches');
   };
 
   useEffect(() => {
-    if (isMatchModalOpen && editingMatch?.status === 'Completed') {
-      setIsMatchReadOnly(true);
-    } else {
-      setIsMatchReadOnly(false);
-    }
-  }, [isMatchModalOpen, editingMatch]);
-
-  // --- Modal Forms for Entities ---
-  const handleSaveStaff = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const form = new FormData(e.target as HTMLFormElement);
-    const payload = {
-      name: form.get('name'),
-      role: form.get('role'),
-      phone: form.get('phone'),
-      is_outsourced: form.get('isOutsourced') === 'on',
-      company_name: form.get('companyName')
+    if (!isMobileMenuOpen) return;
+    // Si hay un modal abierto encima (p. ej. Cambiar Contraseña), Escape cierra sólo ese modal.
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented || document.querySelector('[aria-modal="true"]')) return;
+      setIsMobileMenuOpen(false);
     };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isMobileMenuOpen]);
 
-    try {
-      if (editingStaff?.id) {
-        await supabase.from('staff').update(payload).eq('id', editingStaff.id);
-      } else {
-        await supabase.from('staff').insert(payload);
-      }
-      await loadData();
-      setIsStaffModalOpen(false);
-    } catch (err: any) { notify.error(err.message); }
-  };
-
-  const handleSaveAmbulance = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const form = new FormData(e.target as HTMLFormElement);
-
-    const yearInput = form.get('year');
-    let year: number | null = null;
-
-    if (yearInput && yearInput.toString().trim() !== '') {
-      year = parseInt(yearInput.toString(), 10);
-      if (isNaN(year)) {
-        notify.error("El año ingresado no es válido.");
-        return;
-      }
-      // Validation for realistic years
-      const currentYear = new Date().getFullYear();
-      if (year < 1900 || year > currentYear + 1) {
-        notify.error(`El año debe estar entre 1900 y ${currentYear + 1}`);
-        return;
-      }
-    }
-
-    const numberVal = form.get('number');
-    if (!numberVal || numberVal.toString().trim() === '') {
-      notify.error("El número de móvil es obligatorio.");
-      return;
-    }
-
-    // Clean mileage input and ensure it's a number
-    const mileageInput = form.get('mileage');
-    const newMileageStr = (mileageInput && mileageInput.toString().trim() !== '')
-      ? mileageInput.toString().replace(/[^0-9]/g, '')
-      : null;
-
-    // Parse to int to ensure correct DB type (avoiding strings in numeric columns)
-    const newMileage = newMileageStr ? parseInt(newMileageStr, 10) : null;
-
-    let mileageLastUpdate = editingAmbulance?.maintenance?.mileageLastUpdate;
-    if (newMileage && newMileage !== Number(editingAmbulance?.maintenance?.mileage)) {
-      mileageLastUpdate = localDate();
-    } else if (!editingAmbulance && newMileage) {
-      mileageLastUpdate = localDate();
-    }
-
-    const payload = {
-      number: numberVal,
-      plate: form.get('plate'),
-      vehicle_type: form.get('vehicleType'),
-      year: year,
-      coach_builder: form.get('coachBuilder'),
-      is_outsourced: form.get('isOutsourced') === 'on',
-      outsourced_company_name: form.get('isOutsourced') === 'on' ? form.get('outsourcedCompanyName') : null,
-      maintenance_status: form.get('maintenanceStatus') || 'Active',
-      mileage: newMileage,
-      mileage_last_update: mileageLastUpdate,
-      vtv_expiration: form.get('vtvExpiration') ? form.get('vtvExpiration') : null,
-      insurance: form.get('insurance'),
-      mechanic_notes: form.get('mechanicNotes'),
-      tire_type: form.get('tireType'),
-      oil_type: form.get('oilType'),
-      battery_type: form.get('batteryType'),
-      battery_last_change: form.get('batteryLastChange') ? form.get('batteryLastChange') : null,
-      battery_purchase_location: form.get('batteryPurchaseLocation'),
-      workshop_name: form.get('workshopName'),
-      mechanic_contact: form.get('mechanicContact')
-    };
-
-    try {
-      if (editingAmbulance?.id) {
-        const { error } = await supabase.from('ambulances').update(payload).eq('id', editingAmbulance.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from('ambulances').insert(payload);
-        if (error) throw error;
-      }
-      await loadData();
-      setIsAmbulanceModalOpen(false);
-    } catch (err: any) {
-      console.error("Error saving ambulance:", err);
-      let msg = "Error desconocido";
-      if (typeof err === 'object' && err !== null) {
-        // Handle specific Supabase schema errors (Code 42703 is undefined_column)
-        if (err.code === '42703' || (err.message && err.message.toLowerCase().includes('column'))) {
-          msg = "Faltan columnas en la base de datos. Por favor ejecuta el script SQL para agregar 'battery_type', 'oil_type', etc.";
-        } else {
-          msg = err.message || err.error_description || JSON.stringify(err);
-        }
-      } else {
-        msg = String(err);
-      }
-      notify.error(`Error al guardar móvil: ${msg}`);
-    }
-  };
-
-  const handleSaveLocation = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const form = new FormData(e.target as HTMLFormElement);
-    const payload = {
-      name: form.get('name'),
-      address: form.get('address'),
-      google_maps_url: form.get('googleMapsUrl'),
-      contact_name: form.get('contactName'),
-      contact_phone: form.get('contactPhone')
-    };
-
-    try {
-      if (editingLocation?.id) {
-        await supabase.from('locations').update(payload).eq('id', editingLocation.id);
-      } else {
-        await supabase.from('locations').insert(payload);
-      }
-      await loadData();
-      setIsLocationModalOpen(false);
-    } catch (err: any) { notify.error(err.message); }
-  };
-
-  const handleSaveClient = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const form = new FormData(e.target as HTMLFormElement);
-    const payload = {
-      name: form.get('name'),
-      contact_name: form.get('contactName'),
-      contact_phone: form.get('contactPhone'),
-      email: form.get('email'),
-      notes: form.get('notes')
-    };
-
-    try {
-      if (editingClient?.id) {
-        await supabase.from('clients').update(payload).eq('id', editingClient.id);
-      } else {
-        await supabase.from('clients').insert(payload);
-      }
-      await loadData();
-      setIsClientModalOpen(false);
-    } catch (err: any) { notify.error(err.message); }
-  };
-
-  const DailyAgendaModal = () => {
-    // ... [No changes needed in logic here, just UI]
-    const [citationTimes, setCitationTimes] = useState<Record<string, string>>({});
-    const [useCitation, setUseCitation] = useState<Record<string, boolean>>({});
-
-    const dayMatches = matches.filter(m => m.date === dailyAgendaDate && m.status !== 'Suspended' && m.status !== 'Completed').sort((a, b) => a.time.localeCompare(b.time));
-    const activeStaffIds: string[] = Array.from(new Set(dayMatches.flatMap(m => [m.driverId, m.nurseId, m.thirdCrewId].filter((id): id is string => !!id))));
-
-    useEffect(() => {
-      const initialTimes: Record<string, string> = {};
-      const initialUse: Record<string, boolean> = {};
-      activeStaffIds.forEach(sid => {
-        const firstMatch = dayMatches.find(m => m.driverId === sid || m.nurseId === sid || m.thirdCrewId === sid);
-        if (firstMatch) {
-          initialTimes[sid] = subtractTime(firstMatch.time, 60);
-          initialUse[sid] = false;
-        }
-      });
-      setCitationTimes(initialTimes);
-      setUseCitation(initialUse);
-    }, [dailyAgendaDate]);
-
-    const generateIndividualText = (s: StaffModel) => {
-      const staffMatches = dayMatches.filter(m => m.driverId === s.id || m.nurseId === s.id || m.thirdCrewId === s.id);
-      const dateLabel = new Date(dailyAgendaDate + 'T12:00:00').toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
-
-      let text = `👋 Hola *${s.name}*, tu cronograma para ${dateLabel}:\n\n`;
-
-      if (useCitation[s.id] && citationTimes[s.id]) {
-        text += `🕒 *Citación en Base:* ${formatTime24(citationTimes[s.id])} hs\n`;
-        text += `--------------------------------\n`;
-      }
-
-      staffMatches.forEach(m => {
-        const amb = ambulances.find(a => a.id === m.ambulanceId);
-        const partners = [];
-        if (m.driverId && m.driverId !== s.id) {
-          const p = staff.find(st => st.id === m.driverId);
-          if (p) partners.push(`${p.name} (Chofer)`);
-        }
-        if (m.nurseId && m.nurseId !== s.id) {
-          const p = staff.find(st => st.id === m.nurseId);
-          if (p) partners.push(`${p.name} (Enf)`);
-        }
-        if (m.thirdCrewId && m.thirdCrewId !== s.id) {
-          const p = staff.find(st => st.id === m.thirdCrewId);
-          if (p) partners.push(`${p.name} (Aux)`);
-        }
-
-        text += `🚑 *${formatTime24(m.time)} hs* | ${m.location}\n`;
-        text += `   📝 ${m.type} ${m.fieldNumber ? `(${m.fieldNumber})` : ''}\n`;
-        text += `   🚐 Móvil: ${amb ? amb.number : 'A designar'}\n`;
-        if (m.isSingleCrew && partners.length === 0) {
-          text += `   👤 Tripulación Simple\n`;
-        } else {
-          text += `   🤝 Con: ${partners.join(', ') || 'Nadie'}\n`;
-        }
-        text += `\n`;
-      });
-      return text;
-    };
-
-    return (
-      <ModalShell onClose={() => setIsStaffScheduleOpen(false)}>
-        <div className="dispatch-modal-panel bg-white rounded-xl shadow-2xl max-w-4xl w-full flex flex-col max-h-[90vh]">
-          <div className="p-4 border-b flex justify-between items-center bg-slate-50 rounded-t-xl">
-            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-indigo-600" /> Coberturas por Personal
-            </h3>
-            <button aria-label="Cerrar cronograma" onClick={() => setIsStaffScheduleOpen(false)}><X className="w-6 h-6 text-slate-400" /></button>
-          </div>
-          <div className="p-4 border-b bg-white">
-            <label className="block text-sm font-medium text-slate-700 mb-1">Seleccionar Fecha</label>
-            <DateInput
-              aria-label="Fecha de agenda diaria"
-              value={dailyAgendaDate}
-              onChange={(e) => setDailyAgendaDate(e.target.value)}
-              className="w-full md:w-64 p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-          <div className="p-6 overflow-y-auto bg-slate-100 flex-1">
-            {activeStaffIds.length === 0 ? (
-              <div className="text-center py-12 text-slate-500">
-                <p>No hay personal asignado para esta fecha.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {activeStaffIds.map(sid => {
-                  const s = staff.find(st => st.id === sid);
-                  if (!s) return null;
-                  const msg = generateIndividualText(s);
-                  const cleanPhone = s.phone.replace(/[^0-9]/g, '');
-                  const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`;
-
-                  const staffDayMatches = dayMatches.filter(m => m.driverId === sid || m.nurseId === sid || m.thirdCrewId === sid);
-
-                  return (
-                    <div key={sid} className="bg-white rounded-lg shadow-sm border border-slate-200 p-4 flex flex-col">
-                      <div className="flex justify-between items-start mb-3">
-                        <div>
-                          <h4 className="font-bold text-slate-800">{s.name}</h4>
-                          <span className="text-xs bg-slate-100 px-2 py-0.5 rounded text-slate-600">{s.role}</span>
-                        </div>
-                        <div className="flex flex-col items-end gap-1">
-                          <label className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center gap-1 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={useCitation[sid] || false}
-                              onChange={(e) => setUseCitation(prev => ({ ...prev, [sid]: e.target.checked }))}
-                              className="rounded text-indigo-600 focus:ring-indigo-500 w-3 h-3"
-                            />
-                            <Clock4 className="w-3 h-3" /> Citar en Base
-                          </label>
-                          {useCitation[sid] && (
-                            <div className="flex items-center gap-1">
-                              <input
-                                type="time"
-                                className="border rounded p-1 text-sm w-28 text-center bg-indigo-50 border-indigo-100 font-medium"
-                                value={citationTimes[sid] || ''}
-                                onChange={(e) => setCitationTimes(prev => ({ ...prev, [sid]: e.target.value }))}
-                              />
-                              <span className="text-[10px] text-slate-400 font-bold">HS</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex-1 bg-slate-50 rounded p-2 mb-3 text-xs font-mono text-slate-600 whitespace-pre-wrap border border-slate-100 h-32 overflow-y-auto">
-                        {msg}
-                      </div>
-                      <div className="flex gap-2">
-                        <a href={whatsappUrl} onClick={() => handleMarkStaffNotifiedForDay(sid, staffDayMatches)} target="_blank" rel="noopener noreferrer" className="flex-1 py-2 bg-green-500 text-white hover:bg-green-600 rounded-lg font-medium flex items-center justify-center gap-2 text-sm transition-colors shadow-sm shadow-green-200">
-                          <Send className="w-4 h-4" /> Enviar WhatsApp
-                        </a>
-                        <button onClick={() => { navigator.clipboard.writeText(msg); }} className="px-3 py-2 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors">
-                          <Copy className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-          <div className="p-4 border-t bg-slate-50 rounded-b-xl flex justify-end">
-            <button onClick={() => { setIsStaffScheduleOpen(false); setIsDailyAgendaOpen(true); }} className="px-6 py-2 bg-slate-800 text-white hover:bg-slate-700 rounded-lg">Volver a agenda</button>
-          </div>
-        </div>
-      </ModalShell>
-    );
-  };
-
-  const StaffHistoryModal = () => {
-    if (!viewingStaff) return null;
-    const staffMatches = matches.filter(m => m.driverId === viewingStaff.id || m.nurseId === viewingStaff.id || m.thirdCrewId === viewingStaff.id)
-      .sort((a, b) => b.date.localeCompare(a.date));
-
-    return (
-      <ModalShell onClose={() => setViewingStaff(null)}>
-        <div className="dispatch-modal-panel bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[85vh] flex flex-col">
-          <div className="p-4 border-b flex justify-between items-center bg-slate-50 rounded-t-xl">
-            <div>
-              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                <HistoryIcon className="w-5 h-5 text-indigo-600" /> Historial: {viewingStaff.name}
-              </h3>
-            </div>
-            <button onClick={() => setViewingStaff(null)}><X className="w-6 h-6 text-slate-400" /></button>
-          </div>
-          <div className="p-0 overflow-y-auto flex-1">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-100 text-slate-600 sticky top-0">
-                <tr>
-                  <th className="p-3 text-left">Fecha</th>
-                  <th className="p-3 text-left">Lugar</th>
-                  <th className="p-3 text-left">Rol</th>
-                  <th className="p-3 text-left">Estado</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {staffMatches.length === 0 ? (
-                  <tr><td colSpan={4} className="p-6 text-center text-slate-500">Sin historial registrado.</td></tr>
-                ) : (
-                  staffMatches.map(m => (
-                    <tr key={m.id} className="hover:bg-slate-50">
-                      <td className="p-3">
-                        <div className="font-medium text-slate-800">{formatDateAR(m.date)}</div>
-                        <div className="text-xs text-slate-500">{formatTime24(m.time)} hs</div>
-                      </td>
-                      <td className="p-3">
-                        <div className="font-medium">{m.location}</div>
-                        <div className="text-xs text-slate-500">{m.type} {m.fieldNumber && `- ${m.fieldNumber}`}</div>
-                      </td>
-                      <td className="p-3">
-                        {m.driverId === viewingStaff.id ? 'Chofer' : m.nurseId === viewingStaff.id ? 'Enfermero/a' : 'Auxiliar'}
-                      </td>
-                      <td className="p-3">
-                        <span className={`px-2 py-0.5 rounded text-xs border ${m.status === 'Completed' ? 'bg-green-50 text-green-700 border-green-200' : m.status === 'Suspended' ? 'bg-gray-100 text-gray-600 border-gray-200' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>
-                          {m.status === 'Suspended' ? 'Suspendido' : m.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </ModalShell>
-    );
-  };
-
-  const AuditModal = () => {
-    // ... [No changes needed]
-    if (!isAuditModalOpen || !viewingAuditMatch) return null;
-
-    return (
-      <ModalShell onClose={() => { setIsAuditModalOpen(false); setViewingAuditMatch(null); }}>
-        <div className="dispatch-modal-panel bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[80vh] flex flex-col">
-          <div className="p-4 border-b flex justify-between items-center bg-slate-50 rounded-t-xl">
-            <h3 className="font-bold text-slate-800 flex items-center gap-2">
-              <HistoryIcon className="w-5 h-5 text-slate-500" /> Historial de Cambios
-            </h3>
-            <button onClick={() => { setIsAuditModalOpen(false); setViewingAuditMatch(null); }}>
-              <X className="w-6 h-6 text-slate-400" />
-            </button>
-          </div>
-          <div className="p-0 overflow-y-auto flex-1">
-            {(!viewingAuditMatch.auditLog || viewingAuditMatch.auditLog.length === 0) ? (
-              <div className="p-8 text-center text-slate-500">
-                No hay cambios registrados para esta cobertura.
-              </div>
-            ) : (
-              <div className="divide-y divide-slate-100">
-                {[...viewingAuditMatch.auditLog].reverse().map((log, idx) => (
-                  <div key={idx} className="p-4 hover:bg-slate-50 transition-colors">
-                    <div className="flex justify-between items-start mb-1">
-                      <span className="text-xs font-bold text-slate-400 uppercase">
-                        {new Date(log.date).toLocaleString('es-AR')}
-                      </span>
-                    </div>
-                    <p className="text-sm text-slate-700">{log.changes}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="p-4 border-t bg-slate-50 rounded-b-xl flex justify-end">
-            <button onClick={() => { setIsAuditModalOpen(false); setViewingAuditMatch(null); }} className="px-4 py-2 bg-slate-800 text-white rounded-lg text-sm">Cerrar</button>
-          </div>
-        </div>
-      </ModalShell>
-    );
-  };
-
-  // Modal de Reporte de Incidente
-  const IncidentModal = () => {
-    if (!isIncidentModalOpen || !reportingMatch) return null;
-
-    return (
-      <ModalShell onClose={() => { setIsIncidentModalOpen(false); setReportingMatch(null); }}>
-        <div className="dispatch-modal-panel bg-white rounded-xl shadow-2xl max-w-lg w-full">
-          <div className="p-4 border-b flex justify-between items-center bg-slate-50 rounded-t-xl">
-            <h3 className="font-bold text-slate-800 flex items-center gap-2">
-              <ClipboardList className="w-5 h-5 text-indigo-600" /> Reporte de Cobertura
-            </h3>
-            <button onClick={() => { setIsIncidentModalOpen(false); setReportingMatch(null); }}>
-              <X className="w-6 h-6 text-slate-400 hover:text-red-500" />
-            </button>
-          </div>
-          <div className="p-6 space-y-4">
-            <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
-              <p className="text-sm text-slate-600">
-                <strong>{reportingMatch.location}</strong> - {formatDateAR(reportingMatch.date)} {formatTime24(reportingMatch.time)} hs
-              </p>
-              <p className="text-xs text-slate-500 mt-1">{reportingMatch.type}</p>
-            </div>
-
-            <div className="space-y-3">
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={incidentForm.hasIncident}
-                  onChange={(e) => setIncidentForm(prev => ({ ...prev, hasIncident: e.target.checked }))}
-                  className="w-5 h-5 rounded border-slate-300 text-red-600 focus:ring-red-500"
-                />
-                <span className="text-sm font-medium text-slate-700">¿Hubo incidente/emergencia?</span>
-              </label>
-
-              {incidentForm.hasIncident && (
-                <label className="flex items-center gap-3 cursor-pointer ml-8">
-                  <input
-                    type="checkbox"
-                    checked={incidentForm.wasTransferred}
-                    onChange={(e) => setIncidentForm(prev => ({ ...prev, wasTransferred: e.target.checked }))}
-                    className="w-5 h-5 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
-                  />
-                  <span className="text-sm font-medium text-slate-700">¿Fue trasladado?</span>
-                </label>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Observaciones / Detalles</label>
-              <textarea
-                value={incidentForm.details}
-                onChange={(e) => setIncidentForm(prev => ({ ...prev, details: e.target.value }))}
-                className="w-full p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none h-24"
-                placeholder="Descripción del incidente, observaciones sobre la cobertura, etc..."
-              />
-            </div>
-          </div>
-          <div className="p-4 border-t bg-slate-50 rounded-b-xl flex justify-end gap-3">
-            <button
-              onClick={() => { setIsIncidentModalOpen(false); setReportingMatch(null); }}
-              className="px-4 py-2 text-slate-600 hover:text-slate-800"
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={handleSaveReport}
-              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium flex items-center gap-2"
-            >
-              <Check className="w-4 h-4" /> Completar Cobertura
-            </button>
-          </div>
-        </div>
-      </ModalShell>
-    );
-  };
-
-  const ChangePasswordModal = () => {
-    const [newPass, setNewPass] = useState('');
-    const [confirmPass, setConfirmPass] = useState('');
-    const [newUsername, setNewUsername] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [msg, setMsg] = useState('');
-    const [isError, setIsError] = useState(false);
-
-    const handleSubmit = async (e: React.FormEvent) => {
-      e.preventDefault();
-      if (newPass && newPass !== confirmPass) {
-        setMsg('Las contraseñas no coinciden');
-        setIsError(true);
-        return;
-      }
-      if (newPass && newPass.length < 6) {
-        setMsg('La contraseña debe tener al menos 6 caracteres');
-        setIsError(true);
-        return;
-      }
-      if (!newPass && !newUsername) {
-        setMsg('Ingrese al menos un dato para actualizar (Usuario o Contraseña)');
-        setIsError(true);
-        return;
-      }
-
-      setLoading(true);
-      setMsg('');
-      try {
-        await handleChangePassword(newPass, newUsername);
-        setMsg('Datos actualizados correctamente');
-        setIsError(false);
-        setTimeout(() => setIsChangePasswordOpen(false), 2000);
-      } catch (err: any) {
-        setMsg(err.message);
-        setIsError(true);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    return (
-      <ModalShell onClose={() => setIsChangePasswordOpen(false)}>
-        <div className="dispatch-modal-panel bg-white rounded-xl shadow-xl w-full max-w-sm">
-          <form onSubmit={handleSubmit} className="flex flex-col">
-            <div className="p-4 border-b flex justify-between items-center bg-slate-50 rounded-t-xl">
-              <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                <Key className="w-5 h-5 text-indigo-600" /> Perfil de Usuario
-              </h3>
-              <button type="button" onClick={() => setIsChangePasswordOpen(false)}><X className="w-5 h-5 text-slate-400" /></button>
-            </div>
-            <div className="p-4 space-y-4">
-              {msg && (
-                <div className={`p-3 rounded-lg text-sm ${isError ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
-                  {msg}
-                </div>
-              )}
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre de Usuario</label>
-                <input
-                  type="text"
-                  value={newUsername}
-                  onChange={e => setNewUsername(e.target.value)}
-                  className="w-full p-2 border rounded focus:ring-2 focus:ring-indigo-500"
-                  placeholder="Nuevo nombre de usuario"
-                />
-              </div>
-              <div className="border-t border-slate-100 my-2 pt-2">
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nueva Contraseña (Opcional)</label>
-                <input
-                  type="password"
-                  value={newPass}
-                  onChange={e => setNewPass(e.target.value)}
-                  className="w-full p-2 border rounded focus:ring-2 focus:ring-indigo-500"
-                  placeholder="Dejar vacía para no cambiar"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Confirmar Contraseña</label>
-                <input
-                  type="password"
-                  value={confirmPass}
-                  onChange={e => setConfirmPass(e.target.value)}
-                  className="w-full p-2 border rounded focus:ring-2 focus:ring-indigo-500"
-                  required
-                />
-              </div>
-            </div>
-            <div className="p-4 border-t flex justify-end gap-2">
-              <button type="button" onClick={() => setIsChangePasswordOpen(false)} className="px-4 py-2 text-slate-600">Cancelar</button>
-              <button type="submit" disabled={loading} className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50">
-                {loading ? 'Guardando...' : 'Cambiar'}
-              </button>
-            </div>
-          </form>
-        </div>
-      </ModalShell>
-    );
-  };
 
   return (
     <div className="dispatch-shell min-h-screen flex font-sans text-slate-900">
@@ -1484,49 +813,26 @@ function MainApp({ session }: { session: any }) {
       )}
 
       {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-64 dispatch-sidebar text-white transform transition-transform duration-200 ease-in-out lg:relative lg:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col dispatch-sidebar text-white transform transition-transform duration-200 ease-in-out lg:relative lg:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-6 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src="/logo.png" alt="Logo" className="h-10 w-auto object-contain bg-white rounded-lg p-1.5" />
             <h1 className="text-xl font-bold tracking-tight">Modelo Dispatch</h1>
           </div>
-          <button onClick={() => setIsMobileMenuOpen(false)} className="lg:hidden text-slate-400 hover:text-white">
+          <button onClick={() => setIsMobileMenuOpen(false)} aria-label="Cerrar menú" className="lg:hidden text-slate-400 hover:text-white">
             <X className="w-6 h-6" />
           </button>
         </div>
 
-        <nav className="p-4 space-y-1">
-          <button onClick={() => handleNav('dashboard')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'dashboard' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-            <LayoutDashboard className="w-5 h-5" /> Tablero
-          </button>
-          <button onClick={() => handleNav('matches')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'matches' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-            <ClipboardCheck className="w-5 h-5" /> Coberturas
-          </button>
-          <button onClick={() => handleNav('transfers')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'transfers' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-            <Ambulance className="w-5 h-5" /> Traslados
-          </button>
-          <button onClick={() => handleNav('history')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'history' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-            <History className="w-5 h-5" /> Historial
-          </button>
-          <button onClick={() => handleNav('clients')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'clients' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-            <Building className="w-5 h-5" /> Clientes
-          </button>
-          <button onClick={() => handleNav('business')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'business' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><ReceiptText size={20}/> Administración</button>
-          <button onClick={() => handleNav('fleet')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'fleet' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-            <Truck className="w-5 h-5" /> Flota
-          </button>
-          <button onClick={() => handleNav('staff')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'staff' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-            <Users className="w-5 h-5" /> Personal
-          </button>
-          <button onClick={() => handleNav('locations')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'locations' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-            <MapPin className="w-5 h-5" /> Lugares
-          </button>
-          <button onClick={() => handleNav('fuel')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${activeTab === 'fuel' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-            <Fuel className="w-5 h-5" /> Combustible
-          </button>
+        <nav aria-label="Secciones" className="flex-1 overflow-y-auto p-4 space-y-1">
+          {SECTIONS.map(({ id, label, icon: Icon }) => (
+            <button key={id} onClick={() => handleNav(id)} aria-current={activeTab === id ? 'page' : undefined} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${activeTab === id ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
+              <Icon className="w-5 h-5" /> {label}
+            </button>
+          ))}
         </nav>
 
-        <div className="absolute bottom-4 left-0 w-full px-4 space-y-2">
+        <div className="p-4 space-y-2 border-t border-slate-800/60">
           <button onClick={() => setIsChangePasswordOpen(true)} className="w-full flex items-center gap-2 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors text-sm">
             <Key className="w-4 h-4" /> Cambiar Contraseña
           </button>
@@ -1537,33 +843,28 @@ function MainApp({ session }: { session: any }) {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 min-w-0 overflow-auto">
+      <main className="dispatch-tabbar-offset flex-1 min-w-0 overflow-auto">
         {/* Header */}
-        <header className="bg-white/95 backdrop-blur border-b border-slate-200 sticky top-0 z-30 px-4 md:px-6 py-3 flex items-center justify-between shadow-sm">
-          <button className="lg:hidden text-slate-500" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
-            <Menu className="w-6 h-6" />
-          </button>
-          <h2 className="text-xl font-bold text-slate-800 hidden lg:block">
-            {activeTab === 'dashboard' && 'Tablero de Control'}
-            {activeTab === 'matches' && 'Agenda de Coberturas'}
-            {activeTab === 'history' && 'Historial de Servicios'}
-            {activeTab === 'fleet' && 'Gestión de Flota'}
-            {activeTab === 'staff' && 'Personal Médico y Choferes'}
-            {activeTab === 'locations' && 'Lugares y Sedes'}
-            {activeTab === 'fuel' && 'Control de Combustible'}
-            {activeTab === 'clients' && 'Gestión de Clientes'}
-            {activeTab === 'transfers' && 'Registro de Traslados'}
-            {activeTab === 'business' && 'Administración de servicios'}
-          </h2>
-          <div className="flex items-center gap-3">
+        <header className="bg-white/95 backdrop-blur border-b border-slate-200 sticky top-0 z-30 px-4 md:px-6 py-2 flex items-center justify-between gap-3 shadow-sm">
+          <h2 className="min-w-0 truncate text-lg font-bold text-slate-800 lg:text-xl">{sectionTitle(activeTab)}</h2>
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+            <button
+              onClick={() => setIsSearchOpen(true)}
+              aria-label="Buscar"
+              title="Buscar (tecla /)"
+              className="flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
+            >
+              <Search className="h-5 w-5 sm:h-4 sm:w-4" /> <span className="hidden md:inline">Buscar</span> <kbd className="hidden rounded border border-slate-200 px-1.5 text-xs text-slate-500 lg:inline">/</kbd>
+            </button>
             <button
               onClick={() => { setDailyAgendaDate(localDate()); setIsDailyAgendaOpen(true); }}
-              className="flex items-center gap-2 px-3 py-2 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 text-sm font-medium transition-colors"
+              aria-label="Agenda Diaria"
+              className="flex min-h-11 min-w-11 items-center justify-center gap-2 px-3 py-2 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 text-sm font-medium transition-colors"
             >
-              <Calendar className="w-4 h-4" /> Agenda Diaria
+              <Calendar className="w-5 h-5 sm:w-4 sm:h-4" /> <span className="hidden sm:inline">Agenda Diaria</span>
             </button>
-            <div className="h-8 w-8 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-700 font-bold border border-indigo-200">
-              A
+            <div className="hidden h-8 w-8 items-center justify-center rounded-full border border-indigo-200 bg-indigo-100 font-bold uppercase text-indigo-700 sm:flex" title={userName} aria-hidden="true">
+              {userName.charAt(0) || '·'}
             </div>
           </div>
         </header>
@@ -1589,11 +890,13 @@ function MainApp({ session }: { session: any }) {
 
           <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
 
-          {isLoadingData ? (
-            <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-              <Loader2 className="w-10 h-10 animate-spin mb-4 text-indigo-500" />
-              <p>Cargando datos desde la base de datos...</p>
-            </div>
+          {isLoadingData && hasLoadedData && (
+            <p className="fixed left-1/2 top-3 z-40 -translate-x-1/2 flex items-center gap-2 rounded-full bg-slate-900/90 px-3 py-1.5 text-xs font-semibold text-white shadow-lg" role="status">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Actualizando…
+            </p>
+          )}
+          {isLoadingData && !hasLoadedData ? (
+            <LoadingSkeleton />
           ) : (
             <div key={activeTab} className="animate-section-in space-y-6">
               {/* DASHBOARD */}
@@ -1607,20 +910,23 @@ function MainApp({ session }: { session: any }) {
                       </div>
                       <div className="flex gap-2">
                         <button onClick={() => { setEditingTransfer({ date: localDate() }); setIsTransferModalOpen(true); }} className="dispatch-secondary-action"><Truck className="h-4 w-4" /> Traslado</button>
-                        <button onClick={() => { setEditingMatch({ date: localDate() }); setIsMatchReadOnly(false); setIsMatchModalOpen(true); }} className="dispatch-primary-action"><Plus className="h-4 w-4" /> Cobertura</button>
+                        <button onClick={() => { setEditingMatch({ date: localDate() }); setIsMatchModalOpen(true); }} className="dispatch-primary-action"><Plus className="h-4 w-4" /> Cobertura</button>
                       </div>
                     </div>
   
+                    <AttentionAlerts matches={matches} ambulances={ambulances} staff={staff}
+                      onAgenda={showTodayCoverage} onFleet={() => handleNav('fleet')} onStaff={() => handleNav('staff')} />
+
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-3 mb-4">
                       <div onClick={() => { setDailyAgendaDate(localDate()); setIsDailyAgendaOpen(true); }} className="bg-white p-3 rounded-xl shadow-sm border border-slate-100 flex items-center gap-3 cursor-pointer hover:bg-slate-50 hover:border-blue-200 transition-colors active:scale-95 touch-manipulation">
                         <div className="p-2 bg-blue-50 text-blue-600 rounded-lg shrink-0">
                           <ClipboardCheck className="w-5 h-5" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-xs text-slate-500 font-medium truncate">Pendientes</p>
+                          <p className="text-xs text-slate-500 font-medium truncate">Pendientes hoy</p>
                           <div className="flex flex-col md:flex-row md:items-baseline md:gap-2">
-                            <p className="text-lg md:text-xl font-bold text-slate-800 leading-none mt-0.5">{agendaServices.filter(service => !service.closed && service.date >= localDate()).length}</p>
-                            <span className="text-[10px] text-slate-400 font-medium truncate mt-0.5">Hoy: {servicesForDay(agendaServices, localDate()).length}</span>
+                            <p className="text-lg md:text-xl font-bold text-slate-800 leading-none mt-0.5">{agendaServices.filter(service => !service.closed && service.date === localDate()).length}</p>
+                            <span className="text-xs text-slate-500 font-medium truncate mt-0.5">{agendaServices.filter(service => !service.closed && service.date > localDate()).length} más adelante</span>
                           </div>
                         </div>
                       </div>
@@ -1633,7 +939,7 @@ function MainApp({ session }: { session: any }) {
                           <p className="text-xs text-slate-500 font-medium truncate">Personal</p>
                           <div className="flex flex-col md:flex-row md:items-baseline md:gap-2">
                             <p className="text-lg md:text-xl font-bold text-slate-800 leading-none mt-0.5">{staff.length}</p>
-                            <span className="text-[10px] text-slate-400 font-medium truncate mt-0.5 flex items-center gap-1.5">
+                            <span className="text-xs text-slate-500 font-medium truncate mt-0.5 flex items-center gap-1.5">
                               <span className="flex items-center gap-0.5" title="Choferes"><Car className="w-3 h-3" /> {staff.filter(s => s.role === 'Chofer').length}</span>
                               <span className="flex items-center gap-0.5" title="Enfermeros"><Stethoscope className="w-3 h-3" /> {staff.filter(s => s.role === 'Enfermero/a').length}</span>
                             </span>
@@ -1649,20 +955,20 @@ function MainApp({ session }: { session: any }) {
                           <p className="text-xs text-slate-500 font-medium truncate">Móviles</p>
                           <div className="flex flex-col md:flex-row md:items-baseline md:gap-2">
                             <p className="text-lg md:text-xl font-bold text-slate-800 leading-none mt-0.5">{ambulances.length}</p>
-                            <span className="text-[10px] text-slate-400 font-medium truncate mt-0.5">{ambulances.filter(a => a.maintenance?.status === 'Active').length} activos</span>
+                            <span className="text-xs text-slate-500 font-medium truncate mt-0.5">{(n => `${n} ${n === 1 ? 'operativo' : 'operativos'}`)(ambulances.filter(a => a.maintenance?.status === 'Active').length)}</span>
                           </div>
                         </div>
                       </div>
 
                       <div onClick={() => { setDailyAgendaDate(localDate()); setIsDailyAgendaOpen(true); }} className="bg-white p-3 rounded-xl shadow-sm border border-slate-100 flex items-center gap-3 cursor-pointer hover:bg-slate-50 hover:border-amber-200 transition-colors active:scale-95 touch-manipulation">
-                        <div className={`p-2 rounded-lg shrink-0 ${superpositionCount > 0 ? 'bg-amber-50 text-amber-600' : 'bg-slate-50 text-slate-400'}`}>
+                        <div className={`p-2 rounded-lg shrink-0 ${superpositionCount > 0 ? 'bg-amber-50 text-amber-600' : 'bg-slate-50 text-slate-500'}`}>
                           <AlertTriangle className="w-5 h-5" />
                         </div>
                         <div className="min-w-0">
                           <p className="text-xs text-slate-500 font-medium truncate">Conflictos</p>
                           <div className="flex flex-col md:flex-row md:items-baseline md:gap-2">
                             <p className={`text-lg md:text-xl font-bold leading-none mt-0.5 ${superpositionCount > 0 ? 'text-amber-600' : 'text-slate-800'}`}>{superpositionCount}</p>
-                            <span className={`text-[10px] font-medium truncate mt-0.5 ${superpositionCount > 0 ? 'text-amber-500' : 'text-slate-400'}`}>{superpositionCount > 0 ? 'Revisar agenda' : 'Sin cruces detectados'}</span>
+                            <span className={`text-xs font-medium truncate mt-0.5 ${superpositionCount > 0 ? 'text-amber-500' : 'text-slate-500'}`}>{superpositionCount > 0 ? 'Revisar agenda' : 'Sin cruces detectados'}</span>
                           </div>
                         </div>
                       </div>
@@ -1685,9 +991,7 @@ function MainApp({ session }: { session: any }) {
                         onAmbulanceClick={(amb) => setViewingAmbulance(amb)}
                       />
                     </div>
-                    <OperationsInsights matches={matches} transfers={transfers} fuelRecords={fuelRecords} ambulances={ambulances}
-                      onAgenda={() => { setFilters({ ...filters, startDate: localDate(), endDate: localDate(), status: 'all', location: '', ambulance: '', outsourced: 'all', clientId: '', staffId: '' }); handleNav('matches'); }}
-                      onFleet={() => handleNav('fleet')} />
+                    <OperationsInsights matches={matches} transfers={transfers} fuelRecords={fuelRecords} />
                   </>
                 )}
 
@@ -1769,6 +1073,13 @@ function MainApp({ session }: { session: any }) {
                     )}
                   </div>
 
+                  {filteredMatches.length === 0 && (() => {
+                    const filtered = Object.entries(filters).some(([key, value]) => key === 'status' || key === 'outsourced' ? value !== 'all' : Boolean(value));
+                    const clear = <button onClick={() => setFilters({ location: '', ambulance: '', outsourced: 'all', startDate: '', endDate: '', clientId: '', staffId: '', status: 'all' })} className="dispatch-secondary-action">Limpiar filtros</button>;
+                    return activeTab === 'history'
+                      ? <EmptyState icon={HistoryIcon} title={filtered ? 'Ningún servicio cerrado coincide con los filtros' : 'Todavía no hay servicios cerrados'} detail="Acá aparecen las coberturas completadas o suspendidas." action={filtered ? clear : undefined} />
+                      : <EmptyState icon={Calendar} title={filtered ? 'Ninguna cobertura coincide con los filtros' : 'No hay coberturas próximas'} action={filtered ? clear : <button onClick={() => { setEditingMatch({ date: localDate() }); setIsMatchModalOpen(true); }} className="dispatch-primary-action"><Plus className="h-4 w-4" /> Cargar la primera</button>} />;
+                  })()}
                   <div className="space-y-4">
                     {filteredMatches.map((match, index) => {
                       // ... [Mapping of Match Card remains the same]
@@ -1778,7 +1089,7 @@ function MainApp({ session }: { session: any }) {
                       const third = staff.find(s => s.id === match.thirdCrewId);
                       const client = clients.find(c => c.id === match.clientId);
 
-                      const { hard: conflicts, shared: sharedConflicts } = activeTab === 'matches' ? getConflicts(match, matches) : { hard: [], shared: [] };
+                      const { hard: conflicts, shared: sharedConflicts } = (activeTab === 'matches' && coverageConflicts.get(match.id)) || { hard: [], shared: [] };
                       const isConflicted = conflicts.length > 0;
                       const isShared = sharedConflicts.length > 0;
                       const endTime = calculateEndTime(match.time, match.durationMinutes, match.extensionMinutes);
@@ -1801,12 +1112,12 @@ function MainApp({ session }: { session: any }) {
                             <div className="flex flex-col md:flex-row">
                               <div className="md:w-32 bg-slate-50 p-4 flex flex-row md:flex-col items-center md:justify-center justify-between border-b md:border-b-0 md:border-r border-slate-100 gap-2">
                                 <div className="text-center">
-                                  <span className={`block text-2xl font-bold ${isSuspended ? 'text-slate-400 line-through' : 'text-slate-800'}`}>{formatDateAR(match.date).split('/')[0]}</span>
-                                  <span className="block text-xs uppercase font-bold text-slate-500">{new Date(match.date).toLocaleString('es-AR', { month: 'short' })}</span>
+                                  <span className={`block text-2xl font-bold ${isSuspended ? 'text-slate-500 line-through' : 'text-slate-800'}`}>{formatDateAR(match.date).split('/')[0]}</span>
+                                  <span className="block text-xs uppercase font-bold text-slate-500">{new Date(`${match.date}T12:00:00`).toLocaleString('es-AR', { month: 'short' })}</span>
                                 </div>
                                 <div className="text-center md:mt-2">
-                                  <span className={`block text-xl font-bold ${isSuspended ? 'text-slate-400' : isConflicted ? 'text-red-600' : 'text-slate-800'}`}>{formatTime24(match.time)}</span>
-                                  {!isSuspended && <span className="text-xs text-slate-400 block mt-1">fin ~{formatTime24(endTime)} {match.extensionMinutes ? `(+${match.extensionMinutes}m)` : ''}</span>}
+                                  <span className={`block text-xl font-bold ${isSuspended ? 'text-slate-500' : isConflicted ? 'text-red-600' : 'text-slate-800'}`}>{formatTime24(match.time)}</span>
+                                  {!isSuspended && <span className="text-xs text-slate-500 block mt-1">fin ~{formatTime24(endTime)} {match.extensionMinutes ? `(+${match.extensionMinutes}m)` : ''}</span>}
                                 </div>
                               </div>
 
@@ -1817,13 +1128,9 @@ function MainApp({ session }: { session: any }) {
                                       {match.location}
                                       <span className="font-normal text-slate-500 text-base">{match.fieldNumber ? `- ${match.fieldNumber}` : ''}</span>
                                     </h3>
-                                    <div className="flex items-center gap-2 mt-1">
+                                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                                      <StatusChip tone={(MATCH_STATUS[match.status] ?? MATCH_STATUS.Pending).tone} className="!py-0.5">{(MATCH_STATUS[match.status] ?? MATCH_STATUS.Pending).label}</StatusChip>
                                       <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-xs font-medium border border-slate-200">{match.type}</span>
-                                      {isSuspended && (
-                                        <span className="px-2 py-0.5 rounded-md bg-slate-200 text-slate-600 text-xs font-bold border border-slate-300 flex items-center gap-1">
-                                          <Ban className="w-3 h-3" /> SUSPENDIDO
-                                        </span>
-                                      )}
                                       {!isSuspended && match.type !== 'Evento' && match.type !== 'Partido de Fútbol' && match.chukkers !== undefined && (
                                         <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-600 text-xs font-medium border border-blue-100">{match.chukkers} Chukkers</span>
                                       )}
@@ -1848,7 +1155,7 @@ function MainApp({ session }: { session: any }) {
                                         <AlertTriangle className="w-3 h-3" /> Superposición
                                       </span>
                                       {conflicts.slice(0, 2).map((c, idx) => (
-                                        <span key={idx} className="text-[10px] text-red-600 mt-1 max-w-[200px] text-right truncate font-medium">
+                                        <span key={idx} className="text-xs text-red-600 mt-1 max-w-[200px] text-right truncate font-medium">
                                           {c.resources.join(', ')} en {c.match.location} ({formatTime24(c.match.time)})
                                         </span>
                                       ))}
@@ -1860,7 +1167,7 @@ function MainApp({ session }: { session: any }) {
                                         <AlertOctagon className="w-3 h-3" /> Misma Sede / Distinta Cancha
                                       </span>
                                       {sharedConflicts.slice(0, 2).map((c, idx) => (
-                                        <span key={idx} className="text-[10px] text-orange-600 mt-1 max-w-[200px] text-right truncate font-medium">
+                                        <span key={idx} className="text-xs text-orange-600 mt-1 max-w-[200px] text-right truncate font-medium">
                                           {c.resources.join(', ')} comparte con {c.match.fieldNumber || 'otra cancha'}
                                         </span>
                                       ))}
@@ -1875,13 +1182,13 @@ function MainApp({ session }: { session: any }) {
                                 ) : (
                                   <div className="flex flex-col sm:flex-row gap-4 text-sm text-slate-600">
                                     <div className="flex items-center gap-2 min-w-[140px]">
-                                      {getAmbulanceIcon(amb?.vehicleType, "w-4 h-4 text-slate-400")}
+                                      {getAmbulanceIcon(amb?.vehicleType, "w-4 h-4 text-slate-500")}
                                       <span className={amb ? '' : 'text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200 text-xs inline-flex items-center gap-1'}>
                                         {amb ? `Móvil ${amb.number} ${amb.isOutsourced ? `(${amb.plate || 'Ext'})` : ''}` : 'Falta Móvil'}
                                       </span>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                      <Users className="w-4 h-4 text-slate-400" />
+                                      <Users className="w-4 h-4 text-slate-500" />
                                       <div className="flex gap-2 items-center">
                                         {match.isSingleCrew ? (
                                           <span className="text-indigo-600 font-medium bg-indigo-50 px-2 rounded-full text-xs flex items-center">
@@ -1928,7 +1235,7 @@ function MainApp({ session }: { session: any }) {
                                   <div className="pt-2 border-t border-slate-100 text-xs text-slate-500 flex flex-col gap-1">
                                     {(match.clientId || match.hiredBy) && (
                                       <div className="flex items-center gap-2">
-                                        <Briefcase className="w-3 h-3 text-slate-400" />
+                                        <Briefcase className="w-3 h-3 text-slate-500" />
                                         <span>Cliente: <strong className="text-slate-700">{client?.name || match.hiredBy}</strong></span>
                                         {(client?.contactPhone || match.hiredContact) && (
                                           <a href={`https://wa.me/${(client?.contactPhone || match.hiredContact || '').replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer" className="ml-2 bg-green-100 text-green-700 p-1 rounded hover:bg-green-200 transition-colors" title="Contactar">
@@ -1939,7 +1246,7 @@ function MainApp({ session }: { session: any }) {
                                     )}
                                     {match.incidentReport?.details && (
                                       <div className="text-slate-600 italic mt-1 bg-slate-50 p-2 rounded border border-slate-200">
-                                        <FileText className="w-3 h-3 inline mr-1 text-slate-400" />
+                                        <FileText className="w-3 h-3 inline mr-1 text-slate-500" />
                                         {match.incidentReport.details}
                                       </div>
                                     )}
@@ -1947,33 +1254,38 @@ function MainApp({ session }: { session: any }) {
                                 )}
                               </div>
 
-                              <div className="p-4 flex md:flex-col gap-2 items-center justify-center border-t md:border-t-0 md:border-l border-slate-100 bg-slate-50 md:bg-white min-w-[60px]">
+                              <div className="p-3 flex md:flex-col gap-2 items-stretch justify-end border-t md:border-t-0 md:border-l border-slate-100 bg-slate-50 md:bg-white md:w-36">
                                 {activeTab === 'matches' && (
                                   <>
-                                    {!isSuspended && (
-                                      <button onClick={(e) => { e.stopPropagation(); setReportingMatch(match); setIncidentForm(match.incidentReport || { hasIncident: false, wasTransferred: false, details: '' }); setIsIncidentModalOpen(true); }} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Reportar Incidente / Cerrar">
-                                        <ClipboardList className="w-5 h-5" />
+                                    {match.status === 'Pending' && (
+                                      <button onClick={(e) => { e.stopPropagation(); confirmMatch(match); }} className="flex min-h-11 flex-1 md:flex-none items-center justify-center gap-1.5 rounded-lg bg-sky-600 px-3 text-sm font-semibold text-white hover:bg-sky-700">
+                                        <Check className="h-4 w-4" /> Confirmar
                                       </button>
                                     )}
-                                    <button onClick={(e) => { e.stopPropagation(); setEditingMatch(match); setIsMatchModalOpen(true); }} className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors" title="Editar">
-                                      <Edit2 className="w-5 h-5" />
+                                    {!isSuspended && (
+                                      <button onClick={(e) => { e.stopPropagation(); setReportingMatch(match); }} className="flex min-h-11 flex-1 md:flex-none items-center justify-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-sm font-semibold text-emerald-800 hover:bg-emerald-100" title="Cerrar la cobertura con su reporte">
+                                        <ClipboardList className="h-4 w-4" /> Finalizar
+                                      </button>
+                                    )}
+                                    <button onClick={(e) => { e.stopPropagation(); setEditingMatch(match); setIsMatchModalOpen(true); }} className="flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-lg text-slate-600 hover:bg-slate-100" aria-label="Editar cobertura" title="Editar">
+                                      <Edit2 className="h-4 w-4" /><span className="hidden md:inline text-sm">Editar</span>
                                     </button>
                                   </>
                                 )}
                                 {activeTab === 'history' && (
                                   <>
                                     {match.auditLog && match.auditLog.length > 0 && (
-                                      <button onClick={(e) => { e.stopPropagation(); setViewingAuditMatch(match); setIsAuditModalOpen(true); }} className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors" title="Ver Historial de Cambios">
+                                      <button onClick={(e) => { e.stopPropagation(); setViewingAuditMatch(match); }} className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors" title="Ver Historial de Cambios">
                                         <HistoryIcon className="w-5 h-5" />
                                       </button>
                                     )}
-                                    <button onClick={(e) => { e.stopPropagation(); setEditingMatch(match); setIsMatchModalOpen(true); }} className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg transition-colors" title="Ver Detalles / Editar">
+                                    <button onClick={(e) => { e.stopPropagation(); setEditingMatch(match); setIsMatchModalOpen(true); }} className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors" title="Ver Detalles / Editar">
                                       <Edit2 className="w-5 h-5" />
                                     </button>
                                   </>
                                 )}
-                                <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteMatch(match.id); }} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Eliminar Cobertura">
-                                  <Trash2 className="w-5 h-5" />
+                                <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteMatch(match.id); }} className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-red-500 hover:bg-red-50" aria-label="Eliminar cobertura" title="Eliminar">
+                                  <Trash2 className="h-4 w-4" />
                                 </button>
                               </div>
                             </div>
@@ -1992,14 +1304,15 @@ function MainApp({ session }: { session: any }) {
                   <SectionHeader eyebrow="Recursos móviles" title="Flota de ambulancias" description="Estado operativo, mantenimiento y datos clave de cada unidad." icon={Truck} actions={
                     <button onClick={() => {
                       setEditingAmbulance(null);
-                      setAmbFormShowOutsourced(false);
-                      setAmbFormShowWorkshop(false);
                       setIsAmbulanceModalOpen(true);
                     }} className="dispatch-primary-action"><Plus className="h-4 w-4" /> Agregar móvil</button>
                   } />
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {ambulances.map(amb => (
-                      <div key={amb.id} className="dispatch-card p-4 relative overflow-hidden group border-t-4 border-t-indigo-400">
+                  {ambulances.length === 0 && <EmptyState icon={Truck} title="Todavía no hay móviles cargados" />}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {ambulances.map(amb => {
+                      const vtv = licenseStatus(amb.maintenance?.vtvExpiration, localDate());
+                      return (
+                      <div key={amb.id} className="dispatch-card p-3 relative overflow-hidden group border-t-4 border-t-indigo-400">
                         <div className="flex justify-between items-start mb-2">
                           <div className="bg-indigo-50 p-2 rounded-lg text-indigo-600">{getAmbulanceIcon(amb.vehicleType, "w-8 h-8")}</div>
                           <span className={`px-2 py-1 rounded text-xs font-bold border ${amb.maintenance?.status === 'Active' ? 'bg-green-50 text-green-700 border-green-200' : amb.maintenance?.status === 'InRepair' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
@@ -2007,12 +1320,13 @@ function MainApp({ session }: { session: any }) {
                           </span>
                         </div>
                         <h4 className="text-xl font-bold text-slate-800">Móvil {amb.number}</h4>
-                        <p className="text-sm text-slate-500 font-medium mb-3">{amb.vehicleType || 'Vehículo'} {amb.year ? `(${amb.year})` : ''}</p>
-                        <button onClick={() => setViewingAmbulance(amb)} className="dispatch-secondary-action mt-4 w-full">
+                        <p className="text-sm text-slate-500 font-medium">{amb.vehicleType || 'Vehículo'} {amb.year ? `(${amb.year})` : ''}{amb.plate ? ` · ${amb.plate}` : ''}</p>
+                        {!amb.isOutsourced && <p className={`mt-2 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-semibold ${vtv.state === 'expired' ? 'bg-rose-50 text-rose-700' : vtv.state === 'soon' ? 'bg-amber-50 text-amber-800' : vtv.state === 'ok' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}><ClipboardCheck className="h-3.5 w-3.5" /> {vtv.state === 'ok' ? `VTV hasta ${formatDateFull(amb.maintenance?.vtvExpiration)}` : expiryLabel(vtv, 'VTV')}</p>}
+                        <button onClick={() => setViewingAmbulance(amb)} className="dispatch-secondary-action mt-3 w-full">
                           Ver detalles <ArrowRight className="h-4 w-4" />
                         </button>
                       </div>
-                    ))}
+                    ); })}
                   </div>
                 </div>
               )}
@@ -2023,18 +1337,47 @@ function MainApp({ session }: { session: any }) {
                   <SectionHeader eyebrow="Equipo" title="Personal" description="Choferes, enfermería y profesionales disponibles para asignar." icon={Users} actions={
                     <button onClick={() => { setEditingStaff(null); setIsStaffModalOpen(true); }} className="dispatch-primary-action"><UserPlus className="h-4 w-4" /> Agregar personal</button>
                   } />
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {staff.map(s => (
-                      <div key={s.id} onClick={() => setViewingStaff(s)} className="dispatch-card p-4 flex items-center gap-4 cursor-pointer relative group">
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-sm ${s.role === 'Chofer' ? 'bg-slate-600' : s.role === 'Médico/a' ? 'bg-teal-500' : 'bg-indigo-500'}`}>{s.name.charAt(0)}</div>
-                        <div>
-                          <h4 className="font-bold text-slate-800">{s.name}</h4>
-                          <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">{s.role} {s.isOutsourced ? '(Ext)' : ''}</p>
-                          <p className="text-sm text-slate-600 flex items-center gap-1 mt-1"><Phone className="w-3 h-3" /> {s.phone}</p>
+                  {(() => {
+                    const alerts = licenseAlerts(staff, localDate());
+                    const count = alerts.expired.length + alerts.soon.length;
+                    return (alerts.expired.length > 0 || alerts.soon.length > 0 || alerts.missing.length > 0) && (
+                      <div className="dispatch-card p-3 space-y-2" role="region" aria-label="Control de licencias">
+                        <div className="flex flex-wrap items-center gap-2 text-sm">
+                          <IdCard className="h-4 w-4 text-slate-500" />
+                          <span className="font-semibold text-slate-800">Licencias de conducir</span>
+                          {alerts.expired.length > 0 && <span className="rounded-full bg-rose-100 px-2 py-0.5 text-xs font-bold text-rose-700">{alerts.expired.length} {alerts.expired.length === 1 ? 'vencida' : 'vencidas'}</span>}
+                          {alerts.soon.length > 0 && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">{alerts.soon.length} por vencer</span>}
+                          {alerts.missing.length > 0 && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">{alerts.missing.length} sin fecha</span>}
                         </div>
-                        <button aria-label={`Editar ${s.name}`} onClick={(e) => { e.stopPropagation(); setEditingStaff(s); setIsStaffModalOpen(true); }} className="absolute top-2 right-2 p-2 text-slate-400 hover:text-indigo-600 transition-opacity"><Edit2 className="w-4 h-4" /></button>
+                        {count > 0 && <ul className="divide-y divide-slate-100 text-sm">
+                          {[...alerts.expired, ...alerts.soon].map(({ person, status }) => (
+                            <li key={person.id}>
+                              <button onClick={() => { setEditingStaff(person); setIsStaffModalOpen(true); }} className="flex min-h-11 w-full items-center justify-between gap-3 py-1.5 text-left">
+                                <span className="font-medium text-slate-800">{person.name}</span>
+                                <span className={`text-xs font-semibold ${status.state === 'expired' ? 'text-rose-700' : 'text-amber-700'}`}>{licenseLabel(status)} · {formatDateFull(person.licenseExpiration)}</span>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>}
                       </div>
-                    ))}
+                    );
+                  })()}
+                  {staff.length === 0 && <EmptyState icon={Users} title="Todavía no hay personal cargado" detail="Cargá choferes y enfermería para poder asignarlos a los servicios." action={<button onClick={() => { setEditingStaff(null); setIsStaffModalOpen(true); }} className="dispatch-primary-action"><UserPlus className="h-4 w-4" /> Agregar personal</button>} />}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {staff.map(s => {
+                      const license = needsLicense(s) ? licenseStatus(s.licenseExpiration, localDate()) : null;
+                      return (
+                      <div key={s.id} onClick={() => setViewingStaff(s)} className="dispatch-card p-3 flex items-center gap-3 cursor-pointer relative group">
+                        <div className={`w-11 h-11 shrink-0 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-sm ${s.role === 'Chofer' ? 'bg-slate-600' : s.role === 'Médico/a' ? 'bg-teal-500' : 'bg-indigo-500'}`}>{s.name.charAt(0)}</div>
+                        <div className="min-w-0 flex-1 pr-9">
+                          <h4 className="font-bold text-slate-800 truncate">{s.name}</h4>
+                          <p className="text-xs text-slate-500 font-medium">{s.role}{s.isOutsourced ? ` · Externo${s.companyName ? ` (${s.companyName})` : ''}` : ''}</p>
+                          {s.phone && <a href={`tel:${s.phone.replace(/[^0-9+]/g, '')}`} onClick={e => e.stopPropagation()} className="text-sm text-slate-600 inline-flex items-center gap-1 mt-0.5 hover:text-indigo-700"><Phone className="w-3.5 h-3.5" /> {s.phone}</a>}
+                          {license && <p className={`mt-1 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-semibold ${license.state === 'expired' ? 'bg-rose-50 text-rose-700' : license.state === 'soon' ? 'bg-amber-50 text-amber-800' : license.state === 'ok' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}><IdCard className="h-3.5 w-3.5" /> {license.state === 'ok' ? `Licencia hasta ${formatDateFull(s.licenseExpiration)}` : licenseLabel(license)}</p>}
+                        </div>
+                        <button aria-label={`Editar ${s.name}`} onClick={(e) => { e.stopPropagation(); setEditingStaff(s); setIsStaffModalOpen(true); }} className="absolute top-1.5 right-1.5 flex h-11 w-11 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-indigo-600"><Edit2 className="w-4 h-4" /></button>
+                      </div>
+                    ); })}
                   </div>
                 </div>
               )}
@@ -2043,6 +1386,7 @@ function MainApp({ session }: { session: any }) {
                   <SectionHeader eyebrow="Cobertura territorial" title="Lugares y sedes" description="Accedé rápido a los puntos habituales y sus contactos operativos." icon={MapPin} actions={
                     <button onClick={() => { setEditingLocation(null); setIsLocationModalOpen(true); }} className="dispatch-primary-action"><Plus className="h-4 w-4" /> Agregar lugar</button>
                   } />
+                  {locations.length === 0 && <EmptyState icon={MapPin} title="Todavía no hay lugares cargados" action={<button onClick={() => { setEditingLocation(null); setIsLocationModalOpen(true); }} className="dispatch-primary-action"><Plus className="h-4 w-4" /> Agregar lugar</button>} />}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {locations.map(l => (
                       <div key={l.id} onClick={() => setViewingLocation(l)} className="dispatch-card cursor-pointer p-4">
@@ -2058,6 +1402,7 @@ function MainApp({ session }: { session: any }) {
                   <SectionHeader eyebrow="Relaciones" title="Clientes" description="Datos de contacto y responsables de cada organización." icon={Building} actions={
                     <button onClick={() => { setEditingClient(null); setIsClientModalOpen(true); }} className="dispatch-primary-action"><Plus className="h-4 w-4" /> Agregar cliente</button>
                   } />
+                  {clients.length === 0 && <EmptyState icon={Building} title="Todavía no hay clientes cargados" action={<button onClick={() => { setEditingClient(null); setIsClientModalOpen(true); }} className="dispatch-primary-action"><Plus className="h-4 w-4" /> Agregar cliente</button>} />}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {clients.map(c => (
                       <div key={c.id} onClick={() => setViewingClient(viewingClient?.id === c.id ? null : c)} className="dispatch-card p-4 cursor-pointer group relative">
@@ -2067,9 +1412,9 @@ function MainApp({ session }: { session: any }) {
                         </div>
                         {viewingClient?.id === c.id && (c.contactName || c.contactPhone || c.email) && (
                           <div className="mt-3 pt-3 border-t border-slate-100 text-sm text-slate-600 space-y-1" onClick={e => e.stopPropagation()}>
-                            {c.contactName && <p className="flex items-center gap-2"><User className="w-4 h-4 text-slate-400" /> {c.contactName}</p>}
-                            {c.contactPhone && <p className="flex items-center gap-2"><Phone className="w-4 h-4 text-slate-400" /> {c.contactPhone}</p>}
-                            {c.email && <p className="flex items-center gap-2"><Mail className="w-4 h-4 text-slate-400" /> {c.email}</p>}
+                            {c.contactName && <p className="flex items-center gap-2"><User className="w-4 h-4 text-slate-500" /> {c.contactName}</p>}
+                            {c.contactPhone && <p className="flex items-center gap-2"><Phone className="w-4 h-4 text-slate-500" /> {c.contactPhone}</p>}
+                            {c.email && <p className="flex items-center gap-2"><Mail className="w-4 h-4 text-slate-500" /> {c.email}</p>}
                             {c.contactPhone && (
                               <div className="flex items-center gap-2 mt-3 pt-2">
                                 <a href={`tel:${c.contactPhone.replace(/[^0-9+]/g, '')}`} className="flex-1 flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 py-1.5 rounded-lg font-medium transition-colors border border-slate-200">
@@ -2090,57 +1435,9 @@ function MainApp({ session }: { session: any }) {
               {activeTab === 'fuel' && (
                 <div className="space-y-4">
                   <SectionHeader eyebrow="Consumo" title="Combustible y compras" description="Registrá cargas y compras de estación de forma rápida." icon={Fuel} actions={
-                    <button onClick={() => setIsBatchFuelModalOpen(true)} className="dispatch-primary-action"><ListPlus className="h-4 w-4" /> Nueva carga</button>
+                    <button onClick={() => { setEditingFuel(null); setIsBatchFuelModalOpen(true); }} className="dispatch-primary-action"><ListPlus className="h-4 w-4" /> Nueva carga</button>
                   } />
-                  <div className="space-y-2 sm:hidden">
-                    {[...fuelRecords].reverse().map(rec => {
-                      const amb = ambulances.find(a => a.id === rec.ambulanceId);
-                      const drv = staff.find(s => s.id === rec.driverId);
-                      return (
-                        <article key={rec.id} className="dispatch-card p-3">
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="text-xs font-semibold text-slate-400">{formatDateAR(rec.date)}</p>
-                              <h3 className="font-bold text-slate-900">Móvil {amb?.number || '--'}</h3>
-                              <p className="mt-0.5 text-sm text-slate-600">{drv?.name || rec.externalDriverName || 'Chofer sin indicar'}</p>
-                            </div>
-                            {rec.liters > 0 ? <span className="shrink-0 rounded-lg bg-cyan-50 px-2 py-1 font-mono text-sm font-semibold text-cyan-700">{rec.liters.toFixed(2)} L</span> : <span className="shrink-0 rounded-lg bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700">Compra</span>}
-                          </div>
-                          {rec.items && <p className="mt-2 flex items-center gap-2 rounded-lg bg-slate-50 px-2.5 py-2 text-sm text-slate-700"><ReceiptText className="h-4 w-4 shrink-0 text-slate-400" /> {rec.items}</p>}
-                        </article>
-                      );
-                    })}
-                    {fuelRecords.length === 0 && <div className="dispatch-card p-10 text-center text-sm text-slate-500"><Droplet className="mx-auto mb-2 h-7 w-7 text-slate-300" />No hay movimientos registrados.</div>}
-                  </div>
-                  <div className="dispatch-table-wrap hidden sm:block">
-                    <table className="dispatch-table">
-                      <thead>
-                        <tr>
-                          <th>Fecha</th>
-                          <th>Móvil</th>
-                          <th>Chofer</th>
-                          <th>Litros</th>
-                          <th>Compra</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {[...fuelRecords].reverse().map(rec => {
-                          const amb = ambulances.find(a => a.id === rec.ambulanceId);
-                          const drv = staff.find(s => s.id === rec.driverId);
-                          return (
-                            <tr key={rec.id} className="hover:bg-slate-50">
-                              <td>{formatDateAR(rec.date)}</td>
-                              <td className="font-semibold text-slate-800">Móvil {amb?.number || '--'}</td>
-                              <td>{drv?.name || rec.externalDriverName || '--'}</td>
-                              <td>{rec.liters > 0 ? <span className="rounded-lg bg-cyan-50 px-2 py-1 font-mono font-semibold text-cyan-700">{rec.liters.toFixed(2)} L</span> : '—'}</td>
-                              <td>{rec.items || '—'}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                    {fuelRecords.length === 0 && <div className="p-10 text-center text-sm text-slate-500"><Droplet className="mx-auto mb-2 h-7 w-7 text-slate-300" />No hay movimientos registrados.</div>}
-                  </div>
+                  <FuelList records={fuelRecords} staff={staff} ambulances={ambulances} onEdit={rec => { setEditingFuel(rec); setIsBatchFuelModalOpen(true); }} />
                 </div>
               )}
               {activeTab === 'transfers' && (
@@ -2148,56 +1445,13 @@ function MainApp({ session }: { session: any }) {
                   <SectionHeader eyebrow="Movimientos" title="Registro de traslados" description="Seguimiento de pacientes, recorridos y estado de cada traslado." icon={Ambulance} actions={
                     <button onClick={() => { setEditingTransfer(null); setIsTransferModalOpen(true); }} className="dispatch-primary-action"><Plus className="w-4 h-4"/> Nuevo traslado</button>
                   } />
-                  <div className="dispatch-table-wrap">
-                    <table className="dispatch-table min-w-[900px]">
-                      <thead>
-                        <tr>
-                          <th>Fecha</th>
-                          <th>Paciente</th>
-                          <th>Origen</th>
-                          <th>Destino</th>
-                          <th>Chofer</th>
-                          <th>Estado</th>
-                          <th className="text-center">Acción</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {transfers.map(tr => {
-                          const drv = staff.find(s => s.id === tr.driver_id);
-                          return (
-                            <tr key={tr.id} className="hover:bg-slate-50 transition-colors">
-                              <td>{formatDateAR(tr.date)}</td>
-                              <td className="font-semibold text-slate-800">{tr.patient_name || '--'}</td>
-                              <td className="text-slate-600">{tr.origin || '--'}</td>
-                              <td className="text-slate-600">{tr.destination || '--'}</td>
-                              <td>{drv?.name || '--'}</td>
-                              <td>
-                                <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                                  tr.status === 'Completed' ? 'bg-emerald-100 text-emerald-700' :
-                                  tr.status === 'Cancelled' ? 'bg-red-100 text-red-700' :
-                                  'bg-amber-100 text-amber-700'
-                                }`}>
-                                  {tr.status === 'Completed' ? 'Completado' : tr.status === 'Cancelled' ? 'Cancelado' : 'Pendiente'}
-                                </span>
-                              </td>
-                              <td className="text-center">
-                                <button onClick={() => { setEditingTransfer(tr); setIsTransferModalOpen(true); }} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Editar">
-                                  <Edit2 className="w-4 h-4" />
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                        {transfers.length === 0 && (
-                          <tr>
-                            <td colSpan={7} className="p-8 text-center text-slate-400">
-                              No hay traslados registrados.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+                  <TransfersList
+                    transfers={transfers}
+                    staff={staff}
+                    ambulances={ambulances}
+                    onEdit={transfer => { setEditingTransfer(transfer); setIsTransferModalOpen(true); }}
+                    onComplete={completeTransfer}
+                  />
                 </div>
               )}
             </div>
@@ -2205,6 +1459,13 @@ function MainApp({ session }: { session: any }) {
 
         </div>
       </main>
+
+      <MobileTabBar
+        active={activeTab}
+        menuOpen={isMobileMenuOpen}
+        onNavigate={handleNav}
+        onMore={() => setIsMobileMenuOpen(open => !open)}
+      />
 
       {/* Modals */}
       <TransferModal
@@ -2230,9 +1491,13 @@ function MainApp({ session }: { session: any }) {
       />
 
 
-      {isAuditModalOpen && <AuditModal />}
-      {isIncidentModalOpen && <IncidentModal />}
-      {isStaffScheduleOpen && <DailyAgendaModal />}
+      <AuditModal isOpen={!!viewingAuditMatch} match={viewingAuditMatch} onClose={() => setViewingAuditMatch(null)} />
+      {reportingMatch && <IncidentModal match={reportingMatch} onClose={() => setReportingMatch(null)} onSave={handleSaveReport} />}
+      {isStaffScheduleOpen && (
+        <StaffScheduleModal date={dailyAgendaDate} setDate={setDailyAgendaDate} matches={matches} staff={staff} ambulances={ambulances}
+          onClose={() => setIsStaffScheduleOpen(false)} onBack={() => { setIsStaffScheduleOpen(false); setIsDailyAgendaOpen(true); }}
+          onNotified={handleMarkStaffNotifiedForDay} />
+      )}
       {isDailyAgendaOpen && <OperationalAgendaModal
         date={dailyAgendaDate} setDate={setDailyAgendaDate}
         onClose={() => setIsDailyAgendaOpen(false)} services={agendaServices}
@@ -2262,13 +1527,17 @@ function MainApp({ session }: { session: any }) {
       )}
       <FuelBatchModal
         isOpen={isBatchFuelModalOpen}
-        onClose={() => setIsBatchFuelModalOpen(false)}
+        onClose={() => { setIsBatchFuelModalOpen(false); setEditingFuel(null); }}
         onSaveSuccess={loadData}
         staff={staff}
         ambulances={ambulances}
+        editing={editingFuel}
       />
-      {isChangePasswordOpen && <ChangePasswordModal />}
-      {viewingStaff && <StaffHistoryModal />}
+      {isSearchOpen && (
+        <GlobalSearch data={{ matches, transfers, staff, ambulances, locations, clients }} onClose={() => setIsSearchOpen(false)} onSelect={openSearchResult} />
+      )}
+      {isChangePasswordOpen && <ChangePasswordModal onClose={() => setIsChangePasswordOpen(false)} />}
+      <StaffHistoryModal isOpen={!!viewingStaff} staff={viewingStaff} matches={matches} ambulances={ambulances} onClose={() => setViewingStaff(null)} />
       {viewingAmbulance && (
         <AmbulanceDetailModal
           isOpen={!!viewingAmbulance}

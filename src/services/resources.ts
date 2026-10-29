@@ -2,16 +2,19 @@
 import { Staff, Ambulance, Location, Client, FuelRecord } from '../types';
 
 // Mappers
-const mapStaffFromDB = (data: any): Staff => ({
+export const mapStaffFromDB = (data: any): Staff => ({
     id: data.id,
     name: data.name,
     role: data.role,
     phone: data.phone || '',
     isOutsourced: data.is_outsourced,
-    companyName: data.company_name
+    companyName: data.company_name,
+    licenseNumber: data.license_number || undefined,
+    licenseCategory: data.license_category || undefined,
+    licenseExpiration: data.license_expiration || undefined
 });
 
-const mapAmbulanceFromDB = (data: any): Ambulance => ({
+export const mapAmbulanceFromDB = (data: any): Ambulance => ({
     id: data.id,
     number: data.number,
     plate: data.plate,
@@ -37,7 +40,7 @@ const mapAmbulanceFromDB = (data: any): Ambulance => ({
     }
 });
 
-const mapLocationFromDB = (data: any): Location => ({
+export const mapLocationFromDB = (data: any): Location => ({
     id: data.id,
     name: data.name,
     address: data.address,
@@ -46,7 +49,7 @@ const mapLocationFromDB = (data: any): Location => ({
     contactPhone: data.contact_phone
 });
 
-const mapClientFromDB = (data: any): Client => ({
+export const mapClientFromDB = (data: any): Client => ({
     id: data.id,
     name: data.name,
     contactName: data.contact_name,
@@ -55,11 +58,12 @@ const mapClientFromDB = (data: any): Client => ({
     notes: data.notes
 });
 
-const mapFuelFromDB = (data: any): FuelRecord => ({
+export const mapFuelFromDB = (data: any): FuelRecord => ({
     id: data.id,
     date: data.date,
     ambulanceId: data.ambulance_id,
     driverId: data.driver_id,
+    externalDriverName: data.external_driver_name || undefined,
     fuelType: data.fuel_type,
     liters: Number(data.liters),
     items: data.items
@@ -114,15 +118,24 @@ export const resourceService = {
             role: staff.role,
             phone: staff.phone,
             is_outsourced: staff.isOutsourced,
-            company_name: staff.companyName
+            company_name: staff.companyName,
+            license_number: staff.licenseNumber?.trim() || null,
+            license_category: staff.licenseCategory?.trim().toUpperCase() || null,
+            license_expiration: staff.licenseExpiration || null
         };
-        if (staff.id) {
-            const { error } = await supabase.from('staff').update(payload).eq('id', staff.id);
-            if (error) throw error;
-        } else {
-            const { error } = await supabase.from('staff').insert(payload);
-            if (error) throw error;
+        const write = (data: any) => staff.id
+            ? supabase.from('staff').update(data).eq('id', staff.id)
+            : supabase.from('staff').insert(data);
+        let { error } = await write(payload);
+        // Si la base todavía no tiene las columnas de licencia, se guarda el resto sin perder datos.
+        if (error?.code === 'PGRST204' && /license_/.test(error.message)) {
+            if (payload.license_number || payload.license_category || payload.license_expiration) {
+                throw new Error('Falta aplicar en Supabase la migración de licencias (202610220004). Avisá al administrador.');
+            }
+            const { license_number, license_category, license_expiration, ...legacy } = payload;
+            ({ error } = await write(legacy));
         }
+        if (error) throw error;
     },
 
     async saveAmbulance(ambulance: Partial<Ambulance>) {

@@ -25,7 +25,7 @@ export const StaffHistoryModal: React.FC<StaffHistoryModalProps> = ({ isOpen, on
                     <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                         <History className="w-5 h-5 text-indigo-600" /> Historial de Asignaciones
                     </h3>
-                    <button onClick={onClose}><X className="w-6 h-6 text-slate-400" /></button>
+                    <button onClick={onClose}><X className="w-6 h-6 text-slate-500" /></button>
                 </div>
                 <div className="p-4 border-b bg-white">
                     <h4 className="font-bold text-slate-800 text-lg">{staff.name}</h4>
@@ -36,7 +36,7 @@ export const StaffHistoryModal: React.FC<StaffHistoryModalProps> = ({ isOpen, on
                 </div>
                 <div className="p-0 overflow-y-auto flex-1">
                     {history.length === 0 ? (
-                        <div className="p-12 text-center text-slate-400">Sin historial de coberturas</div>
+                        <div className="p-12 text-center text-slate-500">Sin historial de coberturas</div>
                     ) : (
                         <table className="w-full text-sm">
                             <thead className="bg-slate-50 text-slate-600 sticky top-0 z-10">

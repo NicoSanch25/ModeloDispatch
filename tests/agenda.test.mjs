@@ -12,7 +12,7 @@ function load(path, dependencies = {}) {
   return context.exports;
 }
 const scheduling = load('../src/utils/scheduling.ts', { './statistics': load('../src/utils/statistics.ts') });
-const { buildAgenda, servicesForDay, agendaConflicts, shiftAgendaDate } = load('../src/utils/agenda.ts', { './scheduling': scheduling });
+const { buildAgenda, servicesForDay, agendaConflicts, shiftAgendaDate } = load('../src/utils/agenda.ts', { './scheduling': scheduling, './status': load('../src/utils/status.ts') });
 const coverage = (values = {}) => ({ id: 'same-id', date: '2026-10-09', time: '18:00', durationMinutes: 90, extensionMinutes: 30, location: 'Club', type: 'Evento', status: 'Confirmed', driverId: 'driver', ambulanceId: 'vehicle', ...values });
 const transfer = (values = {}) => ({ id: 'same-id', date: '2026-10-09', origin: 'Base', destination: 'Hospital', departure_base_time: '19:00', arrival_base_time: '21:00', status: 'Pending', driver_id: 'driver', ...values });
 

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Location } from '../../types';
 import { MapPin, X, ExternalLink, Phone } from 'lucide-react';
+import { friendlyError } from '../../utils/requests';
 import { resourceService } from '../../services/resources';
 import { ModalShell } from '../ui/ModalShell';
 import { askConfirm, notify } from '../ui/feedback';
@@ -13,9 +14,8 @@ interface LocationModalProps {
 }
 
 export const LocationModal: React.FC<LocationModalProps> = ({ isOpen, onClose, onSaveSuccess, editingLocation }) => {
-    if (!isOpen) return null;
-
     const [isLoading, setIsLoading] = useState(false);
+    if (!isOpen) return null;
 
     const handleDelete = async () => {
         if (!editingLocation?.id) return;
@@ -27,7 +27,7 @@ export const LocationModal: React.FC<LocationModalProps> = ({ isOpen, onClose, o
             notify.success('Lugar eliminado.');
             onClose();
         } catch (err: any) {
-            notify.error('Error al eliminar: ' + err.message);
+            notify.error('Error al eliminar: ' + friendlyError(err));
         } finally {
             setIsLoading(false);
         }
@@ -53,7 +53,7 @@ export const LocationModal: React.FC<LocationModalProps> = ({ isOpen, onClose, o
             notify.success(editingLocation?.id ? 'Lugar actualizado.' : 'Lugar agregado.');
             onClose();
         } catch (error: any) {
-            notify.error('Error guardando lugar: ' + error.message);
+            notify.error('Error guardando lugar: ' + friendlyError(error));
         } finally {
             setIsLoading(false);
         }
@@ -71,7 +71,7 @@ export const LocationModal: React.FC<LocationModalProps> = ({ isOpen, onClose, o
                             </div>
                             {editingLocation ? 'Editar Lugar' : 'Nuevo Lugar'}
                         </h3>
-                        <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-full transition-colors"><X className="w-5 h-5" /></button>
+                        <button type="button" onClick={onClose} className="text-slate-500 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-full transition-colors"><X className="w-5 h-5" /></button>
                     </div>
 
                     {/* Body */}
@@ -87,7 +87,7 @@ export const LocationModal: React.FC<LocationModalProps> = ({ isOpen, onClose, o
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Link Google Maps</label>
                             <div className="relative">
-                                <ExternalLink className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                                <ExternalLink className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 w-4 h-4" />
                                 <input name="googleMapsUrl" defaultValue={editingLocation?.googleMapsUrl} placeholder="https://maps..." className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm text-blue-600" />
                             </div>
                         </div>
@@ -96,11 +96,11 @@ export const LocationModal: React.FC<LocationModalProps> = ({ isOpen, onClose, o
                             <h4 className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-2"><Phone className="w-3 h-3" /> Contacto del Lugar</h4>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Nombre</label>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre</label>
                                     <input name="contactName" defaultValue={editingLocation?.contactName} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-sm" />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">TelÃ©fono</label>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">TelÃ©fono</label>
                                     <input name="contactPhone" defaultValue={editingLocation?.contactPhone} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-sm" />
                                 </div>
                             </div>

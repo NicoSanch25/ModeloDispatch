@@ -1,6 +1,7 @@
 import type { Match, Transfer } from '../types';
 import { coverageWindow } from './scheduling';
 import type { Service } from '../services/business';
+import { MATCH_STATUS, SERVICE_TONE, TRANSFER_STATUS, type StatusTone } from './status';
 
 // A common read model. Original records remain the source of truth.
 export interface AgendaService {
@@ -10,6 +11,7 @@ export interface AgendaService {
   title: string;
   detail: string;
   status: string;
+  tone: StatusTone;
   closed: boolean;
   operatingNow?: boolean;
   start: number | null;
@@ -24,7 +26,7 @@ export function applyServiceRegistry(agenda: AgendaService[],registry: Service[]
   const indexed=new Map(registry.map(s=>[`${s.kind}:${s.coverage_id||s.transfer_id}`,s]));
   return agenda.map(row=>{
     const s=indexed.get(row.key);if(!s)return row;
-    return {...row,status:labels[s.state],closed:s.state==='closed'||s.state==='cancelled',operatingNow:['en_route','in_service','finished','returning'].includes(s.state),crew:s.crew,ambulanceId:s.ambulance_id,
+    return {...row,status:labels[s.state],tone:SERVICE_TONE[s.state],closed:s.state==='closed'||s.state==='cancelled',operatingNow:['en_route','in_service','finished','returning'].includes(s.state),crew:s.crew,ambulanceId:s.ambulance_id,
       start:s.start_at?Date.parse(s.start_at):row.start,end:s.end_at?Date.parse(s.end_at):row.end};
   });
 }
@@ -41,13 +43,24 @@ function timestamp(date: string, time?: string) {
   return Number.isFinite(value) ? value : null;
 }
 
+/** Inicio y fin de un traslado: plan explícito o, si falta, sus horas de control. */
+export function transferWindow(transfer: Transfer): { start: number | null; end: number | null } {
+  // These are checkpoint hours, not a new planned reservation or a GPS report.
+  const first = transfer.departure_base_time || transfer.arrival_origin_time || transfer.departure_origin_time || transfer.arrival_destination_time || transfer.departure_destination_time;
+  const start = transfer.planned_start_at ? Date.parse(transfer.planned_start_at) : timestamp(transfer.date, first);
+  let end = transfer.planned_end_at ? Date.parse(transfer.planned_end_at) : timestamp(transfer.date, transfer.arrival_base_time);
+  if (start !== null && end !== null && end < start) end += 86_400_000;
+  if (start === null || end === start) end = null;
+  return { start, end };
+}
+
 export function buildAgenda(matches: Match[], transfers: Transfer[]): AgendaService[] {
   const coverages: AgendaService[] = matches.map(match => {
     const window = coverageWindow(match);
     return {
       key: `coverage:${match.id}`, kind: 'coverage', date: match.date,
       title: match.location || 'Lugar pendiente', detail: [match.type, match.fieldNumber].filter(Boolean).join(' · '),
-      status: match.status === 'Pending' ? 'Pendiente' : match.status === 'Confirmed' ? 'Confirmada' : match.status === 'Completed' ? 'Finalizada' : 'Suspendida',
+      status: (MATCH_STATUS[match.status] ?? MATCH_STATUS.Pending).label, tone: (MATCH_STATUS[match.status] ?? MATCH_STATUS.Pending).tone,
       closed: match.status === 'Completed' || match.status === 'Suspended',
       start: window?.start ?? null, end: window?.end ?? null,
       crew: [...new Set([match.driverId, match.nurseId, match.thirdCrewId].filter((id): id is string => !!id))],
@@ -56,17 +69,12 @@ export function buildAgenda(matches: Match[], transfers: Transfer[]): AgendaServ
     };
   });
   const journeys: AgendaService[] = transfers.map(transfer => {
-    // These are checkpoint hours, not a new planned reservation or a GPS report.
-    const first = transfer.departure_base_time || transfer.arrival_origin_time || transfer.departure_origin_time || transfer.arrival_destination_time || transfer.departure_destination_time;
-    const start = transfer.planned_start_at ? Date.parse(transfer.planned_start_at) : timestamp(transfer.date, first);
-    let end = transfer.planned_end_at ? Date.parse(transfer.planned_end_at) : timestamp(transfer.date, transfer.arrival_base_time);
-    if (start !== null && end !== null && end < start) end += 86_400_000;
-    if (start === null || end === start) end = null;
+    const { start, end } = transferWindow(transfer);
     return {
       key: `transfer:${transfer.id}`, kind: 'transfer', date: transfer.date,
       title: `${transfer.origin || 'Origen pendiente'} → ${transfer.destination || 'Destino pendiente'}`,
       detail: transfer.transfer_number ? `Traslado ${transfer.transfer_number}` : 'Traslado',
-      status: transfer.status === 'Completed' ? 'Finalizado' : transfer.status === 'Cancelled' ? 'Cancelado' : 'Pendiente',
+      status: (TRANSFER_STATUS[transfer.status] ?? TRANSFER_STATUS.Pending).label, tone: (TRANSFER_STATUS[transfer.status] ?? TRANSFER_STATUS.Pending).tone,
       closed: transfer.status === 'Completed' || transfer.status === 'Cancelled',
       start, end, crew: [transfer.driver_id, transfer.nurse_id].filter((id): id is string => !!id), ambulanceId: transfer.ambulance_id, source: transfer,
       warnings: [start === null && 'Horario pendiente', end === null && 'Regreso sin horario: ocupación por verificar', !transfer.driver_id && 'Chofer pendiente', !transfer.ambulance_id && 'Móvil y tripulación del traslado sin reserva registrada'].filter((value): value is string => !!value)

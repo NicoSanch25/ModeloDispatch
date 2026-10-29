@@ -4,9 +4,12 @@ import { localDate } from '../../src/utils/statistics';
 const params = new URLSearchParams(window.location.search);
 const session = { user: { id: 'test-user', email: 'fixture@example.invalid' } };
 const today = localDate();
+const shift = (days: number) => localDate(new Date(Date.now() + days * 86_400_000));
 const database: Record<string, any[]> = {
   staff: [
-    { id: 'driver', name: 'Chofer de prueba', role: 'Chofer' },
+    { id: 'driver', name: 'Chofer de prueba', role: 'Chofer', license_number: '30111222', license_category: 'D1', license_expiration: shift(-12) },
+    { id: 'driver-soon', name: 'Chofer por vencer', role: 'Chofer', license_category: 'D1', license_expiration: shift(9) },
+    { id: 'driver-ok', name: 'Chofer al día', role: 'Chofer', license_category: 'D2', license_expiration: shift(400) },
     { id: 'nurse', name: 'Enfermero de prueba', role: 'Enfermero/a' },
     { id: 'doctor', name: 'Profesional de prueba', role: 'Médico/a' }
   ],
@@ -14,7 +17,11 @@ const database: Record<string, any[]> = {
   locations: [{ id: 'location', name: 'Sede de prueba' }],
   clients: [{ id: 'client', name: 'Cliente de prueba' }],
   matches: [{ id: 'match', date: today, time: '18:00', duration_minutes: 90, extension_minutes: 30, location: 'Sede de prueba', field_number: '1', type: 'Evento', status: 'Confirmed', ambulance_id: 'vehicle', driver_id: 'driver', nurse_id: 'nurse', driver_notified: true, nurse_notified: true, has_incident: true, was_transferred: true, incident_details: 'Incidente ficticio conservado', audit_logs: [] }],
-  fuel_records: [], transfers: params.get('agenda') ? [
+  fuel_records: [
+    { id: 'f-b', date: shift(-1), ambulance_id: 'vehicle', driver_id: 'driver-ok', fuel_type: 'Euro Diesel', liters: 40, items: null },
+    { id: 'f-a', date: today, ambulance_id: 'vehicle', driver_id: 'driver-soon', fuel_type: 'Euro Diesel', liters: 35.5, items: 'Agua destilada' },
+    { id: 'f-c', date: shift(-20), ambulance_id: 'vehicle', driver_id: null, external_driver_name: 'Chofer externo', fuel_type: 'Diesel', liters: 0, items: 'Franela' }
+  ], transfers: params.get('agenda') ? [
     { id: 'journey', date: today, transfer_number: 'PRUEBA-1', driver_id: 'driver', origin: 'Base de prueba', destination: 'Hospital de prueba', departure_base_time: '19:00', arrival_base_time: '21:00', status: 'Pending' },
     { id: 'unscheduled', date: today, transfer_number: 'PRUEBA-2', origin: 'Sede sin horario', destination: 'Destino de prueba', status: 'Pending' },
     { id: 'closed', date: today, origin: 'Traslado finalizado', destination: 'Base', status: 'Completed' }

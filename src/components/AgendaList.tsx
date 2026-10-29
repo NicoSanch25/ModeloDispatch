@@ -2,6 +2,7 @@ import React from 'react';
 import { AlertTriangle, Car, Clock, MapPin, Truck, Users } from 'lucide-react';
 import type { Ambulance, Staff } from '../types';
 import { agendaConflicts, agendaTime, type AgendaService } from '../utils/agenda';
+import { StatusChip } from './ui/StatusChip';
 
 interface Props {
   services: AgendaService[];
@@ -23,7 +24,7 @@ export function AgendaList({ services, allServices, staff, ambulances, date, onO
         <span className={`inline-flex items-center gap-1 text-xs font-semibold ${service.kind === 'coverage' ? 'text-indigo-700' : 'text-teal-700'}`}>
           {service.kind === 'coverage' ? <MapPin className="h-3.5 w-3.5" /> : <Truck className="h-3.5 w-3.5" />}{service.kind === 'coverage' ? 'Cobertura' : 'Traslado'}
         </span>
-        <span className="text-xs text-slate-500">{service.status}</span>
+        <StatusChip tone={service.tone}>{service.status}</StatusChip>
       </div>
       <p className="mt-1 flex flex-wrap items-center gap-1 text-sm font-semibold text-slate-800"><Clock className="h-3.5 w-3.5" />{agendaTime(service.start)}{service.end !== null && ` – ${agendaTime(service.end)}`}{service.date < date && <span className="text-xs font-normal text-slate-500">Desde {service.date.split('-').reverse().join('/')}</span>}</p>
       {service.start !== null && service.end !== null && new Date(service.end).toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }) > service.date && <p className="text-xs text-slate-500">Continúa al día siguiente</p>}

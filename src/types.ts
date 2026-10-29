@@ -8,6 +8,9 @@ export interface Staff {
   phone: string;
   isOutsourced?: boolean; // If staff is external
   companyName?: string; // Name of the external company
+  licenseNumber?: string; // Licencia de conducir
+  licenseCategory?: string; // Ej: D1, B1
+  licenseExpiration?: string; // YYYY-MM-DD, válida hasta ese día inclusive
 }
 
 export type AmbulanceStatus = 'Active' | 'InRepair' | 'OutOfService';

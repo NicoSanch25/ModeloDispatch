@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Save, Trash2, Ambulance } from 'lucide-react';
+import { friendlyError } from '../../utils/requests';
 import { Transfer, Staff, Ambulance as AmbulanceModel, Client } from '../../types';
 import { localDate } from '../../utils/statistics';
 import { DateInput } from '../DateInput';
+import { driverOptionLabel, licenseStatus } from '../../utils/licenses';
 import { ModalShell } from '../ui/ModalShell';
 
 interface TransferModalProps {
@@ -66,7 +68,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
         try {
             await onSave(formData);
         } catch (e: any) {
-            setError(e.message || 'No se pudo guardar el traslado. Revisá la conexión y volvé a intentar.');
+            setError(friendlyError(e));
         } finally {
             submitting.current = false;
             setIsSaving(false);
@@ -83,6 +85,9 @@ export const TransferModal: React.FC<TransferModalProps> = ({
     };
 
     const drivers = staff.filter(s => s.role === 'Chofer');
+    const serviceDate = formData.date || localDate();
+    const driverExpiration = drivers.find(d => d.id === formData.driver_id)?.licenseExpiration;
+    const driverLicense = licenseStatus(driverExpiration, serviceDate);
     const planValue = (key: 'planned_start_at' | 'planned_end_at') => formData[key] ? new Date(Date.parse(formData[key]!) - 3 * 3600000).toISOString().slice(0, 16) : '';
     const setPlan = (key: 'planned_start_at' | 'planned_end_at', part: 'date' | 'time', value: string) => {
         const old = planValue(key);
@@ -99,7 +104,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                         <Ambulance className="w-5 h-5 text-indigo-600" />
                         {transfer?.id ? 'Editar Traslado' : 'Nuevo Traslado'}
                     </h3>
-                    <button onClick={onClose} disabled={isSaving} aria-label="Cerrar traslado" className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-50">
+                    <button onClick={onClose} disabled={isSaving} aria-label="Cerrar traslado" className="p-2 text-slate-500 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-50">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
@@ -130,8 +135,9 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Chofer</label>
                                 <select name="driver_id" value={formData.driver_id || ''} onChange={handleChange} className="w-full p-2 border border-slate-200 rounded-lg bg-white">
                                     <option value="">Seleccionar...</option>
-                                    {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                                    {drivers.map(d => <option key={d.id} value={d.id}>{driverOptionLabel(d, serviceDate)}</option>)}
                                 </select>
+                                {formData.driver_id && driverLicense.state === 'expired' && <p role="alert" className="mt-1 text-xs font-semibold text-rose-700">⚠ Licencia vencida para la fecha del traslado (venció el {driverExpiration?.split('-').reverse().join('/')}).</p>}
                             </div>
                         </div>
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Ambulance, Staff } from '../../types';
 import { Truck, X, User, Check } from 'lucide-react';
+import { friendlyError } from '../../utils/requests';
 import { resourceService } from '../../services/resources';
 import { formatDateAR } from '../../utils/formatters';
 import { DateInput } from '../DateInput';
@@ -37,7 +38,7 @@ export const AmbulanceModal: React.FC<AmbulanceModalProps> = ({ isOpen, onClose,
             notify.success('Móvil eliminado.');
             onClose();
         } catch (err: any) {
-            notify.error('Error al eliminar: ' + err.message);
+            notify.error('Error al eliminar: ' + friendlyError(err));
         } finally {
             setIsLoading(false);
         }
@@ -84,7 +85,7 @@ export const AmbulanceModal: React.FC<AmbulanceModalProps> = ({ isOpen, onClose,
             notify.success(editingAmbulance?.id ? 'Móvil actualizado.' : 'Móvil agregado.');
             onClose();
         } catch (error: any) {
-            notify.error('Error guardando móvil: ' + error.message);
+            notify.error('Error guardando móvil: ' + friendlyError(error));
         } finally {
             setIsLoading(false);
         }
@@ -102,7 +103,7 @@ export const AmbulanceModal: React.FC<AmbulanceModalProps> = ({ isOpen, onClose,
                             </div>
                             {editingAmbulance ? 'Editar Móvil' : 'Nuevo Móvil'}
                         </h3>
-                        <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-full transition-colors"><X className="w-5 h-5" /></button>
+                        <button type="button" onClick={onClose} className="text-slate-500 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-full transition-colors"><X className="w-5 h-5" /></button>
                     </div>
 
                     {/* Body */}
@@ -162,10 +163,10 @@ export const AmbulanceModal: React.FC<AmbulanceModalProps> = ({ isOpen, onClose,
                                     </div>
                                     {showOutsourced && (
                                         <div className="mt-3 pl-8 animate-slide-down">
-                                            <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Nombre Empresa / Dueño</label>
+                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre Empresa / Dueño</label>
                                             <div className="relative">
                                                 <input list="outsourced-staff-list" name="outsourcedCompanyName" defaultValue={editingAmbulance?.outsourcedCompanyName} placeholder="Buscar personal externo..." className="w-full pl-3 pr-8 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm bg-white" autoComplete="off" />
-                                                <User className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                                                <User className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 w-4 h-4" />
                                             </div>
                                             <datalist id="outsourced-staff-list">
                                                 {staff.filter(s => s.isOutsourced).map(s => (
@@ -240,17 +241,17 @@ export const AmbulanceModal: React.FC<AmbulanceModalProps> = ({ isOpen, onClose,
                                     <label className="block text-xs font-bold text-slate-500 uppercase">Batería</label>
 
                                     <div>
-                                        <span className="text-[10px] text-slate-400 block mb-1">Modelo / Tipo</span>
+                                        <span className="text-xs text-slate-500 block mb-1">Modelo / Tipo</span>
                                         <input name="batteryType" defaultValue={editingAmbulance?.maintenance?.batteryType} className="w-full px-2 py-1 border border-slate-200 rounded text-sm" placeholder="Especificación técnica" />
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-3">
                                         <div>
-                                            <span className="text-[10px] text-slate-400 block mb-1">Último Cambio</span>
+                                            <span className="text-xs text-slate-500 block mb-1">Último Cambio</span>
                                             <DateInput name="batteryLastChange" aria-label="Último cambio de batería" defaultValue={editingAmbulance?.maintenance?.batteryLastChange || ''} className="w-full px-2 py-1 border border-slate-200 rounded text-sm" />
                                         </div>
                                         <div>
-                                            <span className="text-[10px] text-slate-400 block mb-1">Proveedor / Lugar</span>
+                                            <span className="text-xs text-slate-500 block mb-1">Proveedor / Lugar</span>
                                             <input name="batteryPurchaseLocation" defaultValue={editingAmbulance?.maintenance?.batteryPurchaseLocation} placeholder="Ej: Warnes" className="w-full px-2 py-1 border border-slate-200 rounded text-sm" />
                                         </div>
                                     </div>

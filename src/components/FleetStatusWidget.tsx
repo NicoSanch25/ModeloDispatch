@@ -90,7 +90,7 @@ export const FleetStatusWidget: React.FC<FleetStatusWidgetProps> = ({ ambulances
             <p className="mb-3 text-xs text-slate-500">Según reservas y estados informados. No es ubicación GPS. Verificá bloqueos y regreso antes de asignar.</p>
             <div className="space-y-3 overflow-y-auto max-h-[350px] pr-2 custom-scrollbar">
                 {filteredAmbulances.length === 0 ? (
-                    <p className="text-center text-sm text-slate-400 py-4">No hay móviles en este estado.</p>
+                    <p className="text-center text-sm text-slate-500 py-4">No hay móviles en este estado.</p>
                 ) : (
                     filteredAmbulances.map(({ amb, statusText, statusColor, activeMatch, activeService }) => (
                         <div 
@@ -106,7 +106,7 @@ export const FleetStatusWidget: React.FC<FleetStatusWidgetProps> = ({ ambulances
                                     <div className="flex items-center gap-2">
                                         <p className="font-bold text-slate-800 text-sm">Móvil {amb.number}</p>
                                         {(statusText === 'En Taller' || statusText === 'Fuera de Servicio') && (
-                                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">En Taller</span>
+                                            <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">En Taller</span>
                                         )}
                                     </div>
                                     {activeService ? <div className="flex flex-col"><span className="text-xs font-bold text-blue-700">{activeService.title}</span><span className="text-xs text-blue-600">{statusText}</span></div> : activeMatch ? (
@@ -114,7 +114,7 @@ export const FleetStatusWidget: React.FC<FleetStatusWidgetProps> = ({ ambulances
                                             <span className="text-xs font-bold text-blue-700 flex items-center gap-1">
                                                 <MapPin className="w-3 h-3" /> {activeMatch.location}
                                             </span>
-                                            <span className="text-[10px] text-blue-600 truncate max-w-[150px]">
+                                            <span className="text-xs text-blue-600 truncate max-w-[150px]">
                                                 {activeMatch.fieldNumber || activeMatch.type}
                                             </span>
                                         </div>
@@ -125,7 +125,7 @@ export const FleetStatusWidget: React.FC<FleetStatusWidgetProps> = ({ ambulances
                             </div>
                             <div className="flex flex-col items-end gap-1">
                                 <span className={`w-3 h-3 rounded-full ${statusColor}`} title={statusText}></span>
-                                {activeMatch && <span className="text-[10px] font-bold text-slate-400">{formatTime24(activeMatch.time)}</span>}
+                                {activeMatch && <span className="text-xs font-bold text-slate-500">{formatTime24(activeMatch.time)}</span>}
                             </div>
                         </div>
                     ))
