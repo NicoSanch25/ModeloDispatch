@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { safeWebUrl } from '../../utils/security';
 import { Location, Match } from '../../types';
-import { MapPin, Phone, History, Edit2, X, ExternalLink, Calendar } from 'lucide-react';
+import { MapPin, Phone, History, Edit2, X } from 'lucide-react';
 import { formatDateAR, formatTime24 } from '../../utils/formatters';
 import { ModalShell } from '../ui/ModalShell';
 

@@ -3,16 +3,12 @@ import { Ambulance as AmbulanceIcon, ArrowRight, Car, Clock, Edit2, MapPin } fro
 import type { Ambulance, Staff, Transfer } from '../types';
 import { formatDateAR } from '../utils/formatters';
 import { agendaTime, transferWindow } from '../utils/agenda';
-
-const STATUS: Record<Transfer['status'], { label: string; className: string }> = {
-  Pending: { label: 'Pendiente', className: 'bg-amber-100 text-amber-800' },
-  Completed: { label: 'Completado', className: 'bg-emerald-100 text-emerald-800' },
-  Cancelled: { label: 'Cancelado', className: 'bg-red-100 text-red-700' }
-};
+import { TRANSFER_STATUS } from '../utils/status';
+import { StatusChip as Chip } from './ui/StatusChip';
 
 const StatusChip: React.FC<{ status: Transfer['status'] }> = ({ status }) => {
-  const { label, className } = STATUS[status] ?? STATUS.Pending;
-  return <span className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-xs font-bold ${className}`}>{label}</span>;
+  const { label, tone } = TRANSFER_STATUS[status] ?? TRANSFER_STATUS.Pending;
+  return <Chip tone={tone}>{label}</Chip>;
 };
 
 /** Dato faltante: se marca para que el operador lo vea sin abrir el traslado. */

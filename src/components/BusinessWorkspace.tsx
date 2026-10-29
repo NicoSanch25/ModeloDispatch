@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Check, Download, FileText, Plus, RefreshCw, X } from 'lucide-react';
+import { Check, Download, FileText, Plus, RefreshCw, X } from 'lucide-react';
 import type { Ambulance, Client, Staff } from '../types';
 import { DateInput } from './DateInput';
 import { localDate } from '../utils/statistics';

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Ambulance, Match, FuelRecord } from '../../types';
-import { Truck, X, Wrench, Gauge, Activity, FileText, Check, Shield, ClipboardCheck, Hash, AlertCircle, Fuel, Edit2 } from 'lucide-react';
+import { Truck, X, Wrench, Gauge, Activity, FileText, Check, Fuel, Edit2 } from 'lucide-react';
 import { matchHelpers } from '../../services/matches';
 import { formatDateAR, formatTime24 } from '../../utils/formatters';
 import { ModalShell } from '../ui/ModalShell';

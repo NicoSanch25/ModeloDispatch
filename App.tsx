@@ -2,24 +2,24 @@ import React, { useState, useEffect, useMemo } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import {
   Ambulance, Users, Plus, AlertTriangle, Trash2, Edit2,
-  Check, Clock, X, Send, Siren, Calendar, MapPin, Filter, Truck,
-  History, ExternalLink, Car, Stethoscope, ChevronDown, XCircle, Phone, User,
-  Wrench, Gauge, Activity, FileText, Shield, ClipboardCheck, Hash, AlertCircle,
+  Check, X, Calendar, MapPin, Filter, Truck,
+  History, Car, Stethoscope, Phone, User,
+  FileText, ClipboardCheck, AlertCircle,
   ArrowRightCircle, ClipboardList, Briefcase, History as HistoryIcon, ArrowRight,
-  Fuel, Droplet, ListPlus, ReceiptText, Copy, FileStack, UserPlus, Clock4, BatteryCharging, Disc, Share2,
-  AlertOctagon, Save, Building, FileSpreadsheet, Download, Ban, CalendarDays, Zap, Mail,
-  Lock, Unlock, LogIn, Loader2, Key, Eye, EyeOff, HelpCircle, IdCard
+  Fuel, ListPlus, UserPlus, 
+  AlertOctagon, Building, FileSpreadsheet, Ban, Zap, Mail,
+  Lock, LogIn, Loader2, Key, Eye, EyeOff, IdCard
 } from 'lucide-react';
 import {
-  Role,
+  
   Staff as StaffModel,
   Ambulance as AmbulanceModel,
   Match as MatchModel,
-  MatchType,
+  
   Location as LocationModel,
-  AmbulanceStatus,
+  
   IncidentReport as IncidentReportModel,
-  AuditLogEntry,
+  
   FuelRecord as FuelRecordModel,
   Client as ClientModel,
   Transfer as TransferModel
@@ -31,7 +31,6 @@ import { expiryLabel, licenseAlerts, licenseLabel, licenseStatus, needsLicense }
 import { getConflicts } from './src/utils/scheduling';
 import { withTimeout } from './src/utils/requests';
 import { matchesService } from './src/services/matches';
-import { DateInput } from './src/components/DateInput';
 import { AgendaList } from './src/components/AgendaList';
 import { OperationalAgendaModal } from './src/components/modals/OperationalAgendaModal';
 import { agendaConflicts, applyServiceRegistry, buildAgenda, servicesForDay, type AgendaService } from './src/utils/agenda';
@@ -48,6 +47,11 @@ import { ClientModal } from './src/components/modals/ClientModal';
 import { TransferModal } from './src/components/modals/TransferModal';
 import { FuelBatchModal } from './src/components/modals/FuelBatchModal';
 import { FuelList } from './src/components/FuelList';
+import { AuditModal } from './src/components/modals/AuditModal';
+import { ChangePasswordModal } from './src/components/modals/ChangePasswordModal';
+import { IncidentModal } from './src/components/modals/IncidentModal';
+import { StaffHistoryModal } from './src/components/modals/StaffHistoryModal';
+import { StaffScheduleModal } from './src/components/modals/StaffScheduleModal';
 import { EmptyState, LoadingSkeleton } from './src/components/ui/Skeleton';
 import { FleetStatusWidget } from './src/components/FleetStatusWidget';
 import { DashboardClock } from './src/components/DashboardClock';
@@ -55,7 +59,6 @@ import { MobileTabBar, SECTIONS, sectionTitle, type SectionId } from './src/comp
 import { TransfersList } from './src/components/TransfersList';
 const BusinessWorkspace = React.lazy(() => import('./src/components/BusinessWorkspace').then(module => ({ default: module.BusinessWorkspace })));
 import { QuickAddModal, QuickAddRow } from './src/components/modals/QuickAddModal';
-import { ModalShell } from './src/components/ui/ModalShell';
 import { askConfirm, FeedbackHost, notify, useSpanishValidation } from './src/components/ui/feedback';
 
 // --- MAPPERS ---
@@ -208,12 +211,6 @@ const calculateEndTime = (timeStr: string, durationMin: number, extensionMin: nu
   return minutesToTime(end);
 };
 
-const subtractTime = (timeStr: string, minutesToSubtract: number) => {
-  const start = timeToMinutes(timeStr);
-  let newTime = start - minutesToSubtract;
-  if (newTime < 0) newTime += 24 * 60;
-  return minutesToTime(newTime);
-};
 
 const downloadCSV = (data: any[], filename: string) => {
   const csvContent = '\uFEFF' + data.map(row => row.map(csvCell).join(',')).join('\r\n');
@@ -435,7 +432,6 @@ function MainApp({ session }: { session: any }) {
 
   const [isMatchModalOpen, setIsMatchModalOpen] = useState(false);
   const [editingMatch, setEditingMatch] = useState<Partial<MatchModel> | null>(null);
-  const [isMatchReadOnly, setIsMatchReadOnly] = useState(false);
 
   const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<Partial<StaffModel> | null>(null);
@@ -445,8 +441,6 @@ function MainApp({ session }: { session: any }) {
   const [editingAmbulance, setEditingAmbulance] = useState<Partial<AmbulanceModel> | null>(null);
 
   // Dynamic Form State for Ambulance
-  const [ambFormShowOutsourced, setAmbFormShowOutsourced] = useState(false);
-  const [ambFormShowWorkshop, setAmbFormShowWorkshop] = useState(false);
 
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [editingLocation, setEditingLocation] = useState<Partial<LocationModel> | null>(null);
@@ -458,14 +452,10 @@ function MainApp({ session }: { session: any }) {
   const [viewingLocation, setViewingLocation] = useState<LocationModel | null>(null);
   const [viewingAmbulance, setViewingAmbulance] = useState<AmbulanceModel | null>(null);
 
-  const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
   const [reportingMatch, setReportingMatch] = useState<MatchModel | null>(null);
-  const [incidentForm, setIncidentForm] = useState<IncidentReportModel>({ hasIncident: false, wasTransferred: false, details: '' });
 
-  const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [viewingAuditMatch, setViewingAuditMatch] = useState<MatchModel | null>(null);
 
-  const [isFuelModalOpen, setIsFuelModalOpen] = useState(false);
   const [isBatchFuelModalOpen, setIsBatchFuelModalOpen] = useState(false);
   const [editingFuel, setEditingFuel] = useState<FuelRecordModel | null>(null);
 
@@ -478,8 +468,6 @@ function MainApp({ session }: { session: any }) {
   const [quickAddDate, setQuickAddDate] = useState<string>('');
   const [quickAddRows, setQuickAddRows] = useState<QuickAddRow[]>([]);
 
-  const [isNewLocationPromptOpen, setIsNewLocationPromptOpen] = useState(false);
-  const [pendingNewLocationName, setPendingNewLocationName] = useState('');
 
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
 
@@ -617,15 +605,6 @@ function MainApp({ session }: { session: any }) {
     await supabase.auth.signOut();
   };
 
-  const handleChangePassword = async (newPassword: string, newUsername?: string) => {
-    const updates: any = {};
-    if (newPassword) updates.password = newPassword;
-    if (newUsername) updates.data = { username: newUsername };
-
-    const { error } = await supabase.auth.updateUser(updates);
-    if (error) throw error;
-  };
-
   const handleExportCSV = () => {
     const headers = ["Fecha", "Hora", "Lugar", "Cancha", "Tipo", "Cliente", "Estado", "Móvil", "Chofer", "Enfermero", "Incidente"];
     const rows = filteredMatches.map(m => {
@@ -688,96 +667,6 @@ function MainApp({ session }: { session: any }) {
     if (failed) notify.error('No se pudo guardar el aviso en ' + failed + ' cobertura(s). Esas marcas quedaron pendientes.');
   };
 
-  const handleSaveMatch = async (matchData: Partial<MatchModel>) => {
-    const isPolo = matchData.type?.includes('Polo');
-    const finalData = {
-      ...matchData,
-      chukkers: isPolo ? matchData.chukkers : null
-    };
-
-    // Prepare DB Payload (snake_case)
-    const payload: any = {
-      date: finalData.date,
-      time: finalData.time,
-      location: finalData.location,
-      field_number: finalData.fieldNumber,
-      type: finalData.type,
-      duration_minutes: finalData.durationMinutes,
-      extension_minutes: finalData.extensionMinutes,
-      chukkers: finalData.chukkers,
-      status: finalData.status,
-      suspension_reason: finalData.suspensionReason,
-      is_single_crew: finalData.isSingleCrew,
-      driver_notified: finalData.driverNotified || false,
-      nurse_notified: finalData.nurseNotified || false,
-      client_id: finalData.clientId || null,
-      ambulance_id: finalData.ambulanceId || null,
-      driver_id: finalData.driverId || null,
-      nurse_id: finalData.nurseId || null,
-      third_crew_id: finalData.thirdCrewId || null,
-      hired_by: finalData.hiredBy,
-      hired_contact: finalData.hiredContact,
-      // Incident details are flat columns in DB
-      has_incident: finalData.incidentReport?.hasIncident || false,
-      was_transferred: finalData.incidentReport?.wasTransferred || false,
-      incident_details: finalData.incidentReport?.details || ''
-    };
-
-    try {
-      let savedMatchId = editingMatch?.id;
-
-      if (editingMatch?.id) {
-        // Update
-        const { error } = await supabase.from('matches').update(payload).eq('id', editingMatch.id);
-        if (error) throw error;
-
-        // Audit Log Generation
-        const changes: string[] = [];
-        const m = matches.find(x => x.id === editingMatch.id);
-        if (m) {
-          const norm = (val: any) => (val || '').toString().trim();
-          if (norm(m.status) !== norm(finalData.status)) changes.push(`Estado: ${m.status} -> ${finalData.status}`);
-          if (norm(m.time) !== norm(finalData.time)) changes.push(`Hora: ${m.time} -> ${finalData.time}`);
-          if (norm(m.location) !== norm(finalData.location)) changes.push(`Lugar: ${m.location} -> ${finalData.location}`);
-          if (norm(m.ambulanceId) !== norm(finalData.ambulanceId)) changes.push('Cambio de Móvil');
-          if (norm(m.driverId) !== norm(finalData.driverId)) changes.push('Cambio de Chofer');
-          if (m.isSingleCrew !== finalData.isSingleCrew) changes.push(`Tripulación: ${finalData.isSingleCrew ? 'Simple' : 'Completa'}`);
-        }
-
-        if (changes.length > 0) {
-          await supabase.from('audit_logs').insert({
-            match_id: editingMatch.id,
-            changes: changes.join(', ')
-          });
-        }
-      } else {
-        // Insert
-        const { data, error } = await supabase.from('matches').insert(payload).select();
-        if (error) throw error;
-        savedMatchId = data[0].id;
-      }
-
-      // Check for New Location
-      if (finalData.location) {
-        const locName = finalData.location.trim();
-        const exists = locations.some(l => l.name.toLowerCase() === locName.toLowerCase());
-        if (!exists) {
-          setPendingNewLocationName(locName);
-          await supabase.from('locations').insert({ name: locName });
-          const { data: l } = await supabase.from('locations').select('*');
-          if (l) setLocations(l.map(mapLocationFromDB));
-        }
-      }
-
-      await loadData();
-      setIsMatchModalOpen(false);
-      setEditingMatch(null);
-
-    } catch (err: any) {
-      notify.error("Error guardando cobertura: " + err.message);
-    }
-  };
-
   const handleDeleteMatch = async (matchId: string) => {
     if ((await askConfirm({ title: "¿Confirma ELIMINAR esta cobertura? No se podrá recuperar.", confirmLabel: 'Eliminar', danger: true }))) {
       try {
@@ -797,17 +686,15 @@ function MainApp({ session }: { session: any }) {
     }
   };
 
-  const handleSaveReport = async () => {
+  const handleSaveReport = async (report: IncidentReportModel) => {
     if (!reportingMatch) return;
     try {
-      const payload = {
-        has_incident: incidentForm.hasIncident,
-        was_transferred: incidentForm.wasTransferred,
-        incident_details: incidentForm.details,
+      const { error } = await supabase.from('matches').update({
+        has_incident: report.hasIncident,
+        was_transferred: report.wasTransferred,
+        incident_details: report.details,
         status: 'Completed'
-      };
-
-      const { error } = await supabase.from('matches').update(payload).eq('id', reportingMatch.id);
+      }).eq('id', reportingMatch.id);
       if (error) throw error;
 
       try {
@@ -817,9 +704,8 @@ function MainApp({ session }: { session: any }) {
       }
 
       await loadData();
-      setIsIncidentModalOpen(false);
       setReportingMatch(null);
-      notify.success('Reporte guardado.');
+      notify.success('Cobertura finalizada.');
     } catch (err: any) {
       notify.error("Error guardando reporte: " + err.message);
     }
@@ -907,602 +793,6 @@ function MainApp({ session }: { session: any }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [isMobileMenuOpen]);
 
-  useEffect(() => {
-    if (isMatchModalOpen && editingMatch?.status === 'Completed') {
-      setIsMatchReadOnly(true);
-    } else {
-      setIsMatchReadOnly(false);
-    }
-  }, [isMatchModalOpen, editingMatch]);
-
-  // --- Modal Forms for Entities ---
-  const handleSaveStaff = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const form = new FormData(e.target as HTMLFormElement);
-    const payload = {
-      name: form.get('name'),
-      role: form.get('role'),
-      phone: form.get('phone'),
-      is_outsourced: form.get('isOutsourced') === 'on',
-      company_name: form.get('companyName')
-    };
-
-    try {
-      if (editingStaff?.id) {
-        await supabase.from('staff').update(payload).eq('id', editingStaff.id);
-      } else {
-        await supabase.from('staff').insert(payload);
-      }
-      await loadData();
-      setIsStaffModalOpen(false);
-    } catch (err: any) { notify.error(err.message); }
-  };
-
-  const handleSaveAmbulance = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const form = new FormData(e.target as HTMLFormElement);
-
-    const yearInput = form.get('year');
-    let year: number | null = null;
-
-    if (yearInput && yearInput.toString().trim() !== '') {
-      year = parseInt(yearInput.toString(), 10);
-      if (isNaN(year)) {
-        notify.error("El año ingresado no es válido.");
-        return;
-      }
-      // Validation for realistic years
-      const currentYear = new Date().getFullYear();
-      if (year < 1900 || year > currentYear + 1) {
-        notify.error(`El año debe estar entre 1900 y ${currentYear + 1}`);
-        return;
-      }
-    }
-
-    const numberVal = form.get('number');
-    if (!numberVal || numberVal.toString().trim() === '') {
-      notify.error("El número de móvil es obligatorio.");
-      return;
-    }
-
-    // Clean mileage input and ensure it's a number
-    const mileageInput = form.get('mileage');
-    const newMileageStr = (mileageInput && mileageInput.toString().trim() !== '')
-      ? mileageInput.toString().replace(/[^0-9]/g, '')
-      : null;
-
-    // Parse to int to ensure correct DB type (avoiding strings in numeric columns)
-    const newMileage = newMileageStr ? parseInt(newMileageStr, 10) : null;
-
-    let mileageLastUpdate = editingAmbulance?.maintenance?.mileageLastUpdate;
-    if (newMileage && newMileage !== Number(editingAmbulance?.maintenance?.mileage)) {
-      mileageLastUpdate = localDate();
-    } else if (!editingAmbulance && newMileage) {
-      mileageLastUpdate = localDate();
-    }
-
-    const payload = {
-      number: numberVal,
-      plate: form.get('plate'),
-      vehicle_type: form.get('vehicleType'),
-      year: year,
-      coach_builder: form.get('coachBuilder'),
-      is_outsourced: form.get('isOutsourced') === 'on',
-      outsourced_company_name: form.get('isOutsourced') === 'on' ? form.get('outsourcedCompanyName') : null,
-      maintenance_status: form.get('maintenanceStatus') || 'Active',
-      mileage: newMileage,
-      mileage_last_update: mileageLastUpdate,
-      vtv_expiration: form.get('vtvExpiration') ? form.get('vtvExpiration') : null,
-      insurance: form.get('insurance'),
-      mechanic_notes: form.get('mechanicNotes'),
-      tire_type: form.get('tireType'),
-      oil_type: form.get('oilType'),
-      battery_type: form.get('batteryType'),
-      battery_last_change: form.get('batteryLastChange') ? form.get('batteryLastChange') : null,
-      battery_purchase_location: form.get('batteryPurchaseLocation'),
-      workshop_name: form.get('workshopName'),
-      mechanic_contact: form.get('mechanicContact')
-    };
-
-    try {
-      if (editingAmbulance?.id) {
-        const { error } = await supabase.from('ambulances').update(payload).eq('id', editingAmbulance.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from('ambulances').insert(payload);
-        if (error) throw error;
-      }
-      await loadData();
-      setIsAmbulanceModalOpen(false);
-    } catch (err: any) {
-      console.error("Error saving ambulance:", err);
-      let msg = "Error desconocido";
-      if (typeof err === 'object' && err !== null) {
-        // Handle specific Supabase schema errors (Code 42703 is undefined_column)
-        if (err.code === '42703' || (err.message && err.message.toLowerCase().includes('column'))) {
-          msg = "Faltan columnas en la base de datos. Por favor ejecuta el script SQL para agregar 'battery_type', 'oil_type', etc.";
-        } else {
-          msg = err.message || err.error_description || JSON.stringify(err);
-        }
-      } else {
-        msg = String(err);
-      }
-      notify.error(`Error al guardar móvil: ${msg}`);
-    }
-  };
-
-  const handleSaveLocation = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const form = new FormData(e.target as HTMLFormElement);
-    const payload = {
-      name: form.get('name'),
-      address: form.get('address'),
-      google_maps_url: form.get('googleMapsUrl'),
-      contact_name: form.get('contactName'),
-      contact_phone: form.get('contactPhone')
-    };
-
-    try {
-      if (editingLocation?.id) {
-        await supabase.from('locations').update(payload).eq('id', editingLocation.id);
-      } else {
-        await supabase.from('locations').insert(payload);
-      }
-      await loadData();
-      setIsLocationModalOpen(false);
-    } catch (err: any) { notify.error(err.message); }
-  };
-
-  const handleSaveClient = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const form = new FormData(e.target as HTMLFormElement);
-    const payload = {
-      name: form.get('name'),
-      contact_name: form.get('contactName'),
-      contact_phone: form.get('contactPhone'),
-      email: form.get('email'),
-      notes: form.get('notes')
-    };
-
-    try {
-      if (editingClient?.id) {
-        await supabase.from('clients').update(payload).eq('id', editingClient.id);
-      } else {
-        await supabase.from('clients').insert(payload);
-      }
-      await loadData();
-      setIsClientModalOpen(false);
-    } catch (err: any) { notify.error(err.message); }
-  };
-
-  const DailyAgendaModal = () => {
-    // ... [No changes needed in logic here, just UI]
-    const [citationTimes, setCitationTimes] = useState<Record<string, string>>({});
-    const [useCitation, setUseCitation] = useState<Record<string, boolean>>({});
-
-    const dayMatches = matches.filter(m => m.date === dailyAgendaDate && m.status !== 'Suspended' && m.status !== 'Completed').sort((a, b) => a.time.localeCompare(b.time));
-    const activeStaffIds: string[] = Array.from(new Set(dayMatches.flatMap(m => [m.driverId, m.nurseId, m.thirdCrewId].filter((id): id is string => !!id))));
-
-    useEffect(() => {
-      const initialTimes: Record<string, string> = {};
-      const initialUse: Record<string, boolean> = {};
-      activeStaffIds.forEach(sid => {
-        const firstMatch = dayMatches.find(m => m.driverId === sid || m.nurseId === sid || m.thirdCrewId === sid);
-        if (firstMatch) {
-          initialTimes[sid] = subtractTime(firstMatch.time, 60);
-          initialUse[sid] = false;
-        }
-      });
-      setCitationTimes(initialTimes);
-      setUseCitation(initialUse);
-    }, [dailyAgendaDate]);
-
-    const generateIndividualText = (s: StaffModel) => {
-      const staffMatches = dayMatches.filter(m => m.driverId === s.id || m.nurseId === s.id || m.thirdCrewId === s.id);
-      const dateLabel = new Date(dailyAgendaDate + 'T12:00:00').toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
-
-      let text = `👋 Hola *${s.name}*, tu cronograma para ${dateLabel}:\n\n`;
-
-      if (useCitation[s.id] && citationTimes[s.id]) {
-        text += `🕒 *Citación en Base:* ${formatTime24(citationTimes[s.id])} hs\n`;
-        text += `--------------------------------\n`;
-      }
-
-      staffMatches.forEach(m => {
-        const amb = ambulances.find(a => a.id === m.ambulanceId);
-        const partners = [];
-        if (m.driverId && m.driverId !== s.id) {
-          const p = staff.find(st => st.id === m.driverId);
-          if (p) partners.push(`${p.name} (Chofer)`);
-        }
-        if (m.nurseId && m.nurseId !== s.id) {
-          const p = staff.find(st => st.id === m.nurseId);
-          if (p) partners.push(`${p.name} (Enf)`);
-        }
-        if (m.thirdCrewId && m.thirdCrewId !== s.id) {
-          const p = staff.find(st => st.id === m.thirdCrewId);
-          if (p) partners.push(`${p.name} (Aux)`);
-        }
-
-        text += `🚑 *${formatTime24(m.time)} hs* | ${m.location}\n`;
-        text += `   📝 ${m.type} ${m.fieldNumber ? `(${m.fieldNumber})` : ''}\n`;
-        text += `   🚐 Móvil: ${amb ? amb.number : 'A designar'}\n`;
-        if (m.isSingleCrew && partners.length === 0) {
-          text += `   👤 Tripulación Simple\n`;
-        } else {
-          text += `   🤝 Con: ${partners.join(', ') || 'Nadie'}\n`;
-        }
-        text += `\n`;
-      });
-      return text;
-    };
-
-    return (
-      <ModalShell onClose={() => setIsStaffScheduleOpen(false)}>
-        <div className="dispatch-modal-panel bg-white rounded-xl shadow-2xl max-w-4xl w-full flex flex-col max-h-[90vh]">
-          <div className="p-4 border-b flex justify-between items-center bg-slate-50 rounded-t-xl">
-            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-indigo-600" /> Coberturas por Personal
-            </h3>
-            <button aria-label="Cerrar cronograma" onClick={() => setIsStaffScheduleOpen(false)}><X className="w-6 h-6 text-slate-500" /></button>
-          </div>
-          <div className="p-4 border-b bg-white">
-            <label className="block text-sm font-medium text-slate-700 mb-1">Seleccionar Fecha</label>
-            <DateInput
-              aria-label="Fecha de agenda diaria"
-              value={dailyAgendaDate}
-              onChange={(e) => setDailyAgendaDate(e.target.value)}
-              className="w-full md:w-64 p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-          <div className="p-6 overflow-y-auto bg-slate-100 flex-1">
-            {activeStaffIds.length === 0 ? (
-              <div className="text-center py-12 text-slate-500">
-                <p>No hay personal asignado para esta fecha.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {activeStaffIds.map(sid => {
-                  const s = staff.find(st => st.id === sid);
-                  if (!s) return null;
-                  const msg = generateIndividualText(s);
-                  const cleanPhone = s.phone.replace(/[^0-9]/g, '');
-                  const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`;
-
-                  const staffDayMatches = dayMatches.filter(m => m.driverId === sid || m.nurseId === sid || m.thirdCrewId === sid);
-
-                  return (
-                    <div key={sid} className="bg-white rounded-lg shadow-sm border border-slate-200 p-4 flex flex-col">
-                      <div className="flex justify-between items-start mb-3">
-                        <div>
-                          <h4 className="font-bold text-slate-800">{s.name}</h4>
-                          <span className="text-xs bg-slate-100 px-2 py-0.5 rounded text-slate-600">{s.role}</span>
-                        </div>
-                        <div className="flex flex-col items-end gap-1">
-                          <label className="text-xs uppercase font-bold text-slate-500 mb-1 flex items-center gap-1 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={useCitation[sid] || false}
-                              onChange={(e) => setUseCitation(prev => ({ ...prev, [sid]: e.target.checked }))}
-                              className="rounded text-indigo-600 focus:ring-indigo-500 w-3 h-3"
-                            />
-                            <Clock4 className="w-3 h-3" /> Citar en Base
-                          </label>
-                          {useCitation[sid] && (
-                            <div className="flex items-center gap-1">
-                              <input
-                                type="time"
-                                className="border rounded p-1 text-sm w-28 text-center bg-indigo-50 border-indigo-100 font-medium"
-                                value={citationTimes[sid] || ''}
-                                onChange={(e) => setCitationTimes(prev => ({ ...prev, [sid]: e.target.value }))}
-                              />
-                              <span className="text-xs text-slate-500 font-bold">HS</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex-1 bg-slate-50 rounded p-2 mb-3 text-xs font-mono text-slate-600 whitespace-pre-wrap border border-slate-100 h-32 overflow-y-auto">
-                        {msg}
-                      </div>
-                      <div className="flex gap-2">
-                        <a href={whatsappUrl} onClick={() => handleMarkStaffNotifiedForDay(sid, staffDayMatches)} target="_blank" rel="noopener noreferrer" className="flex-1 py-2 bg-green-500 text-white hover:bg-green-600 rounded-lg font-medium flex items-center justify-center gap-2 text-sm transition-colors shadow-sm shadow-green-200">
-                          <Send className="w-4 h-4" /> Enviar WhatsApp
-                        </a>
-                        <button onClick={() => { navigator.clipboard.writeText(msg); }} className="px-3 py-2 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors">
-                          <Copy className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-          <div className="p-4 border-t bg-slate-50 rounded-b-xl flex justify-end">
-            <button onClick={() => { setIsStaffScheduleOpen(false); setIsDailyAgendaOpen(true); }} className="px-6 py-2 bg-slate-800 text-white hover:bg-slate-700 rounded-lg">Volver a agenda</button>
-          </div>
-        </div>
-      </ModalShell>
-    );
-  };
-
-  const StaffHistoryModal = () => {
-    if (!viewingStaff) return null;
-    const staffMatches = matches.filter(m => m.driverId === viewingStaff.id || m.nurseId === viewingStaff.id || m.thirdCrewId === viewingStaff.id)
-      .sort((a, b) => b.date.localeCompare(a.date));
-
-    return (
-      <ModalShell onClose={() => setViewingStaff(null)}>
-        <div className="dispatch-modal-panel bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[85vh] flex flex-col">
-          <div className="p-4 border-b flex justify-between items-center bg-slate-50 rounded-t-xl">
-            <div>
-              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                <HistoryIcon className="w-5 h-5 text-indigo-600" /> Historial: {viewingStaff.name}
-              </h3>
-            </div>
-            <button onClick={() => setViewingStaff(null)}><X className="w-6 h-6 text-slate-500" /></button>
-          </div>
-          <div className="p-0 overflow-y-auto flex-1">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-100 text-slate-600 sticky top-0">
-                <tr>
-                  <th className="p-3 text-left">Fecha</th>
-                  <th className="p-3 text-left">Lugar</th>
-                  <th className="p-3 text-left">Rol</th>
-                  <th className="p-3 text-left">Estado</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {staffMatches.length === 0 ? (
-                  <tr><td colSpan={4} className="p-6 text-center text-slate-500">Sin historial registrado.</td></tr>
-                ) : (
-                  staffMatches.map(m => (
-                    <tr key={m.id} className="hover:bg-slate-50">
-                      <td className="p-3">
-                        <div className="font-medium text-slate-800">{formatDateAR(m.date)}</div>
-                        <div className="text-xs text-slate-500">{formatTime24(m.time)} hs</div>
-                      </td>
-                      <td className="p-3">
-                        <div className="font-medium">{m.location}</div>
-                        <div className="text-xs text-slate-500">{m.type} {m.fieldNumber && `- ${m.fieldNumber}`}</div>
-                      </td>
-                      <td className="p-3">
-                        {m.driverId === viewingStaff.id ? 'Chofer' : m.nurseId === viewingStaff.id ? 'Enfermero/a' : 'Auxiliar'}
-                      </td>
-                      <td className="p-3">
-                        <span className={`px-2 py-0.5 rounded text-xs border ${m.status === 'Completed' ? 'bg-green-50 text-green-700 border-green-200' : m.status === 'Suspended' ? 'bg-gray-100 text-gray-600 border-gray-200' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>
-                          {m.status === 'Suspended' ? 'Suspendido' : m.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </ModalShell>
-    );
-  };
-
-  const AuditModal = () => {
-    // ... [No changes needed]
-    if (!isAuditModalOpen || !viewingAuditMatch) return null;
-
-    return (
-      <ModalShell onClose={() => { setIsAuditModalOpen(false); setViewingAuditMatch(null); }}>
-        <div className="dispatch-modal-panel bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[80vh] flex flex-col">
-          <div className="p-4 border-b flex justify-between items-center bg-slate-50 rounded-t-xl">
-            <h3 className="font-bold text-slate-800 flex items-center gap-2">
-              <HistoryIcon className="w-5 h-5 text-slate-500" /> Historial de Cambios
-            </h3>
-            <button onClick={() => { setIsAuditModalOpen(false); setViewingAuditMatch(null); }}>
-              <X className="w-6 h-6 text-slate-500" />
-            </button>
-          </div>
-          <div className="p-0 overflow-y-auto flex-1">
-            {(!viewingAuditMatch.auditLog || viewingAuditMatch.auditLog.length === 0) ? (
-              <div className="p-8 text-center text-slate-500">
-                No hay cambios registrados para esta cobertura.
-              </div>
-            ) : (
-              <div className="divide-y divide-slate-100">
-                {[...viewingAuditMatch.auditLog].reverse().map((log, idx) => (
-                  <div key={idx} className="p-4 hover:bg-slate-50 transition-colors">
-                    <div className="flex justify-between items-start mb-1">
-                      <span className="text-xs font-bold text-slate-500 uppercase">
-                        {new Date(log.date).toLocaleString('es-AR')}
-                      </span>
-                    </div>
-                    <p className="text-sm text-slate-700">{log.changes}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="p-4 border-t bg-slate-50 rounded-b-xl flex justify-end">
-            <button onClick={() => { setIsAuditModalOpen(false); setViewingAuditMatch(null); }} className="px-4 py-2 bg-slate-800 text-white rounded-lg text-sm">Cerrar</button>
-          </div>
-        </div>
-      </ModalShell>
-    );
-  };
-
-  // Modal de Reporte de Incidente
-  const IncidentModal = () => {
-    if (!isIncidentModalOpen || !reportingMatch) return null;
-
-    return (
-      <ModalShell onClose={() => { setIsIncidentModalOpen(false); setReportingMatch(null); }}>
-        <div className="dispatch-modal-panel bg-white rounded-xl shadow-2xl max-w-lg w-full">
-          <div className="p-4 border-b flex justify-between items-center bg-slate-50 rounded-t-xl">
-            <h3 className="font-bold text-slate-800 flex items-center gap-2">
-              <ClipboardList className="w-5 h-5 text-indigo-600" /> Reporte de Cobertura
-            </h3>
-            <button onClick={() => { setIsIncidentModalOpen(false); setReportingMatch(null); }}>
-              <X className="w-6 h-6 text-slate-500 hover:text-red-500" />
-            </button>
-          </div>
-          <div className="p-6 space-y-4">
-            <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
-              <p className="text-sm text-slate-600">
-                <strong>{reportingMatch.location}</strong> - {formatDateAR(reportingMatch.date)} {formatTime24(reportingMatch.time)} hs
-              </p>
-              <p className="text-xs text-slate-500 mt-1">{reportingMatch.type}</p>
-            </div>
-
-            <div className="space-y-3">
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={incidentForm.hasIncident}
-                  onChange={(e) => setIncidentForm(prev => ({ ...prev, hasIncident: e.target.checked }))}
-                  className="w-5 h-5 rounded border-slate-300 text-red-600 focus:ring-red-500"
-                />
-                <span className="text-sm font-medium text-slate-700">¿Hubo incidente/emergencia?</span>
-              </label>
-
-              {incidentForm.hasIncident && (
-                <label className="flex items-center gap-3 cursor-pointer ml-8">
-                  <input
-                    type="checkbox"
-                    checked={incidentForm.wasTransferred}
-                    onChange={(e) => setIncidentForm(prev => ({ ...prev, wasTransferred: e.target.checked }))}
-                    className="w-5 h-5 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
-                  />
-                  <span className="text-sm font-medium text-slate-700">¿Fue trasladado?</span>
-                </label>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Observaciones / Detalles</label>
-              <textarea
-                value={incidentForm.details}
-                onChange={(e) => setIncidentForm(prev => ({ ...prev, details: e.target.value }))}
-                className="w-full p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none h-24"
-                placeholder="Descripción del incidente, observaciones sobre la cobertura, etc..."
-              />
-            </div>
-          </div>
-          <div className="p-4 border-t bg-slate-50 rounded-b-xl flex justify-end gap-3">
-            <button
-              onClick={() => { setIsIncidentModalOpen(false); setReportingMatch(null); }}
-              className="px-4 py-2 text-slate-600 hover:text-slate-800"
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={handleSaveReport}
-              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium flex items-center gap-2"
-            >
-              <Check className="w-4 h-4" /> Completar Cobertura
-            </button>
-          </div>
-        </div>
-      </ModalShell>
-    );
-  };
-
-  const ChangePasswordModal = () => {
-    const [newPass, setNewPass] = useState('');
-    const [confirmPass, setConfirmPass] = useState('');
-    const [newUsername, setNewUsername] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [msg, setMsg] = useState('');
-    const [isError, setIsError] = useState(false);
-
-    const handleSubmit = async (e: React.FormEvent) => {
-      e.preventDefault();
-      if (newPass && newPass !== confirmPass) {
-        setMsg('Las contraseñas no coinciden');
-        setIsError(true);
-        return;
-      }
-      if (newPass && newPass.length < 6) {
-        setMsg('La contraseña debe tener al menos 6 caracteres');
-        setIsError(true);
-        return;
-      }
-      if (!newPass && !newUsername) {
-        setMsg('Ingrese al menos un dato para actualizar (Usuario o Contraseña)');
-        setIsError(true);
-        return;
-      }
-
-      setLoading(true);
-      setMsg('');
-      try {
-        await handleChangePassword(newPass, newUsername);
-        setMsg('Datos actualizados correctamente');
-        setIsError(false);
-        setTimeout(() => setIsChangePasswordOpen(false), 2000);
-      } catch (err: any) {
-        setMsg(err.message);
-        setIsError(true);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    return (
-      <ModalShell onClose={() => setIsChangePasswordOpen(false)}>
-        <div className="dispatch-modal-panel bg-white rounded-xl shadow-xl w-full max-w-sm">
-          <form onSubmit={handleSubmit} className="flex flex-col">
-            <div className="p-4 border-b flex justify-between items-center bg-slate-50 rounded-t-xl">
-              <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                <Key className="w-5 h-5 text-indigo-600" /> Perfil de Usuario
-              </h3>
-              <button type="button" onClick={() => setIsChangePasswordOpen(false)}><X className="w-5 h-5 text-slate-500" /></button>
-            </div>
-            <div className="p-4 space-y-4">
-              {msg && (
-                <div className={`p-3 rounded-lg text-sm ${isError ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
-                  {msg}
-                </div>
-              )}
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre de Usuario</label>
-                <input
-                  type="text"
-                  value={newUsername}
-                  onChange={e => setNewUsername(e.target.value)}
-                  className="w-full p-2 border rounded focus:ring-2 focus:ring-indigo-500"
-                  placeholder="Nuevo nombre de usuario"
-                />
-              </div>
-              <div className="border-t border-slate-100 my-2 pt-2">
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nueva Contraseña (Opcional)</label>
-                <input
-                  type="password"
-                  value={newPass}
-                  onChange={e => setNewPass(e.target.value)}
-                  className="w-full p-2 border rounded focus:ring-2 focus:ring-indigo-500"
-                  placeholder="Dejar vacía para no cambiar"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Confirmar Contraseña</label>
-                <input
-                  type="password"
-                  value={confirmPass}
-                  onChange={e => setConfirmPass(e.target.value)}
-                  className="w-full p-2 border rounded focus:ring-2 focus:ring-indigo-500"
-                  required
-                />
-              </div>
-            </div>
-            <div className="p-4 border-t flex justify-end gap-2">
-              <button type="button" onClick={() => setIsChangePasswordOpen(false)} className="px-4 py-2 text-slate-600">Cancelar</button>
-              <button type="submit" disabled={loading} className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50">
-                {loading ? 'Guardando...' : 'Cambiar'}
-              </button>
-            </div>
-          </form>
-        </div>
-      </ModalShell>
-    );
-  };
 
   return (
     <div className="dispatch-shell min-h-screen flex font-sans text-slate-900">
@@ -1604,7 +894,7 @@ function MainApp({ session }: { session: any }) {
                       </div>
                       <div className="flex gap-2">
                         <button onClick={() => { setEditingTransfer({ date: localDate() }); setIsTransferModalOpen(true); }} className="dispatch-secondary-action"><Truck className="h-4 w-4" /> Traslado</button>
-                        <button onClick={() => { setEditingMatch({ date: localDate() }); setIsMatchReadOnly(false); setIsMatchModalOpen(true); }} className="dispatch-primary-action"><Plus className="h-4 w-4" /> Cobertura</button>
+                        <button onClick={() => { setEditingMatch({ date: localDate() }); setIsMatchModalOpen(true); }} className="dispatch-primary-action"><Plus className="h-4 w-4" /> Cobertura</button>
                       </div>
                     </div>
   
@@ -1772,7 +1062,7 @@ function MainApp({ session }: { session: any }) {
                     const clear = <button onClick={() => setFilters({ location: '', ambulance: '', outsourced: 'all', startDate: '', endDate: '', clientId: '', staffId: '', status: 'all' })} className="dispatch-secondary-action">Limpiar filtros</button>;
                     return activeTab === 'history'
                       ? <EmptyState icon={HistoryIcon} title={filtered ? 'Ningún servicio cerrado coincide con los filtros' : 'Todavía no hay servicios cerrados'} detail="Acá aparecen las coberturas completadas o suspendidas." action={filtered ? clear : undefined} />
-                      : <EmptyState icon={Calendar} title={filtered ? 'Ninguna cobertura coincide con los filtros' : 'No hay coberturas próximas'} action={filtered ? clear : <button onClick={() => { setEditingMatch({ date: localDate() }); setIsMatchReadOnly(false); setIsMatchModalOpen(true); }} className="dispatch-primary-action"><Plus className="h-4 w-4" /> Cargar la primera</button>} />;
+                      : <EmptyState icon={Calendar} title={filtered ? 'Ninguna cobertura coincide con los filtros' : 'No hay coberturas próximas'} action={filtered ? clear : <button onClick={() => { setEditingMatch({ date: localDate() }); setIsMatchModalOpen(true); }} className="dispatch-primary-action"><Plus className="h-4 w-4" /> Cargar la primera</button>} />;
                   })()}
                   <div className="space-y-4">
                     {filteredMatches.map((match, index) => {
@@ -1956,7 +1246,7 @@ function MainApp({ session }: { session: any }) {
                                 {activeTab === 'matches' && (
                                   <>
                                     {!isSuspended && (
-                                      <button onClick={(e) => { e.stopPropagation(); setReportingMatch(match); setIncidentForm(match.incidentReport || { hasIncident: false, wasTransferred: false, details: '' }); setIsIncidentModalOpen(true); }} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Reportar Incidente / Cerrar">
+                                      <button onClick={(e) => { e.stopPropagation(); setReportingMatch(match); }} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Reportar Incidente / Cerrar">
                                         <ClipboardList className="w-5 h-5" />
                                       </button>
                                     )}
@@ -1968,7 +1258,7 @@ function MainApp({ session }: { session: any }) {
                                 {activeTab === 'history' && (
                                   <>
                                     {match.auditLog && match.auditLog.length > 0 && (
-                                      <button onClick={(e) => { e.stopPropagation(); setViewingAuditMatch(match); setIsAuditModalOpen(true); }} className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors" title="Ver Historial de Cambios">
+                                      <button onClick={(e) => { e.stopPropagation(); setViewingAuditMatch(match); }} className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors" title="Ver Historial de Cambios">
                                         <HistoryIcon className="w-5 h-5" />
                                       </button>
                                     )}
@@ -1997,8 +1287,6 @@ function MainApp({ session }: { session: any }) {
                   <SectionHeader eyebrow="Recursos móviles" title="Flota de ambulancias" description="Estado operativo, mantenimiento y datos clave de cada unidad." icon={Truck} actions={
                     <button onClick={() => {
                       setEditingAmbulance(null);
-                      setAmbFormShowOutsourced(false);
-                      setAmbFormShowWorkshop(false);
                       setIsAmbulanceModalOpen(true);
                     }} className="dispatch-primary-action"><Plus className="h-4 w-4" /> Agregar móvil</button>
                   } />
@@ -2185,9 +1473,13 @@ function MainApp({ session }: { session: any }) {
       />
 
 
-      {isAuditModalOpen && <AuditModal />}
-      {isIncidentModalOpen && <IncidentModal />}
-      {isStaffScheduleOpen && <DailyAgendaModal />}
+      <AuditModal isOpen={!!viewingAuditMatch} match={viewingAuditMatch} onClose={() => setViewingAuditMatch(null)} />
+      {reportingMatch && <IncidentModal match={reportingMatch} onClose={() => setReportingMatch(null)} onSave={handleSaveReport} />}
+      {isStaffScheduleOpen && (
+        <StaffScheduleModal date={dailyAgendaDate} setDate={setDailyAgendaDate} matches={matches} staff={staff} ambulances={ambulances}
+          onClose={() => setIsStaffScheduleOpen(false)} onBack={() => { setIsStaffScheduleOpen(false); setIsDailyAgendaOpen(true); }}
+          onNotified={handleMarkStaffNotifiedForDay} />
+      )}
       {isDailyAgendaOpen && <OperationalAgendaModal
         date={dailyAgendaDate} setDate={setDailyAgendaDate}
         onClose={() => setIsDailyAgendaOpen(false)} services={agendaServices}
@@ -2223,8 +1515,8 @@ function MainApp({ session }: { session: any }) {
         ambulances={ambulances}
         editing={editingFuel}
       />
-      {isChangePasswordOpen && <ChangePasswordModal />}
-      {viewingStaff && <StaffHistoryModal />}
+      {isChangePasswordOpen && <ChangePasswordModal onClose={() => setIsChangePasswordOpen(false)} />}
+      <StaffHistoryModal isOpen={!!viewingStaff} staff={viewingStaff} matches={matches} ambulances={ambulances} onClose={() => setViewingStaff(null)} />
       {viewingAmbulance && (
         <AmbulanceDetailModal
           isOpen={!!viewingAmbulance}

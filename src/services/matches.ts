@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { Match, MatchType } from '../types';
+import { Match } from '../types';
 import { getConflicts, checkSystemConflicts } from '../utils/scheduling';
 
 // --- MAPPERS ---

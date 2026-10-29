@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { MatchType, Location, Ambulance, Staff, Match } from '../../types';
-import { Zap, X, Plus, AlertTriangle } from 'lucide-react';
+import { Zap, X, Plus } from 'lucide-react';
 import { getConflicts } from '../../utils/scheduling';
 import { DateInput } from '../DateInput';
 import { driverOptionLabel } from '../../utils/licenses';
