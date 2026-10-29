@@ -8,7 +8,7 @@ import {
   ArrowRightCircle, ClipboardList, Briefcase, History as HistoryIcon, ArrowRight,
   Fuel, ListPlus, UserPlus, 
   AlertOctagon, Building, FileSpreadsheet, Ban, Zap, Mail,
-  Lock, LogIn, Loader2, Key, Eye, EyeOff, IdCard
+  Lock, LogIn, Loader2, Key, Eye, EyeOff, IdCard, Search
 } from 'lucide-react';
 import {
   
@@ -58,6 +58,10 @@ import { FleetStatusWidget } from './src/components/FleetStatusWidget';
 import { DashboardClock } from './src/components/DashboardClock';
 import { MobileTabBar, SECTIONS, sectionTitle, type SectionId } from './src/components/AppNavigation';
 import { TransfersList } from './src/components/TransfersList';
+import { GlobalSearch } from './src/components/GlobalSearch';
+import type { SearchResult } from './src/utils/search';
+import { StatusChip } from './src/components/ui/StatusChip';
+import { MATCH_STATUS } from './src/utils/status';
 const BusinessWorkspace = React.lazy(() => import('./src/components/BusinessWorkspace').then(module => ({ default: module.BusinessWorkspace })));
 import { QuickAddModal, QuickAddRow } from './src/components/modals/QuickAddModal';
 import { askConfirm, FeedbackHost, notify, useSpanishValidation } from './src/components/ui/feedback';
@@ -363,6 +367,23 @@ function MainApp({ session }: { session: any }) {
 
 
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const userName: string = session?.user?.user_metadata?.username || session?.user?.email?.split('@')[0] || '';
+
+  // «/» o Ctrl+K abren la búsqueda cuando no se está escribiendo en un campo.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement;
+      const typing = target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
+      if ((event.key === '/' && !typing) || ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k')) {
+        if (document.querySelector('[aria-modal="true"]')) return;
+        event.preventDefault();
+        setIsSearchOpen(true);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   // Filters State
   const [filters, setFilters] = useState({
@@ -461,6 +482,13 @@ function MainApp({ session }: { session: any }) {
       setIsTransferModalOpen(true);
     }
   };
+
+  // Cruces de coberturas activas, calculados una vez por cambio de datos y no en cada render de tarjeta.
+  const coverageConflicts = useMemo(() => {
+    const result = new Map<string, ReturnType<typeof getConflicts>>();
+    matches.forEach(m => { if (m.status !== 'Completed' && m.status !== 'Suspended') result.set(m.id, getConflicts(m, matches)); });
+    return result;
+  }, [matches]);
 
   const filteredMatches = (activeTab === 'history' ? matches : futureMatches).filter(m => {
     if (activeTab === 'history' && m.status !== 'Completed' && m.status !== 'Suspended') return false;
@@ -623,6 +651,42 @@ function MainApp({ session }: { session: any }) {
       notify.success(payload.id ? 'Traslado actualizado.' : 'Traslado registrado.');
   };
 
+  // Cambios de estado en un toque: se actualiza la lista al instante y se refresca el resto en segundo plano.
+  const completeTransfer = async (transfer: TransferModel) => {
+    try {
+      let query = supabase.from('transfers').update({ status: 'Completed' }).eq('id', transfer.id);
+      if (transfer.version !== undefined) query = query.eq('version', transfer.version);
+      const { data, error } = await query.select('*').single();
+      if (error) throw error;
+      setTransfers(prev => prev.map(t => t.id === transfer.id ? data as TransferModel : t));
+      notify.success('Traslado finalizado.');
+      loadData();
+    } catch (err: any) {
+      notify.error('No se pudo finalizar: ' + friendlyError(err));
+    }
+  };
+
+  const confirmMatch = async (match: MatchModel) => {
+    try {
+      const saved = await matchesService.saveMatch({ id: match.id, version: match.version, status: 'Confirmed' });
+      if (saved) setMatches(prev => prev.map(m => m.id === match.id ? saved : m));
+      matchesService.addAuditLog(match.id, 'Estado: Pending -> Confirmed').catch(() => undefined);
+      notify.success('Cobertura confirmada.');
+      loadData();
+    } catch (err: any) {
+      notify.error('No se pudo confirmar: ' + friendlyError(err));
+    }
+  };
+
+  const openSearchResult = (result: SearchResult) => {
+    if (result.kind === 'coverage') { const m = matches.find(x => x.id === result.id); if (m) { setEditingMatch(m); setIsMatchModalOpen(true); } }
+    if (result.kind === 'transfer') { const t = transfers.find(x => x.id === result.id); if (t) { setEditingTransfer(t); setIsTransferModalOpen(true); } }
+    if (result.kind === 'staff') { const p = staff.find(x => x.id === result.id); if (p) { handleNav('staff'); setEditingStaff(p); setIsStaffModalOpen(true); } }
+    if (result.kind === 'ambulance') { const a = ambulances.find(x => x.id === result.id); if (a) setViewingAmbulance(a); }
+    if (result.kind === 'location') { const l = locations.find(x => x.id === result.id); if (l) setViewingLocation(l); }
+    if (result.kind === 'client') { const c = clients.find(x => x.id === result.id); if (c) { handleNav('clients'); setViewingClient(c); } }
+  };
+
   const handleDeleteTransfer = async (id: string) => {
     if (!(await askConfirm({ title: '¿Seguro que deseas eliminar este traslado?', confirmLabel: 'Eliminar', danger: true }))) return;
     try {
@@ -732,7 +796,15 @@ function MainApp({ session }: { session: any }) {
         {/* Header */}
         <header className="bg-white/95 backdrop-blur border-b border-slate-200 sticky top-0 z-30 px-4 md:px-6 py-2 flex items-center justify-between gap-3 shadow-sm">
           <h2 className="min-w-0 truncate text-lg font-bold text-slate-800 lg:text-xl">{sectionTitle(activeTab)}</h2>
-          <div className="flex shrink-0 items-center gap-3">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+            <button
+              onClick={() => setIsSearchOpen(true)}
+              aria-label="Buscar"
+              title="Buscar (tecla /)"
+              className="flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
+            >
+              <Search className="h-5 w-5 sm:h-4 sm:w-4" /> <span className="hidden md:inline">Buscar</span> <kbd className="hidden rounded border border-slate-200 px-1.5 text-xs text-slate-500 lg:inline">/</kbd>
+            </button>
             <button
               onClick={() => { setDailyAgendaDate(localDate()); setIsDailyAgendaOpen(true); }}
               aria-label="Agenda Diaria"
@@ -740,8 +812,8 @@ function MainApp({ session }: { session: any }) {
             >
               <Calendar className="w-5 h-5 sm:w-4 sm:h-4" /> <span className="hidden sm:inline">Agenda Diaria</span>
             </button>
-            <div className="h-8 w-8 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-700 font-bold border border-indigo-200">
-              A
+            <div className="hidden h-8 w-8 items-center justify-center rounded-full border border-indigo-200 bg-indigo-100 font-bold uppercase text-indigo-700 sm:flex" title={userName} aria-hidden="true">
+              {userName.charAt(0) || '·'}
             </div>
           </div>
         </header>
@@ -966,7 +1038,7 @@ function MainApp({ session }: { session: any }) {
                       const third = staff.find(s => s.id === match.thirdCrewId);
                       const client = clients.find(c => c.id === match.clientId);
 
-                      const { hard: conflicts, shared: sharedConflicts } = activeTab === 'matches' ? getConflicts(match, matches) : { hard: [], shared: [] };
+                      const { hard: conflicts, shared: sharedConflicts } = (activeTab === 'matches' && coverageConflicts.get(match.id)) || { hard: [], shared: [] };
                       const isConflicted = conflicts.length > 0;
                       const isShared = sharedConflicts.length > 0;
                       const endTime = calculateEndTime(match.time, match.durationMinutes, match.extensionMinutes);
@@ -990,7 +1062,7 @@ function MainApp({ session }: { session: any }) {
                               <div className="md:w-32 bg-slate-50 p-4 flex flex-row md:flex-col items-center md:justify-center justify-between border-b md:border-b-0 md:border-r border-slate-100 gap-2">
                                 <div className="text-center">
                                   <span className={`block text-2xl font-bold ${isSuspended ? 'text-slate-500 line-through' : 'text-slate-800'}`}>{formatDateAR(match.date).split('/')[0]}</span>
-                                  <span className="block text-xs uppercase font-bold text-slate-500">{new Date(match.date).toLocaleString('es-AR', { month: 'short' })}</span>
+                                  <span className="block text-xs uppercase font-bold text-slate-500">{new Date(`${match.date}T12:00:00`).toLocaleString('es-AR', { month: 'short' })}</span>
                                 </div>
                                 <div className="text-center md:mt-2">
                                   <span className={`block text-xl font-bold ${isSuspended ? 'text-slate-500' : isConflicted ? 'text-red-600' : 'text-slate-800'}`}>{formatTime24(match.time)}</span>
@@ -1005,13 +1077,9 @@ function MainApp({ session }: { session: any }) {
                                       {match.location}
                                       <span className="font-normal text-slate-500 text-base">{match.fieldNumber ? `- ${match.fieldNumber}` : ''}</span>
                                     </h3>
-                                    <div className="flex items-center gap-2 mt-1">
+                                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                                      <StatusChip tone={(MATCH_STATUS[match.status] ?? MATCH_STATUS.Pending).tone} className="!py-0.5">{(MATCH_STATUS[match.status] ?? MATCH_STATUS.Pending).label}</StatusChip>
                                       <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-xs font-medium border border-slate-200">{match.type}</span>
-                                      {isSuspended && (
-                                        <span className="px-2 py-0.5 rounded-md bg-slate-200 text-slate-600 text-xs font-bold border border-slate-300 flex items-center gap-1">
-                                          <Ban className="w-3 h-3" /> SUSPENDIDO
-                                        </span>
-                                      )}
                                       {!isSuspended && match.type !== 'Evento' && match.type !== 'Partido de Fútbol' && match.chukkers !== undefined && (
                                         <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-600 text-xs font-medium border border-blue-100">{match.chukkers} Chukkers</span>
                                       )}
@@ -1135,16 +1203,21 @@ function MainApp({ session }: { session: any }) {
                                 )}
                               </div>
 
-                              <div className="p-4 flex md:flex-col gap-2 items-center justify-center border-t md:border-t-0 md:border-l border-slate-100 bg-slate-50 md:bg-white min-w-[60px]">
+                              <div className="p-3 flex md:flex-col gap-2 items-stretch justify-end border-t md:border-t-0 md:border-l border-slate-100 bg-slate-50 md:bg-white md:w-36">
                                 {activeTab === 'matches' && (
                                   <>
-                                    {!isSuspended && (
-                                      <button onClick={(e) => { e.stopPropagation(); setReportingMatch(match); }} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Reportar Incidente / Cerrar">
-                                        <ClipboardList className="w-5 h-5" />
+                                    {match.status === 'Pending' && (
+                                      <button onClick={(e) => { e.stopPropagation(); confirmMatch(match); }} className="flex min-h-11 flex-1 md:flex-none items-center justify-center gap-1.5 rounded-lg bg-sky-600 px-3 text-sm font-semibold text-white hover:bg-sky-700">
+                                        <Check className="h-4 w-4" /> Confirmar
                                       </button>
                                     )}
-                                    <button onClick={(e) => { e.stopPropagation(); setEditingMatch(match); setIsMatchModalOpen(true); }} className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors" title="Editar">
-                                      <Edit2 className="w-5 h-5" />
+                                    {!isSuspended && (
+                                      <button onClick={(e) => { e.stopPropagation(); setReportingMatch(match); }} className="flex min-h-11 flex-1 md:flex-none items-center justify-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-sm font-semibold text-emerald-800 hover:bg-emerald-100" title="Cerrar la cobertura con su reporte">
+                                        <ClipboardList className="h-4 w-4" /> Finalizar
+                                      </button>
+                                    )}
+                                    <button onClick={(e) => { e.stopPropagation(); setEditingMatch(match); setIsMatchModalOpen(true); }} className="flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-lg text-slate-600 hover:bg-slate-100" aria-label="Editar cobertura" title="Editar">
+                                      <Edit2 className="h-4 w-4" /><span className="hidden md:inline text-sm">Editar</span>
                                     </button>
                                   </>
                                 )}
@@ -1160,8 +1233,8 @@ function MainApp({ session }: { session: any }) {
                                     </button>
                                   </>
                                 )}
-                                <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteMatch(match.id); }} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Eliminar Cobertura">
-                                  <Trash2 className="w-5 h-5" />
+                                <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteMatch(match.id); }} className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-red-500 hover:bg-red-50" aria-label="Eliminar cobertura" title="Eliminar">
+                                  <Trash2 className="h-4 w-4" />
                                 </button>
                               </div>
                             </div>
@@ -1326,6 +1399,7 @@ function MainApp({ session }: { session: any }) {
                     staff={staff}
                     ambulances={ambulances}
                     onEdit={transfer => { setEditingTransfer(transfer); setIsTransferModalOpen(true); }}
+                    onComplete={completeTransfer}
                   />
                 </div>
               )}
@@ -1408,6 +1482,9 @@ function MainApp({ session }: { session: any }) {
         ambulances={ambulances}
         editing={editingFuel}
       />
+      {isSearchOpen && (
+        <GlobalSearch data={{ matches, transfers, staff, ambulances, locations, clients }} onClose={() => setIsSearchOpen(false)} onSelect={openSearchResult} />
+      )}
       {isChangePasswordOpen && <ChangePasswordModal onClose={() => setIsChangePasswordOpen(false)} />}
       <StaffHistoryModal isOpen={!!viewingStaff} staff={viewingStaff} matches={matches} ambulances={ambulances} onClose={() => setViewingStaff(null)} />
       {viewingAmbulance && (
