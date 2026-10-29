@@ -9,7 +9,19 @@ export default defineConfig(() => {
         host: '127.0.0.1',
       },
       plugins: [react()],
-      build: { sourcemap: false },
+      build: {
+        sourcemap: false,
+        rollupOptions: {
+          output: {
+            // Librerías en archivos aparte: cambian poco y el navegador las reutiliza entre versiones.
+            manualChunks: {
+              react: ['react', 'react-dom', 'react-dom/client'],
+              supabase: ['@supabase/supabase-js'],
+              icons: ['lucide-react'],
+            },
+          },
+        },
+      },
       resolve: {
         alias: {
           '@': path.resolve(__dirname, '.'),

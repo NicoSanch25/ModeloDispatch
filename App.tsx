@@ -33,38 +33,49 @@ import { friendlyError, withTimeout } from './src/utils/requests';
 import { mapMatchFromDB, matchesService } from './src/services/matches';
 import { mapAmbulanceFromDB, mapClientFromDB, mapFuelFromDB, mapLocationFromDB, mapStaffFromDB } from './src/services/resources';
 import { AgendaList } from './src/components/AgendaList';
-import { OperationalAgendaModal } from './src/components/modals/OperationalAgendaModal';
 import { agendaConflicts, applyServiceRegistry, buildAgenda, servicesForDay, type AgendaService } from './src/utils/agenda';
 import { fetchOperationalTable, fetchServiceRegistry, type Service } from './src/services/business';
 import { csvCell } from './src/utils/security';
 
-import { MatchModal } from './src/components/modals/MatchModal';
-import { StaffModal } from './src/components/modals/StaffModal';
-import { AmbulanceModal } from './src/components/modals/AmbulanceModal';
-import { LocationModal } from './src/components/modals/LocationModal';
-import { LocationDetailModal } from './src/components/modals/LocationDetailModal';
-import { AmbulanceDetailModal } from './src/components/modals/AmbulanceDetailModal';
-import { ClientModal } from './src/components/modals/ClientModal';
-import { TransferModal } from './src/components/modals/TransferModal';
-import { FuelBatchModal } from './src/components/modals/FuelBatchModal';
 import { FuelList } from './src/components/FuelList';
-import { AuditModal } from './src/components/modals/AuditModal';
-import { ChangePasswordModal } from './src/components/modals/ChangePasswordModal';
-import { IncidentModal } from './src/components/modals/IncidentModal';
-import { StaffHistoryModal } from './src/components/modals/StaffHistoryModal';
-import { StaffScheduleModal } from './src/components/modals/StaffScheduleModal';
 import { EmptyState, LoadingSkeleton } from './src/components/ui/Skeleton';
 import { FleetStatusWidget } from './src/components/FleetStatusWidget';
 import { DashboardClock } from './src/components/DashboardClock';
 import { MobileTabBar, SECTIONS, sectionTitle, type SectionId } from './src/components/AppNavigation';
 import { TransfersList } from './src/components/TransfersList';
-import { GlobalSearch } from './src/components/GlobalSearch';
 import type { SearchResult } from './src/utils/search';
 import { StatusChip } from './src/components/ui/StatusChip';
 import { MATCH_STATUS } from './src/utils/status';
 const BusinessWorkspace = React.lazy(() => import('./src/components/BusinessWorkspace').then(module => ({ default: module.BusinessWorkspace })));
-import { QuickAddModal, QuickAddRow } from './src/components/modals/QuickAddModal';
+import type { QuickAddRow } from './src/components/modals/QuickAddModal';
 import { askConfirm, FeedbackHost, notify, useSpanishValidation } from './src/components/ui/feedback';
+
+// Los modales se descargan aparte: la pantalla principal aparece antes y se precargan en segundo plano.
+const modalLoaders: (() => Promise<unknown>)[] = [];
+function lazyModal<T extends React.ComponentType<any>>(load: () => Promise<T>): T {
+  const Lazy = React.lazy(async () => ({ default: await load() }));
+  modalLoaders.push(load);
+  const Wrapped = (props: React.ComponentProps<T>) => <React.Suspense fallback={null}><Lazy {...props} /></React.Suspense>;
+  return Wrapped as unknown as T;
+}
+const preloadModals = () => modalLoaders.forEach(load => load().catch(() => undefined));
+const MatchModal = lazyModal(() => import('./src/components/modals/MatchModal').then(m => m.MatchModal));
+const StaffModal = lazyModal(() => import('./src/components/modals/StaffModal').then(m => m.StaffModal));
+const AmbulanceModal = lazyModal(() => import('./src/components/modals/AmbulanceModal').then(m => m.AmbulanceModal));
+const LocationModal = lazyModal(() => import('./src/components/modals/LocationModal').then(m => m.LocationModal));
+const LocationDetailModal = lazyModal(() => import('./src/components/modals/LocationDetailModal').then(m => m.LocationDetailModal));
+const AmbulanceDetailModal = lazyModal(() => import('./src/components/modals/AmbulanceDetailModal').then(m => m.AmbulanceDetailModal));
+const ClientModal = lazyModal(() => import('./src/components/modals/ClientModal').then(m => m.ClientModal));
+const TransferModal = lazyModal(() => import('./src/components/modals/TransferModal').then(m => m.TransferModal));
+const FuelBatchModal = lazyModal(() => import('./src/components/modals/FuelBatchModal').then(m => m.FuelBatchModal));
+const AuditModal = lazyModal(() => import('./src/components/modals/AuditModal').then(m => m.AuditModal));
+const ChangePasswordModal = lazyModal(() => import('./src/components/modals/ChangePasswordModal').then(m => m.ChangePasswordModal));
+const IncidentModal = lazyModal(() => import('./src/components/modals/IncidentModal').then(m => m.IncidentModal));
+const StaffHistoryModal = lazyModal(() => import('./src/components/modals/StaffHistoryModal').then(m => m.StaffHistoryModal));
+const StaffScheduleModal = lazyModal(() => import('./src/components/modals/StaffScheduleModal').then(m => m.StaffScheduleModal));
+const GlobalSearch = lazyModal(() => import('./src/components/GlobalSearch').then(m => m.GlobalSearch));
+const OperationalAgendaModal = lazyModal(() => import('./src/components/modals/OperationalAgendaModal').then(m => m.OperationalAgendaModal));
+const QuickAddModal = lazyModal(() => import('./src/components/modals/QuickAddModal').then(m => m.QuickAddModal));
 
 // --- HELPERS ---
 const formatDateFull = (dateStr?: string) => dateStr ? dateStr.slice(0, 10).split('-').reverse().join('/') : '--/--/----';
@@ -462,6 +473,11 @@ function MainApp({ session }: { session: any }) {
       loadData();
     }
   }, [session]);
+
+  useEffect(() => {
+    const timer = setTimeout(preloadModals, 1200);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Cambios de otros operadores: tiempo real si la base lo publica y, como respaldo,
   // relectura al volver a la pestaña y cada dos minutos mientras está visible.
