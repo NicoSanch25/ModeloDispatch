@@ -51,7 +51,7 @@ Respetan las preferencias registradas en [`AGENTS.md`](../AGENTS.md):
 |---|---|---|
 | N.1 | Licencia de conducir de choferes (número, categoría, vencimiento): avisos de vencida y por vencer a 30 días en tablero y Personal, y marca al asignar | Hecha · migración `202610220004` aplicada el 29/10 |
 | N.2 | Combustible: orden por fecha, resumen mensual por móvil, corregir y eliminar movimientos, litros con coma | Hecha |
-| N.3 | Tickets de combustible: número (opcional), importe y kilometraje; gasto del mes y por móvil; aviso si el kilometraje es menor al último del móvil | Hecha · en revisión · requiere migración `202610290006_fuel_ticket_details.sql` |
+| N.3 | Tickets de combustible: número (opcional), importe y kilometraje; gasto del mes y por móvil; aviso si el kilometraje es menor al último del móvil | Hecha · PR #4 · migración `202610290006` aplicada el 29/10 |
 
 ### Etapa 4 — Mecánicas operativas
 
