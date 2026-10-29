@@ -18,8 +18,8 @@ const database: Record<string, any[]> = {
   clients: [{ id: 'client', name: 'Cliente de prueba' }],
   matches: [{ id: 'match', date: today, time: '18:00', duration_minutes: 90, extension_minutes: 30, location: 'Sede de prueba', field_number: '1', type: 'Evento', status: 'Confirmed', ambulance_id: 'vehicle', driver_id: 'driver', nurse_id: 'nurse', driver_notified: true, nurse_notified: true, has_incident: true, was_transferred: true, incident_details: 'Incidente ficticio conservado', audit_logs: [] }],
   fuel_records: [
-    { id: 'f-b', date: shift(-1), ambulance_id: 'vehicle', driver_id: 'driver-ok', fuel_type: 'Euro Diesel', liters: 40, items: null },
-    { id: 'f-a', date: today, ambulance_id: 'vehicle', driver_id: 'driver-soon', fuel_type: 'Euro Diesel', liters: 35.5, items: 'Agua destilada' },
+    { id: 'f-b', date: shift(-1), ambulance_id: 'vehicle', driver_id: 'driver-ok', fuel_type: 'Euro Diesel', liters: 40, items: null, amount: 52000, odometer_km: 120800, ticket_number: '0003-00012345' },
+    { id: 'f-a', date: today, ambulance_id: 'vehicle', driver_id: 'driver-soon', fuel_type: 'Euro Diesel', liters: 35.5, items: 'Agua destilada', amount: 46150.5, odometer_km: 121150 },
     { id: 'f-c', date: shift(-20), ambulance_id: 'vehicle', driver_id: null, external_driver_name: 'Chofer externo', fuel_type: 'Diesel', liters: 0, items: 'Franela' }
   ], transfers: params.get('agenda') ? [
     { id: 'journey', date: today, transfer_number: 'PRUEBA-1', driver_id: 'driver', origin: 'Base de prueba', destination: 'Hospital de prueba', departure_base_time: '19:00', arrival_base_time: '21:00', status: 'Pending' },

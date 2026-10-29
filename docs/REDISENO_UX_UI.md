@@ -49,8 +49,9 @@ Respetan las preferencias registradas en [`AGENTS.md`](../AGENTS.md):
 
 | # | Mejora | Estado |
 |---|---|---|
-| N.1 | Licencia de conducir de choferes (número, categoría, vencimiento): avisos de vencida y por vencer a 30 días en tablero y Personal, y marca al asignar | Hecha · requiere migración `202610220004_staff_driver_license.sql` |
+| N.1 | Licencia de conducir de choferes (número, categoría, vencimiento): avisos de vencida y por vencer a 30 días en tablero y Personal, y marca al asignar | Hecha · migración `202610220004` aplicada el 29/10 |
 | N.2 | Combustible: orden por fecha, resumen mensual por móvil, corregir y eliminar movimientos, litros con coma | Hecha |
+| N.3 | Tickets de combustible: número (opcional), importe y kilometraje; gasto del mes y por móvil; aviso si el kilometraje es menor al último del móvil | Hecha · en revisión · requiere migración `202610290006_fuel_ticket_details.sql` |
 
 ### Etapa 4 — Mecánicas operativas
 
@@ -60,7 +61,7 @@ Respetan las preferencias registradas en [`AGENTS.md`](../AGENTS.md):
 | 4.2 | Cambio de estado en un toque desde la tarjeta (traslados) y confirmar cobertura en un toque | Hecha · Finalizar traslado, Confirmar y Finalizar cobertura; Traslados filtra Pendientes por defecto |
 | 4.3 | Alertas de vencimientos de flota (VTV, seguro, service por km) con días restantes | En curso · VTV con días restantes en Flota y en el tablero; falta seguro y service |
 | 4.4 | Búsqueda global (servicio, móvil, persona) desde el encabezado | Hecha · botón Buscar, tecla `/` o Ctrl+K (`src/utils/search.ts`) |
-| 4.5 | Actualización en tiempo real entre operadores (Supabase Realtime) | Hecha · requiere migración `202610290005_realtime_publication.sql`; sin ella se actualiza cada 2 min y al volver a la pestaña |
+| 4.5 | Actualización en tiempo real entre operadores (Supabase Realtime) | Hecha · migración `202610290005` aplicada el 29/10 |
 
 Después, según prioridad: duplicar servicio y plantillas, vista «hoy por móvil», atajos de teclado en escritorio, cola sin conexión e instalación como app (PWA).
 
@@ -90,3 +91,5 @@ Después, según prioridad: duplicar servicio y plantillas, vista «hoy por móv
 - **12/10/2026** — PR #1 (etapas 1 y 2) mergeado en `main` (`811b309`).
 - **22/10/2026** — Se retoma el proyecto. Licencias de choferes (N.1) y arreglos de combustible (N.2): la lista salía ordenada por id y el consumo mensual del móvil corría las cargas del día 1 al mes anterior. Etapa 3.3, 3.4, 3.6 y 3.7, franja de avisos arriba del tablero y VTV con días restantes.
 - **29/10/2026** — Revisión de fallos: el campo de incidente aceptaba una sola letra (modal definido dentro de `App`), hooks después de un `return` en Lugar y Contraseña, meses corridos por UTC en coberturas, mensajes de error de Supabase traducidos (`friendlyError`) y código muerto eliminado. Colores de estado (3.5), acciones de un toque (4.2), búsqueda global (4.4), actualización automática (4.5), modales descargados aparte (pantalla inicial 40 % más liviana) y encabezados de sección sin tarjeta en celular.
+- **29/10/2026** — Supabase restaurado; migraciones `202610220004` (licencias) y `202610290005` (tiempo real) aplicadas y verificadas. El trabajo vuelve a una sola sesión («Modelo Dispatch · Rediseño UX/UI»).
+- **29/10/2026** — N.3: tickets de combustible. Importe obligatorio (se escribe como en el ticket: «45.000,50»), kilometraje obligatorio al cargar litros y número de ticket opcional; los movimientos anteriores se pueden corregir sin importe. Gasto del mes y por móvil en el resumen, y aviso antes de guardar un kilometraje menor al último registrado del móvil.
