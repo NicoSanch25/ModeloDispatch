@@ -151,8 +151,8 @@ interface SectionHeaderProps {
 }
 
 const SectionHeader = ({ eyebrow, title, description, icon: Icon, actions }: SectionHeaderProps) => (
-  <section className="dispatch-section-header" aria-labelledby={`section-${eyebrow.replace(/\s+/g, '-').toLowerCase()}`}>
-    <div className="flex min-w-0 items-start gap-3">
+  <section className={`dispatch-section-header ${actions ? '' : 'hidden lg:flex'}`} aria-labelledby={`section-${eyebrow.replace(/\s+/g, '-').toLowerCase()}`}>
+    <div className="hidden min-w-0 items-start gap-3 lg:flex">
       <div className="dispatch-section-icon"><Icon className="h-5 w-5" /></div>
       <div className="min-w-0">
         <p className="dispatch-eyebrow">{eyebrow}</p>
@@ -160,7 +160,7 @@ const SectionHeader = ({ eyebrow, title, description, icon: Icon, actions }: Sec
         <p className="mt-1 max-w-2xl text-sm text-slate-500">{description}</p>
       </div>
     </div>
-    <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+    <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:justify-end">
       {actions}
     </div>
   </section>
