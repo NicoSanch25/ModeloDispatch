@@ -31,7 +31,7 @@ Respetan las preferencias registradas en [`AGENTS.md`](../AGENTS.md):
 | 1. Arreglos | Errores 1, 2, 4, 5, 8 y 9 de la revisión | Hecha · PR #1 (`6286d84`), mergeado el 12/10 |
 | 2. Base de diseño | `ModalShell`, avisos y confirmaciones propios, validación en español, transiciones | Hecha · PR #1 (`0986be4`), mergeado el 12/10 |
 | 3. Navegación, listas y sistema visual móvil | Ver detalle abajo | Hecha · PR #3 |
-| 4. Mecánicas operativas | Ver detalle abajo | Casi completa · PR #3 (falta seguro y service de flota) |
+| 4. Mecánicas operativas | Ver detalle abajo | Hecha · PR #3 y PR #6 |
 
 ### Etapa 3 — Navegación, listas y sistema visual móvil
 
@@ -59,7 +59,7 @@ Respetan las preferencias registradas en [`AGENTS.md`](../AGENTS.md):
 |---|---|---|
 | 4.1 | Franja «Requiere atención»: servicios sin recursos, cruces, vencidos sin cerrar, móviles bloqueados con asignaciones | Hecha · primero lo urgente (rojo) y después lo pendiente (ámbar); con más de cuatro avisos se ven tres y el resto con «Ver N avisos más». Reglas en `src/utils/attention.ts` |
 | 4.2 | Cambio de estado en un toque desde la tarjeta (traslados) y confirmar cobertura en un toque | Hecha · Finalizar traslado, Confirmar y Finalizar cobertura; Traslados filtra Pendientes por defecto |
-| 4.3 | Alertas de vencimientos de flota (VTV, seguro, service por km) con días restantes | En curso · VTV con días restantes en Flota y en el tablero; falta seguro y service |
+| 4.3 | Alertas de vencimientos de flota (VTV, seguro, service por km) con días restantes | Hecha · VTV, seguro y service (por km, por fecha o ambos; avisa a 1.000 km o 30 días) en Flota, detalle del móvil y tablero. El kilometraje toma el mayor entre el del móvil y el último ticket. Migración `202610310007` aplicada el 31/10 |
 | 4.4 | Búsqueda global (servicio, móvil, persona) desde el encabezado | Hecha · botón Buscar, tecla `/` o Ctrl+K (`src/utils/search.ts`) |
 | 4.5 | Actualización en tiempo real entre operadores (Supabase Realtime) | Hecha · migración `202610290005` aplicada el 29/10 |
 

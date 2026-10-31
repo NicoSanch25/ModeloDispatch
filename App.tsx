@@ -8,7 +8,7 @@ import {
   ArrowRightCircle, ClipboardList, Briefcase, History as HistoryIcon, ArrowRight,
   Fuel, ListPlus, UserPlus, 
   AlertOctagon, Building, FileSpreadsheet, Ban, Zap, Mail,
-  Lock, LogIn, Loader2, Key, Eye, EyeOff, IdCard, Search
+  Lock, LogIn, Loader2, Key, Eye, EyeOff, IdCard, Search, ShieldCheck, Wrench
 } from 'lucide-react';
 import {
   
@@ -35,6 +35,7 @@ import { mapAmbulanceFromDB, mapClientFromDB, mapFuelFromDB, mapLocationFromDB, 
 import { AgendaList } from './src/components/AgendaList';
 import { applyServiceRegistry, buildAgenda, servicesForDay, type AgendaService } from './src/utils/agenda';
 import { conflictedServices } from './src/utils/attention';
+import { currentKm, EXPIRY_CHIP, serviceLabel, serviceStatus } from './src/utils/fleet';
 import { fetchOperationalTable, fetchServiceRegistry, type Service } from './src/services/business';
 import { csvCell } from './src/utils/security';
 
@@ -913,7 +914,7 @@ function MainApp({ session }: { session: any }) {
                       </div>
                     </div>
   
-                    <AttentionAlerts matches={matches} ambulances={ambulances} staff={staff} services={agendaServices}
+                    <AttentionAlerts matches={matches} ambulances={ambulances} staff={staff} services={agendaServices} fuelRecords={fuelRecords}
                       onAgenda={showTodayCoverage} onFleet={() => handleNav('fleet')} onStaff={() => handleNav('staff')}
                       onOpenService={openAgendaService} onNav={handleNav}
                       onOpenDay={date => { setDailyAgendaDate(date); setIsDailyAgendaOpen(true); }} />
@@ -1312,6 +1313,8 @@ function MainApp({ session }: { session: any }) {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     {ambulances.map(amb => {
                       const vtv = licenseStatus(amb.maintenance?.vtvExpiration, localDate());
+                      const insurance = licenseStatus(amb.maintenance?.insuranceExpiration, localDate());
+                      const service = serviceStatus(amb, currentKm(amb, fuelRecords, localDate()), localDate());
                       return (
                       <div key={amb.id} className="dispatch-card p-3 relative overflow-hidden group border-t-4 border-t-indigo-400">
                         <div className="flex justify-between items-start mb-2">
@@ -1322,7 +1325,11 @@ function MainApp({ session }: { session: any }) {
                         </div>
                         <h4 className="text-xl font-bold text-slate-800">Móvil {amb.number}</h4>
                         <p className="text-sm text-slate-500 font-medium">{amb.vehicleType || 'Vehículo'} {amb.year ? `(${amb.year})` : ''}{amb.plate ? ` · ${amb.plate}` : ''}</p>
-                        {!amb.isOutsourced && <p className={`mt-2 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-semibold ${vtv.state === 'expired' ? 'bg-rose-50 text-rose-700' : vtv.state === 'soon' ? 'bg-amber-50 text-amber-800' : vtv.state === 'ok' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}><ClipboardCheck className="h-3.5 w-3.5" /> {vtv.state === 'ok' ? `VTV hasta ${formatDateFull(amb.maintenance?.vtvExpiration)}` : expiryLabel(vtv, 'VTV')}</p>}
+                        {!amb.isOutsourced && <div className="mt-2 flex flex-wrap gap-1.5" aria-label="Vencimientos">
+                          <p className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-semibold ${EXPIRY_CHIP[vtv.state]}`}><ClipboardCheck className="h-3.5 w-3.5" /> {vtv.state === 'ok' ? `VTV hasta ${formatDateFull(amb.maintenance?.vtvExpiration)}` : expiryLabel(vtv, 'VTV')}</p>
+                          <p className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-semibold ${EXPIRY_CHIP[insurance.state]}`}><ShieldCheck className="h-3.5 w-3.5" /> {insurance.state === 'ok' ? `Seguro hasta ${formatDateFull(amb.maintenance?.insuranceExpiration)}` : expiryLabel(insurance, 'Seguro', true)}</p>
+                          <p className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-semibold ${EXPIRY_CHIP[service.state]}`}><Wrench className="h-3.5 w-3.5" /> {serviceLabel(amb, service)}</p>
+                        </div>}
                         <button onClick={() => setViewingAmbulance(amb)} className="dispatch-secondary-action mt-3 w-full">
                           Ver detalles <ArrowRight className="h-4 w-4" />
                         </button>

@@ -5,6 +5,8 @@ import { matchHelpers } from '../../services/matches';
 import { formatDateAR, formatTime24 } from '../../utils/formatters';
 import { ModalShell } from '../ui/ModalShell';
 import { localDate } from '../../utils/statistics';
+import { currentKm, EXPIRY_CHIP, serviceLabel, serviceStatus } from '../../utils/fleet';
+import { expiryLabel, licenseStatus } from '../../utils/licenses';
 
 interface AmbulanceDetailModalProps {
     isOpen: boolean;
@@ -26,6 +28,9 @@ export const AmbulanceDetailModal: React.FC<AmbulanceDetailModalProps> = ({ isOp
     const currentMonthFuel = fuelRecords
         .filter(r => r.ambulanceId === ambulance.id && r.date?.slice(0, 7) === currentMonth)
         .reduce((sum, r) => sum + r.liters, 0);
+
+    const insurance = licenseStatus(ambulance.maintenance?.insuranceExpiration, localDate());
+    const service = serviceStatus(ambulance, currentKm(ambulance, fuelRecords, localDate()), localDate());
 
     // Status badge helper
     const renderStatus = (status: string) => {
@@ -109,9 +114,17 @@ export const AmbulanceDetailModal: React.FC<AmbulanceDetailModalProps> = ({ isOp
                                             {formatDateAR(ambulance.maintenance?.vtvExpiration)}
                                         </span>
                                     </div>
-                                    <div className="flex justify-between">
+                                    <div className="flex justify-between border-b border-slate-50 pb-1">
                                         <span className="text-slate-500">Seguro</span>
                                         <span className="font-medium text-slate-700 text-right truncate pl-2">{ambulance.maintenance?.insurance || '--'}</span>
+                                    </div>
+                                    <div className="flex justify-between gap-2 border-b border-slate-50 pb-1">
+                                        <span className="text-slate-500">Vence el seguro</span>
+                                        <span className={`text-right font-medium rounded px-1.5 ${EXPIRY_CHIP[insurance.state]}`}>{insurance.state === 'ok' ? formatDateAR(ambulance.maintenance?.insuranceExpiration) : expiryLabel(insurance, 'Seguro', true)}</span>
+                                    </div>
+                                    <div className="flex justify-between gap-2">
+                                        <span className="text-slate-500">Próximo service</span>
+                                        <span className={`text-right font-medium rounded px-1.5 ${EXPIRY_CHIP[service.state]}`}>{serviceLabel(ambulance, service)}</span>
                                     </div>
                                 </div>
                             </div>

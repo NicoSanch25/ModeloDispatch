@@ -29,6 +29,9 @@ export const mapAmbulanceFromDB = (data: any): Ambulance => ({
         mileageLastUpdate: data.mileage_last_update,
         vtvExpiration: data.vtv_expiration,
         insurance: data.insurance,
+        insuranceExpiration: data.insurance_expiration || undefined,
+        nextServiceKm: data.next_service_km === null || data.next_service_km === undefined ? undefined : Number(data.next_service_km),
+        nextServiceDate: data.next_service_date || undefined,
         mechanicNotes: data.mechanic_notes,
         tireType: data.tire_type,
         oilType: data.oil_type,
@@ -154,6 +157,9 @@ export const resourceService = {
             mileage: ambulance.maintenance?.mileage,
             vtv_expiration: ambulance.maintenance?.vtvExpiration,
             insurance: ambulance.maintenance?.insurance,
+            insurance_expiration: ambulance.maintenance?.insuranceExpiration || null,
+            next_service_km: ambulance.maintenance?.nextServiceKm ?? null,
+            next_service_date: ambulance.maintenance?.nextServiceDate || null,
             mechanic_notes: ambulance.maintenance?.mechanicNotes,
             tire_type: ambulance.maintenance?.tireType,
             oil_type: ambulance.maintenance?.oilType,
@@ -164,13 +170,19 @@ export const resourceService = {
             mechanic_contact: ambulance.maintenance?.mechanicContact
         };
 
-        if (ambulance.id) {
-            const { error } = await supabase.from('ambulances').update(payload).eq('id', ambulance.id);
-            if (error) throw error;
-        } else {
-            const { error } = await supabase.from('ambulances').insert(payload);
-            if (error) throw error;
+        const write = (data: any) => ambulance.id
+            ? supabase.from('ambulances').update(data).eq('id', ambulance.id)
+            : supabase.from('ambulances').insert(data);
+        let { error } = await write(payload);
+        // Si la base todavía no tiene las columnas de seguro y service, se guarda el resto sin perder datos.
+        if (error?.code === 'PGRST204' && /insurance_expiration|next_service/.test(error.message)) {
+            if (payload.insurance_expiration || payload.next_service_km !== null || payload.next_service_date) {
+                throw new Error('Falta aplicar en Supabase la migración de seguro y service (202610310007). Avisá al administrador.');
+            }
+            const { insurance_expiration, next_service_km, next_service_date, ...legacy } = payload;
+            ({ error } = await write(legacy));
         }
+        if (error) throw error;
     },
 
     async saveLocation(location: Partial<Location>) {

@@ -14,8 +14,8 @@ const database: Record<string, any[]> = {
     { id: 'doctor', name: 'Profesional de prueba', role: 'Médico/a' }
   ],
   ambulances: [
-    { id: 'vehicle', number: 'Prueba', maintenance_status: 'Active' },
-    { id: 'vehicle-shop', number: '7', vehicle_type: 'Sprinter', maintenance_status: 'InRepair', workshop_name: 'Taller de prueba' }
+    { id: 'vehicle', number: 'Prueba', maintenance_status: 'Active', mileage: '120900', vtv_expiration: shift(200), insurance_expiration: shift(-3), next_service_km: 121500 },
+    { id: 'vehicle-shop', number: '7', vehicle_type: 'Sprinter', maintenance_status: 'InRepair', workshop_name: 'Taller de prueba', insurance_expiration: shift(20), next_service_date: shift(-5) }
   ],
   locations: [{ id: 'location', name: 'Sede de prueba' }],
   clients: [{ id: 'client', name: 'Cliente de prueba' }],

@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { Activity, ArrowUpRight, BarChart3, CalendarDays, Droplet, Truck, AlertCircle, AlertTriangle, Clock, IdCard, Wrench, type LucideIcon } from 'lucide-react';
+import { Activity, ArrowUpRight, BarChart3, CalendarDays, Droplet, Truck, AlertCircle, AlertTriangle, Clock, IdCard, ShieldAlert, Wrench, type LucideIcon } from 'lucide-react';
 import type { Ambulance, FuelRecord, Match, Staff, Transfer } from '../types';
 import type { AgendaService } from '../utils/agenda';
 import { blockedAssignments, conflictedServices, overdueServices } from '../utils/attention';
-import { licenseAlerts, licenseLabel, licenseStatus } from '../utils/licenses';
+import { currentKm, serviceLabel, serviceStatus } from '../utils/fleet';
+import { expiryLabel, licenseAlerts, licenseLabel, licenseStatus } from '../utils/licenses';
 import { localDate, summarizeOperations } from '../utils/statistics';
 
 interface Props {
@@ -11,7 +12,7 @@ interface Props {
 }
 
 interface AlertsProps {
-  matches: Match[]; ambulances: Ambulance[]; staff: Staff[]; services: AgendaService[];
+  matches: Match[]; ambulances: Ambulance[]; staff: Staff[]; services: AgendaService[]; fuelRecords: FuelRecord[];
   onAgenda: () => void; onFleet: () => void; onStaff: () => void;
   onOpenService: (service: AgendaService) => void; onOpenDay: (date: string) => void; onNav: (section: 'matches' | 'transfers') => void;
 }
@@ -26,7 +27,7 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
  * Avisos que requieren acción, arriba del tablero. Primero lo urgente (rojo): móviles en taller con servicios,
  * cruces y vencimientos; después lo pendiente (ámbar). Con muchos avisos se muestran tres y el resto a pedido.
  */
-export function AttentionAlerts({ matches, ambulances, staff, services, onAgenda, onFleet, onStaff, onOpenService, onOpenDay, onNav }: AlertsProps) {
+export function AttentionAlerts({ matches, ambulances, staff, services, fuelRecords, onAgenda, onFleet, onStaff, onOpenService, onOpenDay, onNav }: AlertsProps) {
   const [expanded, setExpanded] = useState(false);
   const today = localDate();
   const now = Date.now();
@@ -38,6 +39,15 @@ export function AttentionAlerts({ matches, ambulances, staff, services, onAgenda
   const blocked = useMemo(() => blockedAssignments(services, ambulances, today, now), [services, ambulances, today]);
   const conflicted = useMemo(() => conflictedServices(services, today, now), [services, today]);
   const overdue = useMemo(() => overdueServices(services, today, now), [services, today]);
+  const fleet = useMemo(() => ambulances.filter(a => !a.isOutsourced).map(a => {
+    const service = serviceStatus(a, currentKm(a, fuelRecords, today), today);
+    return { ambulance: a, insurance: licenseStatus(a.maintenance?.insuranceExpiration, today), service, serviceText: serviceLabel(a, service) };
+  }), [ambulances, fuelRecords, today]);
+  const insuranceExpired = fleet.filter(f => f.insurance.state === 'expired');
+  const insuranceSoon = fleet.filter(f => f.insurance.state === 'soon');
+  const serviceDue = fleet.filter(f => f.service.state === 'expired');
+  const serviceSoon = fleet.filter(f => f.service.state === 'soon');
+  const lower = (text: string) => text.charAt(0).toLowerCase() + text.slice(1);
 
   const alerts: Alert[] = [];
   if (blocked.length) {
@@ -49,6 +59,10 @@ export function AttentionAlerts({ matches, ambulances, staff, services, onAgenda
   if (conflicted.length) alerts.push({ key: 'conflicts', urgent: true, icon: AlertTriangle, onClick: () => onOpenDay(conflicted[0].date),
     text: `${plural(conflicted.length, 'servicio', 'servicios')} con cruce de chofer, tripulación o móvil` });
   if (expired) alerts.push({ key: 'vtv', urgent: true, icon: AlertCircle, onClick: onFleet, text: plural(expired, 'móvil con VTV vencida', 'móviles con VTV vencida') });
+  if (insuranceExpired.length) alerts.push({ key: 'insurance', urgent: true, icon: ShieldAlert, onClick: onFleet,
+    text: insuranceExpired.length === 1 ? `Móvil ${insuranceExpired[0].ambulance.number}: ${lower(expiryLabel(insuranceExpired[0].insurance, 'Seguro', true))}` : `${insuranceExpired.length} móviles con el seguro vencido` });
+  if (serviceDue.length) alerts.push({ key: 'service', urgent: true, icon: Wrench, onClick: onFleet,
+    text: serviceDue.length === 1 ? `Móvil ${serviceDue[0].ambulance.number}: ${lower(serviceDue[0].serviceText)}` : `${serviceDue.length} móviles con el service vencido` });
   if (licenses.expired.length) alerts.push({ key: 'license', urgent: true, icon: IdCard, onClick: onStaff,
     text: licenses.expired.length === 1 ? `${licenses.expired[0].person.name} tiene la licencia vencida` : `${licenses.expired.length} choferes con licencia vencida` });
   if (unassigned) alerts.push({ key: 'unassigned', urgent: false, icon: AlertCircle, onClick: onAgenda, text: plural(unassigned, 'cobertura de hoy sin asignación completa', 'coberturas de hoy sin asignación completa') });
@@ -60,6 +74,10 @@ export function AttentionAlerts({ matches, ambulances, staff, services, onAgenda
       text: late.length === 1 ? `${noun} del ${dayMonth(late[0].date)} (${late[0].title}) terminó y sigue ${kind === 'coverage' ? 'abierta' : 'abierto'}` : `${late.length} ${kind === 'coverage' ? 'coberturas' : 'traslados'} terminados sin cerrar` });
   }
   if (vtvSoon) alerts.push({ key: 'vtv-soon', urgent: false, icon: AlertCircle, onClick: onFleet, text: `${plural(vtvSoon, 'móvil con VTV por vencer', 'móviles con VTV por vencer')} en 30 días` });
+  if (insuranceSoon.length) alerts.push({ key: 'insurance-soon', urgent: false, icon: ShieldAlert, onClick: onFleet,
+    text: insuranceSoon.length === 1 ? `Móvil ${insuranceSoon[0].ambulance.number}: ${lower(expiryLabel(insuranceSoon[0].insurance, 'Seguro', true))}` : `${insuranceSoon.length} seguros vencen en los próximos 30 días` });
+  if (serviceSoon.length) alerts.push({ key: 'service-soon', urgent: false, icon: Wrench, onClick: onFleet,
+    text: serviceSoon.length === 1 ? `Móvil ${serviceSoon[0].ambulance.number}: ${lower(serviceSoon[0].serviceText)}` : `${serviceSoon.length} móviles con el service cerca` });
   if (licenses.soon.length) alerts.push({ key: 'license-soon', urgent: false, icon: IdCard, onClick: onStaff,
     text: licenses.soon.length === 1 ? `${licenses.soon[0].person.name}: ${licenseLabel(licenses.soon[0].status).toLowerCase()}` : `${licenses.soon.length} licencias vencen en los próximos 30 días` });
 
