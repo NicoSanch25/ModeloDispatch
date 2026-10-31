@@ -13,10 +13,17 @@ const database: Record<string, any[]> = {
     { id: 'nurse', name: 'Enfermero de prueba', role: 'Enfermero/a' },
     { id: 'doctor', name: 'Profesional de prueba', role: 'Médico/a' }
   ],
-  ambulances: [{ id: 'vehicle', number: 'Prueba', maintenance_status: 'Active' }],
+  ambulances: [
+    { id: 'vehicle', number: 'Prueba', maintenance_status: 'Active' },
+    { id: 'vehicle-shop', number: '7', vehicle_type: 'Sprinter', maintenance_status: 'InRepair', workshop_name: 'Taller de prueba' }
+  ],
   locations: [{ id: 'location', name: 'Sede de prueba' }],
   clients: [{ id: 'client', name: 'Cliente de prueba' }],
-  matches: [{ id: 'match', date: today, time: '18:00', duration_minutes: 90, extension_minutes: 30, location: 'Sede de prueba', field_number: '1', type: 'Evento', status: 'Confirmed', ambulance_id: 'vehicle', driver_id: 'driver', nurse_id: 'nurse', driver_notified: true, nurse_notified: true, has_incident: true, was_transferred: true, incident_details: 'Incidente ficticio conservado', audit_logs: [] }],
+  matches: [{ id: 'match', date: today, time: '18:00', duration_minutes: 90, extension_minutes: 30, location: 'Sede de prueba', field_number: '1', type: 'Evento', status: 'Confirmed', ambulance_id: 'vehicle', driver_id: 'driver', nurse_id: 'nurse', driver_notified: true, nurse_notified: true, has_incident: true, was_transferred: true, incident_details: 'Incidente ficticio conservado', audit_logs: [] },
+    ...(params.get('agenda') ? [
+      { id: 'past-open', date: shift(-1), time: '10:00', duration_minutes: 90, location: 'Club sin cerrar', type: 'Partido de Polo', status: 'Confirmed', ambulance_id: 'vehicle', driver_id: 'driver-ok', nurse_id: 'nurse', audit_logs: [] },
+      { id: 'blocked', date: shift(1), time: '15:00', duration_minutes: 120, location: 'Evento con móvil en taller', type: 'Evento', status: 'Pending', ambulance_id: 'vehicle-shop', driver_id: 'driver-ok', nurse_id: 'nurse', audit_logs: [] }
+    ] : [])],
   fuel_records: [
     { id: 'f-b', date: shift(-1), ambulance_id: 'vehicle', driver_id: 'driver-ok', fuel_type: 'Euro Diesel', liters: 40, items: null, amount: 52000, odometer_km: 120800, ticket_number: '0003-00012345' },
     { id: 'f-a', date: today, ambulance_id: 'vehicle', driver_id: 'driver-soon', fuel_type: 'Euro Diesel', liters: 35.5, items: 'Agua destilada', amount: 46150.5, odometer_km: 121150 },

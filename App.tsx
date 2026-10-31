@@ -33,7 +33,8 @@ import { friendlyError, withTimeout } from './src/utils/requests';
 import { mapMatchFromDB, matchesService } from './src/services/matches';
 import { mapAmbulanceFromDB, mapClientFromDB, mapFuelFromDB, mapLocationFromDB, mapStaffFromDB } from './src/services/resources';
 import { AgendaList } from './src/components/AgendaList';
-import { agendaConflicts, applyServiceRegistry, buildAgenda, servicesForDay, type AgendaService } from './src/utils/agenda';
+import { applyServiceRegistry, buildAgenda, servicesForDay, type AgendaService } from './src/utils/agenda';
+import { conflictedServices } from './src/utils/attention';
 import { fetchOperationalTable, fetchServiceRegistry, type Service } from './src/services/business';
 import { csvCell } from './src/utils/security';
 
@@ -520,9 +521,7 @@ function MainApp({ session }: { session: any }) {
       setEditingTransfer(source); setIsTransferModalOpen(true);
     }
   };
-  const superpositionCount = useMemo(() => agendaServices.filter(service => !service.closed &&
-    (service.date >= localDate() || (service.end !== null && service.end > Date.now())) &&
-    agendaConflicts(service, agendaServices).length > 0).length, [agendaServices]);
+  const superpositionCount = useMemo(() => conflictedServices(agendaServices, localDate(), Date.now()).length, [agendaServices]);
   const openAgendaService = (service: AgendaService) => {
     setIsDailyAgendaOpen(false);
     if (service.kind === 'coverage') {
@@ -914,8 +913,10 @@ function MainApp({ session }: { session: any }) {
                       </div>
                     </div>
   
-                    <AttentionAlerts matches={matches} ambulances={ambulances} staff={staff}
-                      onAgenda={showTodayCoverage} onFleet={() => handleNav('fleet')} onStaff={() => handleNav('staff')} />
+                    <AttentionAlerts matches={matches} ambulances={ambulances} staff={staff} services={agendaServices}
+                      onAgenda={showTodayCoverage} onFleet={() => handleNav('fleet')} onStaff={() => handleNav('staff')}
+                      onOpenService={openAgendaService} onNav={handleNav}
+                      onOpenDay={date => { setDailyAgendaDate(date); setIsDailyAgendaOpen(true); }} />
 
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-3 mb-4">
                       <div onClick={() => { setDailyAgendaDate(localDate()); setIsDailyAgendaOpen(true); }} className="bg-white p-3 rounded-xl shadow-sm border border-slate-100 flex items-center gap-3 cursor-pointer hover:bg-slate-50 hover:border-blue-200 transition-colors active:scale-95 touch-manipulation">
@@ -968,7 +969,7 @@ function MainApp({ session }: { session: any }) {
                           <p className="text-xs text-slate-500 font-medium truncate">Conflictos</p>
                           <div className="flex flex-col md:flex-row md:items-baseline md:gap-2">
                             <p className={`text-lg md:text-xl font-bold leading-none mt-0.5 ${superpositionCount > 0 ? 'text-amber-600' : 'text-slate-800'}`}>{superpositionCount}</p>
-                            <span className={`text-xs font-medium truncate mt-0.5 ${superpositionCount > 0 ? 'text-amber-500' : 'text-slate-500'}`}>{superpositionCount > 0 ? 'Revisar agenda' : 'Sin cruces detectados'}</span>
+                            <span className={`text-xs font-medium truncate mt-0.5 ${superpositionCount > 0 ? 'text-amber-500' : 'text-slate-500'}`}>{superpositionCount > 0 ? 'Revisar agenda' : 'Sin cruces'}</span>
                           </div>
                         </div>
                       </div>

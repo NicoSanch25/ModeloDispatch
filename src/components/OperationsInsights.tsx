@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { Activity, ArrowUpRight, BarChart3, CalendarDays, Droplet, Truck, AlertCircle, IdCard } from 'lucide-react';
+import { Activity, ArrowUpRight, BarChart3, CalendarDays, Droplet, Truck, AlertCircle, AlertTriangle, Clock, IdCard, Wrench, type LucideIcon } from 'lucide-react';
 import type { Ambulance, FuelRecord, Match, Staff, Transfer } from '../types';
+import type { AgendaService } from '../utils/agenda';
+import { blockedAssignments, conflictedServices, overdueServices } from '../utils/attention';
 import { licenseAlerts, licenseLabel, licenseStatus } from '../utils/licenses';
 import { localDate, summarizeOperations } from '../utils/statistics';
 
@@ -9,27 +11,70 @@ interface Props {
 }
 
 interface AlertsProps {
-  matches: Match[]; ambulances: Ambulance[]; staff: Staff[];
+  matches: Match[]; ambulances: Ambulance[]; staff: Staff[]; services: AgendaService[];
   onAgenda: () => void; onFleet: () => void; onStaff: () => void;
+  onOpenService: (service: AgendaService) => void; onOpenDay: (date: string) => void; onNav: (section: 'matches' | 'transfers') => void;
 }
 
-/** Avisos que requieren acción, arriba del tablero: coberturas sin asignar, VTV y licencias vencidas o por vencer. */
-export function AttentionAlerts({ matches, ambulances, staff, onAgenda, onFleet, onStaff }: AlertsProps) {
+interface Alert { key: string; urgent: boolean; icon: LucideIcon; text: string; onClick: () => void; }
+
+const VISIBLE_ALERTS = 3;
+const dayMonth = (date: string) => date.split('-').reverse().slice(0, 2).join('/');
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+/**
+ * Avisos que requieren acción, arriba del tablero. Primero lo urgente (rojo): móviles en taller con servicios,
+ * cruces y vencimientos; después lo pendiente (ámbar). Con muchos avisos se muestran tres y el resto a pedido.
+ */
+export function AttentionAlerts({ matches, ambulances, staff, services, onAgenda, onFleet, onStaff, onOpenService, onOpenDay, onNav }: AlertsProps) {
+  const [expanded, setExpanded] = useState(false);
   const today = localDate();
+  const now = Date.now();
   const unassigned = matches.filter(m => m.date === today && !['Completed', 'Suspended'].includes(m.status) && (!m.ambulanceId || !m.driverId || (!m.isSingleCrew && !m.nurseId))).length;
   const vtv = ambulances.filter(a => !a.isOutsourced).map(a => licenseStatus(a.maintenance?.vtvExpiration, today));
   const expired = vtv.filter(v => v.state === 'expired').length;
   const vtvSoon = vtv.filter(v => v.state === 'soon').length;
   const licenses = useMemo(() => licenseAlerts(staff, today), [staff, today]);
-  return <>
-    {(unassigned > 0 || expired > 0 || vtvSoon > 0 || licenses.expired.length > 0 || licenses.soon.length > 0) && <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 mb-3" role="region" aria-label="Requiere atención">
-      {unassigned > 0 && <button onClick={onAgenda} className="flex-1 flex items-center gap-2 text-left text-sm bg-amber-50 text-amber-900 border border-amber-200 rounded-xl px-3 py-2.5"><AlertCircle size={17} /><span className="flex-1">{unassigned} {unassigned === 1 ? 'cobertura de hoy sin asignación completa' : 'coberturas de hoy sin asignación completa'}</span><ArrowUpRight size={16} /></button>}
-      {expired > 0 && <button onClick={onFleet} className="flex-1 flex items-center gap-2 text-left text-sm bg-rose-50 text-rose-900 border border-rose-200 rounded-xl px-3 py-2.5"><AlertCircle size={17} /><span className="flex-1">{expired} {expired === 1 ? 'móvil con VTV vencida' : 'móviles con VTV vencida'}</span><ArrowUpRight size={16} /></button>}
-      {vtvSoon > 0 && <button onClick={onFleet} className="flex-1 flex items-center gap-2 text-left text-sm bg-amber-50 text-amber-900 border border-amber-200 rounded-xl px-3 py-2.5"><AlertCircle size={17} /><span className="flex-1">{vtvSoon} {vtvSoon === 1 ? 'móvil con VTV por vencer' : 'móviles con VTV por vencer'} en 30 días</span><ArrowUpRight size={16} /></button>}
-      {licenses.expired.length > 0 && <button onClick={onStaff} className="flex-1 flex items-center gap-2 text-left text-sm bg-rose-50 text-rose-900 border border-rose-200 rounded-xl px-3 py-2.5"><IdCard size={17} /><span className="flex-1">{licenses.expired.length === 1 ? `${licenses.expired[0].person.name} tiene la licencia vencida` : `${licenses.expired.length} choferes con licencia vencida`}</span><ArrowUpRight size={16} /></button>}
-      {licenses.soon.length > 0 && <button onClick={onStaff} className="flex-1 flex items-center gap-2 text-left text-sm bg-amber-50 text-amber-900 border border-amber-200 rounded-xl px-3 py-2.5"><IdCard size={17} /><span className="flex-1">{licenses.soon.length === 1 ? `${licenses.soon[0].person.name}: ${licenseLabel(licenses.soon[0].status).toLowerCase()}` : `${licenses.soon.length} licencias vencen en los próximos 30 días`}</span><ArrowUpRight size={16} /></button>}
-    </div>}
-  </>;
+  const blocked = useMemo(() => blockedAssignments(services, ambulances, today, now), [services, ambulances, today]);
+  const conflicted = useMemo(() => conflictedServices(services, today, now), [services, today]);
+  const overdue = useMemo(() => overdueServices(services, today, now), [services, today]);
+
+  const alerts: Alert[] = [];
+  if (blocked.length) {
+    const [{ service, ambulance }] = blocked;
+    const where = ambulance.maintenance?.status === 'InRepair' ? 'en taller' : 'fuera de servicio';
+    alerts.push({ key: 'blocked', urgent: true, icon: Wrench, onClick: () => blocked.length === 1 ? onOpenService(service) : onOpenDay(service.date),
+      text: blocked.length === 1 ? `Móvil ${ambulance.number} está ${where} y tiene un servicio el ${dayMonth(service.date)}` : `${blocked.length} servicios asignados a móviles en taller o fuera de servicio` });
+  }
+  if (conflicted.length) alerts.push({ key: 'conflicts', urgent: true, icon: AlertTriangle, onClick: () => onOpenDay(conflicted[0].date),
+    text: `${plural(conflicted.length, 'servicio', 'servicios')} con cruce de chofer, tripulación o móvil` });
+  if (expired) alerts.push({ key: 'vtv', urgent: true, icon: AlertCircle, onClick: onFleet, text: plural(expired, 'móvil con VTV vencida', 'móviles con VTV vencida') });
+  if (licenses.expired.length) alerts.push({ key: 'license', urgent: true, icon: IdCard, onClick: onStaff,
+    text: licenses.expired.length === 1 ? `${licenses.expired[0].person.name} tiene la licencia vencida` : `${licenses.expired.length} choferes con licencia vencida` });
+  if (unassigned) alerts.push({ key: 'unassigned', urgent: false, icon: AlertCircle, onClick: onAgenda, text: plural(unassigned, 'cobertura de hoy sin asignación completa', 'coberturas de hoy sin asignación completa') });
+  for (const kind of ['coverage', 'transfer'] as const) {
+    const late = overdue.filter(s => s.kind === kind);
+    if (!late.length) continue;
+    const noun = kind === 'coverage' ? 'Cobertura' : 'Traslado';
+    alerts.push({ key: `overdue-${kind}`, urgent: false, icon: Clock, onClick: () => late.length === 1 ? onOpenService(late[0]) : onNav(kind === 'coverage' ? 'matches' : 'transfers'),
+      text: late.length === 1 ? `${noun} del ${dayMonth(late[0].date)} (${late[0].title}) terminó y sigue ${kind === 'coverage' ? 'abierta' : 'abierto'}` : `${late.length} ${kind === 'coverage' ? 'coberturas' : 'traslados'} terminados sin cerrar` });
+  }
+  if (vtvSoon) alerts.push({ key: 'vtv-soon', urgent: false, icon: AlertCircle, onClick: onFleet, text: `${plural(vtvSoon, 'móvil con VTV por vencer', 'móviles con VTV por vencer')} en 30 días` });
+  if (licenses.soon.length) alerts.push({ key: 'license-soon', urgent: false, icon: IdCard, onClick: onStaff,
+    text: licenses.soon.length === 1 ? `${licenses.soon[0].person.name}: ${licenseLabel(licenses.soon[0].status).toLowerCase()}` : `${licenses.soon.length} licencias vencen en los próximos 30 días` });
+
+  if (!alerts.length) return null;
+  alerts.sort((a, b) => Number(b.urgent) - Number(a.urgent));
+  const hidden = alerts.length - VISIBLE_ALERTS > 1 && !expanded ? alerts.length - VISIBLE_ALERTS : 0;
+  return <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 mb-3" role="region" aria-label="Requiere atención">
+    {alerts.slice(0, alerts.length - hidden).map(({ key, urgent, icon: Icon, text, onClick }) =>
+      <button key={key} onClick={onClick} className={`flex-1 sm:basis-72 flex items-center gap-2 text-left text-sm border rounded-xl px-3 py-2.5 ${urgent ? 'bg-rose-50 text-rose-900 border-rose-200' : 'bg-amber-50 text-amber-900 border-amber-200'}`}>
+        <Icon size={17} className="shrink-0" /><span className="flex-1">{text}</span><ArrowUpRight size={16} className="shrink-0" />
+      </button>)}
+    {(hidden > 0 || expanded) && <button onClick={() => setExpanded(!expanded)} aria-expanded={expanded} className="self-start text-sm font-semibold text-indigo-700 px-1 py-2">
+      {expanded ? 'Mostrar menos avisos' : `Ver ${plural(hidden, 'aviso más', 'avisos más')}`}
+    </button>}
+  </div>;
 }
 
 export function OperationsInsights({ matches, transfers, fuelRecords }: Props) {

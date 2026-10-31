@@ -57,7 +57,7 @@ Respetan las preferencias registradas en [`AGENTS.md`](../AGENTS.md):
 
 | # | Mejora | Estado |
 |---|---|---|
-| 4.1 | Franja «Requiere atención»: servicios sin recursos, cruces, vencidos sin cerrar, móviles bloqueados con asignaciones | En curso · la franja ya está arriba del tablero con coberturas sin asignar, VTV y licencias |
+| 4.1 | Franja «Requiere atención»: servicios sin recursos, cruces, vencidos sin cerrar, móviles bloqueados con asignaciones | Hecha · primero lo urgente (rojo) y después lo pendiente (ámbar); con más de cuatro avisos se ven tres y el resto con «Ver N avisos más». Reglas en `src/utils/attention.ts` |
 | 4.2 | Cambio de estado en un toque desde la tarjeta (traslados) y confirmar cobertura en un toque | Hecha · Finalizar traslado, Confirmar y Finalizar cobertura; Traslados filtra Pendientes por defecto |
 | 4.3 | Alertas de vencimientos de flota (VTV, seguro, service por km) con días restantes | En curso · VTV con días restantes en Flota y en el tablero; falta seguro y service |
 | 4.4 | Búsqueda global (servicio, móvil, persona) desde el encabezado | Hecha · botón Buscar, tecla `/` o Ctrl+K (`src/utils/search.ts`) |
