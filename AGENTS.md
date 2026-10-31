@@ -3,6 +3,7 @@
 ## Proyecto
 - **Directorio Local:** C:\Users\USUARIO\Desktop\Nuevo Modelo Dispatch
 - **Repositorio Remoto:** https://github.com/NicoSanch25/ModeloDispatch.git
+- **App en producción (la que usan los operadores):** https://modelodispatch.vercel.app (Vercel). `modelo-dispatch-7eeh.vercel.app` y los sitios de Netlify no son la dirección oficial.
 
 ## Stack Tecnológico
 - Frontend: React (TypeScript) + Vite
