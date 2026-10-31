@@ -73,3 +73,13 @@ test('midnight endpoint is exclusive; shifts work across month and year boundari
   assert.equal(shiftAgendaDate('2026-03-01', -1), '2026-02-28');
   assert.equal(servicesForDay(rows, '').length, 0);
 });
+
+test('agenda por móvil: orden por número, servicios sin móvil al final y móviles libres', () => {
+  const { servicesByAmbulance } = load('../src/utils/agenda.ts', { './scheduling': scheduling, './status': load('../src/utils/status.ts') });
+  const ambulances = [{ id: 'm10', number: '10' }, { id: 'm2', number: '2' }, { id: 'm3', number: '3' }];
+  const rows = buildAgenda([coverage({ id: 'a', ambulanceId: 'm10' }), coverage({ id: 'b', ambulanceId: 'm2' }), coverage({ id: 'c', ambulanceId: undefined })], []);
+  const result = servicesByAmbulance(rows, ambulances);
+  assert.deepEqual(JSON.parse(JSON.stringify(result.groups.map(g => [g.ambulance.number, g.services.map(s => s.key)]))), [['2', ['coverage:b']], ['10', ['coverage:a']]]);
+  assert.deepEqual(JSON.parse(JSON.stringify(result.unassigned.map(s => s.key))), ['coverage:c']);
+  assert.deepEqual(JSON.parse(JSON.stringify(result.idle.map(a => a.number))), ['3']);
+});

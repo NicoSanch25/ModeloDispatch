@@ -68,6 +68,7 @@ Respetan las preferencias registradas en [`AGENTS.md`](../AGENTS.md):
 | # | Mejora | Estado |
 |---|---|---|
 | 5.1 | Duplicar cobertura o traslado (botón en la tarjeta y en el formulario) | Hecha · la copia va a la semana siguiente, queda pendiente y avisa que es una copia. No copia número de hoja, horas reales, kilómetros, observaciones, avisos ni reportes (`src/utils/duplicate.ts`) |
+| 5.2 | Vista «hoy por móvil» en la Agenda de servicios | Hecha · botones «Por horario» / «Por móvil» (se recuerda en el navegador): servicios agrupados por móvil con su estado, los que no tienen móvil y los móviles libres (`servicesByAmbulance`) |
 
 ## Errores de la revisión del 11/10
 
