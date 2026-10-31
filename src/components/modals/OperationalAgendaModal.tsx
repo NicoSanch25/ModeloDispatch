@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { CalendarDays, ChevronLeft, ChevronRight, Plus, Truck, Users, X } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, List, Plus, Truck, Users, X } from 'lucide-react';
 import type { Ambulance, Staff } from '../../types';
 import { localDate } from '../../utils/statistics';
-import { servicesForDay, shiftAgendaDate, type AgendaService } from '../../utils/agenda';
+import { servicesByAmbulance, servicesForDay, shiftAgendaDate, type AgendaService } from '../../utils/agenda';
 import { DateInput } from '../DateInput';
 import { AgendaList } from '../AgendaList';
 import { ModalShell } from '../ui/ModalShell';
@@ -20,6 +20,9 @@ export function OperationalAgendaModal({ date, setDate, onClose, services, staff
   const [kind, setKind] = useState('all');
   const [staffId, setStaffId] = useState('');
   const [includeClosed, setIncludeClosed] = useState(false);
+  // Vista recordada en este navegador: lista por horario o agrupada por móvil.
+  const [byVehicle, setByVehicle] = useState(() => { try { return localStorage.getItem('dispatch.agenda.view') === 'vehicle'; } catch { return false; } });
+  const chooseView = (vehicle: boolean) => { setByVehicle(vehicle); try { localStorage.setItem('dispatch.agenda.view', vehicle ? 'vehicle' : 'list'); } catch { /* sin almacenamiento */ } };
   const dialog = useRef<HTMLElement>(null);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
@@ -42,14 +45,53 @@ export function OperationalAgendaModal({ date, setDate, onClose, services, staff
         <div className="flex items-center gap-2"><button aria-label="Día anterior" onClick={() => setDate(shiftAgendaDate(date, -1))} className="rounded-lg border bg-white p-2"><ChevronLeft className="h-4 w-4" /></button><div className="min-w-0 flex-1"><DateInput aria-label="Fecha de agenda" value={date} required onChange={event => { if (event.target.value) setDate(event.target.value); }} className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white p-2 text-sm" /></div><button aria-label="Día siguiente" onClick={() => setDate(shiftAgendaDate(date, 1))} className="rounded-lg border bg-white p-2"><ChevronRight className="h-4 w-4" /></button><button onClick={() => setDate(localDate())} className="rounded-lg bg-indigo-50 px-3 py-2 text-sm font-semibold text-indigo-700">Hoy</button></div>
         <div className="flex gap-2"><select aria-label="Tipo de servicio" value={kind} onChange={event => setKind(event.target.value)} className="min-w-0 flex-1 rounded-lg border bg-white p-2 text-sm"><option value="all">Todos los servicios</option><option value="coverage">Coberturas</option><option value="transfer">Traslados</option></select><select aria-label="Filtrar personal" value={staffId} onChange={event => setStaffId(event.target.value)} className="min-w-0 flex-1 rounded-lg border bg-white p-2 text-sm"><option value="">Todo el personal</option>{staff.map(person => <option key={person.id} value={person.id}>{person.name}</option>)}</select></div>
         <div className="flex flex-wrap items-center justify-between gap-2"><label className="flex items-center gap-2 text-xs text-slate-600"><input type="checkbox" checked={includeClosed} onChange={event => setIncludeClosed(event.target.checked)} />Ver finalizados y cancelados</label><button onClick={onRefresh} disabled={loading} className="text-xs font-semibold text-indigo-700 disabled:opacity-50">{loading ? 'Actualizando…' : 'Actualizar agenda'}</button></div>
-        <div className="flex flex-wrap gap-2"><button onClick={() => onCreate('transfer')} className="dispatch-secondary-action !px-3 !py-2 !text-xs"><Truck className="h-4 w-4" />Nuevo traslado</button><button onClick={() => onCreate('coverage')} className="dispatch-primary-action !px-3 !py-2 !text-xs"><Plus className="h-4 w-4" />Nueva cobertura</button></div>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap gap-2"><button onClick={() => onCreate('transfer')} className="dispatch-secondary-action !px-3 !py-2 !text-xs"><Truck className="h-4 w-4" />Nuevo traslado</button><button onClick={() => onCreate('coverage')} className="dispatch-primary-action !px-3 !py-2 !text-xs"><Plus className="h-4 w-4" />Nueva cobertura</button></div>
+          <div className="flex rounded-lg bg-slate-200/70 p-1" role="group" aria-label="Vista de la agenda">
+            <button onClick={() => chooseView(false)} aria-pressed={!byVehicle} className={`flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-semibold ${!byVehicle ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600'}`}><List className="h-3.5 w-3.5" />Por horario</button>
+            <button onClick={() => chooseView(true)} aria-pressed={byVehicle} className={`flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-semibold ${byVehicle ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600'}`}><Truck className="h-3.5 w-3.5" />Por móvil</button>
+          </div>
+        </div>
       </div>
       <div className="flex-1 overflow-y-auto bg-slate-50 p-3 sm:p-4">
         {dataError && <p role="alert" className="mb-3 rounded-lg bg-amber-50 p-2 text-xs text-amber-800">{dataError}</p>}
         <p className="mb-3 text-xs text-slate-500">Horarios registrados; no confirman salida ni disponibilidad real. Cruces con margen de 15 minutos. Los traslados sin móvil o tripulación asignados no participan en el control de cruces de esos recursos.</p>
-        <AgendaList services={day} allServices={services} date={date} staff={staff} ambulances={ambulances} onOpen={onOpen} />
+        {byVehicle ? <VehicleAgenda day={day} services={services} date={date} staff={staff} ambulances={ambulances} onOpen={onOpen} />
+          : <AgendaList services={day} allServices={services} date={date} staff={staff} ambulances={ambulances} onOpen={onOpen} />}
       </div>
       <footer className="border-t p-3"><button onClick={onStaffSchedule} className="flex items-center gap-2 text-xs font-semibold text-slate-600"><Users className="h-4 w-4" />Cronograma de coberturas por personal</button></footer>
     </section>
   </ModalShell>;
+}
+
+const VEHICLE_STATE: Record<string, [string, string]> = {
+  Active: ['Operativo', 'bg-emerald-50 text-emerald-700'],
+  InRepair: ['En taller', 'bg-amber-50 text-amber-800'],
+  OutOfService: ['Fuera de servicio', 'bg-rose-50 text-rose-700'],
+};
+
+/** Agenda del día agrupada por móvil: qué hace cada unidad, qué servicios no tienen móvil y qué móviles están libres. */
+function VehicleAgenda({ day, services, date, staff, ambulances, onOpen }: { day: AgendaService[]; services: AgendaService[]; date: string; staff: Staff[]; ambulances: Ambulance[]; onOpen: (service: AgendaService) => void }) {
+  const { groups, unassigned, idle } = servicesByAmbulance(day, ambulances);
+  const heading = (title: string, count: number, state?: string) => {
+    const [label, tone] = VEHICLE_STATE[state || ''] || [];
+    return <h4 className="mb-2 flex flex-wrap items-center gap-2 text-sm font-bold text-slate-800">
+      {title}<span className="text-xs font-medium text-slate-500">{count} {count === 1 ? 'servicio' : 'servicios'}</span>
+      {label && <span className={`rounded px-1.5 py-0.5 text-xs font-semibold ${tone}`}>{label}</span>}
+    </h4>;
+  };
+  return <div className="space-y-4">
+    {!groups.length && !unassigned.length && <AgendaList services={[]} allServices={services} date={date} staff={staff} ambulances={ambulances} onOpen={onOpen} />}
+    {groups.map(({ ambulance, services: rows }) => <section key={ambulance.id} aria-label={`Móvil ${ambulance.number}`}>
+      {heading(`Móvil ${ambulance.number}`, rows.length, ambulance.maintenance?.status)}
+      <AgendaList services={rows} allServices={services} date={date} staff={staff} ambulances={ambulances} onOpen={onOpen} />
+    </section>)}
+    {!!unassigned.length && <section aria-label="Sin móvil asignado">
+      {heading('Sin móvil asignado', unassigned.length)}
+      <AgendaList services={unassigned} allServices={services} date={date} staff={staff} ambulances={ambulances} onOpen={onOpen} />
+    </section>}
+    {!!idle.length && <p className="rounded-xl border border-dashed border-slate-200 bg-white p-3 text-xs text-slate-600">
+      <strong className="text-slate-700">Sin servicios en esta selección:</strong> {idle.map(a => `Móvil ${a.number}${a.maintenance?.status && a.maintenance.status !== 'Active' ? ` (${VEHICLE_STATE[a.maintenance.status][0].toLowerCase()})` : ''}`).join(' · ')}
+    </p>}
+  </div>;
 }

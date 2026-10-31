@@ -8,7 +8,7 @@ import {
   ArrowRightCircle, ClipboardList, Briefcase, History as HistoryIcon, ArrowRight,
   Fuel, ListPlus, UserPlus, 
   AlertOctagon, Building, FileSpreadsheet, Ban, Zap, Mail,
-  Lock, LogIn, Loader2, Key, Eye, EyeOff, IdCard, Search, ShieldCheck, Wrench
+  Lock, LogIn, Loader2, Key, Eye, EyeOff, IdCard, Search, ShieldCheck, Wrench, Copy, Keyboard
 } from 'lucide-react';
 import {
   
@@ -36,6 +36,9 @@ import { AgendaList } from './src/components/AgendaList';
 import { applyServiceRegistry, buildAgenda, servicesForDay, type AgendaService } from './src/utils/agenda';
 import { conflictedServices } from './src/utils/attention';
 import { currentKm, EXPIRY_CHIP, serviceLabel, serviceStatus } from './src/utils/fleet';
+import { duplicateMatch, duplicateTransfer } from './src/utils/duplicate';
+import { shortcutAction } from './src/utils/shortcuts';
+import { ShortcutsHelp } from './src/components/ShortcutsHelp';
 import { fetchOperationalTable, fetchServiceRegistry, type Service } from './src/services/business';
 import { csvCell } from './src/utils/security';
 
@@ -342,6 +345,13 @@ function MainApp({ session }: { session: any }) {
 
   const [isMatchModalOpen, setIsMatchModalOpen] = useState(false);
   const [editingMatch, setEditingMatch] = useState<Partial<MatchModel> | null>(null);
+  // Fecha del servicio original mientras el formulario abierto es una copia («Duplicar»).
+  const [matchCopyOf, setMatchCopyOf] = useState<string | null>(null);
+  const [transferCopyOf, setTransferCopyOf] = useState<string | null>(null);
+  useEffect(() => { if (!isMatchModalOpen) setMatchCopyOf(null); }, [isMatchModalOpen]);
+  useEffect(() => { if (!isTransferModalOpen) setTransferCopyOf(null); }, [isTransferModalOpen]);
+  const duplicateCoverage = (match: MatchModel) => { setEditingMatch(duplicateMatch(match)); setMatchCopyOf(match.date); setIsMatchModalOpen(true); };
+  const duplicateJourney = (transfer: TransferModel) => { setEditingTransfer(duplicateTransfer(transfer)); setTransferCopyOf(transfer.date); setIsTransferModalOpen(true); };
 
   const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<Partial<StaffModel> | null>(null);
@@ -383,20 +393,7 @@ function MainApp({ session }: { session: any }) {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const userName: string = session?.user?.user_metadata?.username || session?.user?.email?.split('@')[0] || '';
 
-  // «/» o Ctrl+K abren la búsqueda cuando no se está escribiendo en un campo.
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement;
-      const typing = target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
-      if ((event.key === '/' && !typing) || ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k')) {
-        if (document.querySelector('[aria-modal="true"]')) return;
-        event.preventDefault();
-        setIsSearchOpen(true);
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
 
   // Filters State
   const [filters, setFilters] = useState({
@@ -785,6 +782,25 @@ function MainApp({ session }: { session: any }) {
     // Cada sección arranca desde arriba; tocar la actual también vuelve al inicio.
     window.scrollTo({ top: 0 });
   };
+  // Atajos de teclado (ver src/utils/shortcuts.ts). No actúan con una ventana abierta ni mientras se escribe.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement;
+      const typing = target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
+      const action = shortcutAction(event, typing);
+      if (!action || document.querySelector('[aria-modal="true"]')) return;
+      event.preventDefault();
+      if (action === 'search') setIsSearchOpen(true);
+      else if (action === 'help') setIsShortcutsOpen(true);
+      else if (action === 'coverage') { setEditingMatch({ date: localDate() }); setIsMatchModalOpen(true); }
+      else if (action === 'transfer') { setEditingTransfer({ date: localDate() }); setIsTransferModalOpen(true); }
+      else if (action === 'agenda') { setDailyAgendaDate(localDate()); setIsDailyAgendaOpen(true); }
+      else handleNav(action);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   const showTodayCoverage = () => {
     setFilters({ ...filters, startDate: localDate(), endDate: localDate(), status: 'all', location: '', ambulance: '', outsourced: 'all', clientId: '', staffId: '' });
     handleNav('matches');
@@ -833,6 +849,9 @@ function MainApp({ session }: { session: any }) {
         </nav>
 
         <div className="p-4 space-y-2 border-t border-slate-800/60">
+          <button onClick={() => setIsShortcutsOpen(true)} className="hidden lg:flex w-full items-center gap-2 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors text-sm">
+            <Keyboard className="w-4 h-4" /> Atajos de teclado <kbd className="ml-auto rounded border border-slate-700 px-1.5 text-xs">?</kbd>
+          </button>
           <button onClick={() => setIsChangePasswordOpen(true)} className="w-full flex items-center gap-2 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors text-sm">
             <Key className="w-4 h-4" /> Cambiar Contraseña
           </button>
@@ -1272,6 +1291,9 @@ function MainApp({ session }: { session: any }) {
                                     <button onClick={(e) => { e.stopPropagation(); setEditingMatch(match); setIsMatchModalOpen(true); }} className="flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-lg text-slate-600 hover:bg-slate-100" aria-label="Editar cobertura" title="Editar">
                                       <Edit2 className="h-4 w-4" /><span className="hidden md:inline text-sm">Editar</span>
                                     </button>
+                                    <button onClick={(e) => { e.stopPropagation(); duplicateCoverage(match); }} className="flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-lg text-slate-600 hover:bg-slate-100" aria-label="Duplicar cobertura" title="Duplicar para la semana siguiente">
+                                      <Copy className="h-4 w-4" /><span className="hidden md:inline text-sm">Duplicar</span>
+                                    </button>
                                   </>
                                 )}
                                 {activeTab === 'history' && (
@@ -1283,6 +1305,9 @@ function MainApp({ session }: { session: any }) {
                                     )}
                                     <button onClick={(e) => { e.stopPropagation(); setEditingMatch(match); setIsMatchModalOpen(true); }} className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors" title="Ver Detalles / Editar">
                                       <Edit2 className="w-5 h-5" />
+                                    </button>
+                                    <button onClick={(e) => { e.stopPropagation(); duplicateCoverage(match); }} className="flex min-h-11 min-w-11 items-center justify-center text-slate-500 hover:bg-slate-100 rounded-lg transition-colors" aria-label="Duplicar cobertura" title="Duplicar para la semana siguiente">
+                                      <Copy className="w-5 h-5" />
                                     </button>
                                   </>
                                 )}
@@ -1458,6 +1483,7 @@ function MainApp({ session }: { session: any }) {
                     staff={staff}
                     ambulances={ambulances}
                     onEdit={transfer => { setEditingTransfer(transfer); setIsTransferModalOpen(true); }}
+                    onDuplicate={duplicateJourney}
                     onComplete={completeTransfer}
                   />
                 </div>
@@ -1482,12 +1508,17 @@ function MainApp({ session }: { session: any }) {
         onSave={handleSaveTransfer}
         onDelete={handleDeleteTransfer}
         transfer={editingTransfer}
+        copyOf={transferCopyOf}
+        onDuplicate={duplicateJourney}
         staff={staff}
         ambulances={ambulances}
         clients={clients}
       />
       
       <MatchModal
+        key={matchCopyOf ? `copy:${matchCopyOf}` : editingMatch?.id || 'new'}
+        copyOf={matchCopyOf}
+        onDuplicate={duplicateCoverage}
         isOpen={isMatchModalOpen}
         onClose={() => setIsMatchModalOpen(false)}
         onSaveSuccess={loadData}
@@ -1546,6 +1577,7 @@ function MainApp({ session }: { session: any }) {
         <GlobalSearch data={{ matches, transfers, staff, ambulances, locations, clients }} onClose={() => setIsSearchOpen(false)} onSelect={openSearchResult} />
       )}
       {isChangePasswordOpen && <ChangePasswordModal onClose={() => setIsChangePasswordOpen(false)} />}
+      {isShortcutsOpen && <ShortcutsHelp onClose={() => setIsShortcutsOpen(false)} />}
       <StaffHistoryModal isOpen={!!viewingStaff} staff={viewingStaff} matches={matches} ambulances={ambulances} onClose={() => setViewingStaff(null)} />
       {viewingAmbulance && (
         <AmbulanceDetailModal

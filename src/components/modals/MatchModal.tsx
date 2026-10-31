@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Match, MatchType, Location, Client, Staff, Ambulance } from '../../types';
-import { X, Lock, Unlock, Briefcase, Siren, Trash2, UserPlus } from 'lucide-react';
+import { X, Lock, Unlock, Briefcase, Siren, Trash2, UserPlus, Copy } from 'lucide-react';
 import { friendlyError } from '../../utils/requests';
 import { matchesService } from '../../services/matches';
 import { resourceService } from '../../services/resources';
@@ -19,10 +19,13 @@ interface MatchModalProps {
     clients: Client[];
     staff: Staff[];
     ambulances: Ambulance[];
+    /** Fecha de la cobertura original cuando el formulario es una copia. */
+    copyOf?: string | null;
+    onDuplicate?: (match: Match) => void;
 }
 
 export const MatchModal: React.FC<MatchModalProps> = ({
-    isOpen, onClose, onSaveSuccess, editingMatch, locations, clients, staff, ambulances
+    isOpen, onClose, onSaveSuccess, editingMatch, locations, clients, staff, ambulances, copyOf, onDuplicate
 }) => {
     const [isReadOnly, setIsReadOnly] = useState(false);
     const [showChukkers, setShowChukkers] = useState(false);
@@ -177,7 +180,7 @@ export const MatchModal: React.FC<MatchModalProps> = ({
                 <form onSubmit={handleSubmit} className="flex flex-col min-h-0 max-h-[90vh]">
                     <div className="shrink-0 px-4 py-4 sm:p-6 border-b bg-slate-50 rounded-t-xl flex justify-between items-center gap-2">
                         <div className="flex items-center gap-4">
-                            <h3 className="text-xl font-bold text-slate-800">{editingMatch?.id ? 'Editar Cobertura' : 'Nueva Cobertura'}</h3>
+                            <h3 className="text-xl font-bold text-slate-800">{editingMatch?.id ? 'Editar Cobertura' : copyOf ? 'Duplicar cobertura' : 'Nueva Cobertura'}</h3>
                             {editingMatch?.status === 'Completed' && (
                                 isReadOnly ? (
                                     <button type="button" onClick={() => setIsReadOnly(false)} className="flex items-center gap-1 text-xs px-2 py-1 bg-amber-100 text-amber-700 rounded border border-amber-200 font-bold hover:bg-amber-200 transition-colors">
@@ -194,6 +197,7 @@ export const MatchModal: React.FC<MatchModalProps> = ({
                     </div>
 
                     <div className={`flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-4 ${isReadOnly ? 'opacity-80 pointer-events-none grayscale-[0.5]' : ''}`}>
+                        {copyOf && <p role="status" className="flex items-start gap-2 rounded-lg bg-indigo-50 p-3 text-sm text-indigo-900"><Copy className="mt-0.5 h-4 w-4 shrink-0" />Copia de la cobertura del {copyOf.split('-').reverse().join('/')}, puesta una semana después. Revisá fecha y tripulación antes de crear.</p>}
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                             <div className="md:col-span-1">
                                 <label className="block text-sm font-medium text-slate-700 mb-1">Fecha</label>
@@ -351,10 +355,15 @@ export const MatchModal: React.FC<MatchModalProps> = ({
                     </div>
 
                     <div className="shrink-0 p-4 sm:p-6 border-t bg-slate-50 rounded-b-xl flex flex-col md:flex-row justify-between gap-3">
-                        {editingMatch?.id && !isReadOnly && (
-                            <button type="button" disabled={isLoading} onClick={handleDelete} className="px-4 py-2 rounded-lg text-red-600 hover:bg-red-50 border border-red-200 font-medium flex items-center justify-center gap-2 order-2 md:order-1">
-                                <Trash2 className="w-4 h-4" /> Eliminar
-                            </button>
+                        {editingMatch?.id && (
+                            <div className="flex gap-2 order-2 md:order-1">
+                                {!isReadOnly && <button type="button" disabled={isLoading} onClick={handleDelete} className="flex-1 md:flex-none px-4 py-2 rounded-lg text-red-600 hover:bg-red-50 border border-red-200 font-medium flex items-center justify-center gap-2">
+                                    <Trash2 className="w-4 h-4" /> Eliminar
+                                </button>}
+                                {onDuplicate && <button type="button" disabled={isLoading} onClick={() => onDuplicate(editingMatch as Match)} className="flex-1 md:flex-none px-4 py-2 rounded-lg text-slate-700 hover:bg-slate-100 border border-slate-200 font-medium flex items-center justify-center gap-2">
+                                    <Copy className="w-4 h-4" /> Duplicar
+                                </button>}
+                            </div>
                         )}
                         <div className="flex gap-3 ml-auto order-1 md:order-2 w-full md:w-auto">
                             <button type="button" disabled={isLoading} onClick={onClose} className="flex-1 md:flex-none px-6 py-2 rounded-lg text-slate-600 hover:bg-slate-200 font-medium">Cancelar</button>

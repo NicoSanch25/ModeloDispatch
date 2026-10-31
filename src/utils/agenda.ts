@@ -1,4 +1,4 @@
-import type { Match, Transfer } from '../types';
+import type { Ambulance, Match, Transfer } from '../types';
 import { coverageWindow } from './scheduling';
 import type { Service } from '../services/business';
 import { MATCH_STATUS, SERVICE_TONE, TRANSFER_STATUS, type StatusTone } from './status';
@@ -120,4 +120,17 @@ export function agendaTime(value: number | null) {
 export function shiftAgendaDate(date: string, days: number) {
   const value = timestamp(date, '12:00');
   return value === null ? date : new Date(value + days * 86_400_000).toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
+}
+
+/**
+ * Servicios del día agrupados por móvil, en el orden de número de móvil; al final los que no tienen móvil.
+ * `idle` son los móviles propios o tercerizados sin ningún servicio en la selección.
+ */
+export function servicesByAmbulance(services: AgendaService[], ambulances: Ambulance[]) {
+  const byNumber = (a: Ambulance, b: Ambulance) => String(a.number).localeCompare(String(b.number), 'es', { numeric: true });
+  const sorted = [...ambulances].sort(byNumber);
+  const groups = sorted.map(ambulance => ({ ambulance, services: services.filter(service => service.ambulanceId === ambulance.id) })).filter(group => group.services.length);
+  const known = new Set(ambulances.map(a => a.id));
+  const unassigned = services.filter(service => !service.ambulanceId || !known.has(service.ambulanceId));
+  return { groups, unassigned, idle: sorted.filter(ambulance => !services.some(service => service.ambulanceId === ambulance.id)) };
 }

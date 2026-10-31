@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Save, Trash2, Ambulance } from 'lucide-react';
+import { X, Save, Trash2, Ambulance, Copy } from 'lucide-react';
 import { friendlyError } from '../../utils/requests';
 import { Transfer, Staff, Ambulance as AmbulanceModel, Client } from '../../types';
 import { localDate } from '../../utils/statistics';
@@ -16,10 +16,13 @@ interface TransferModalProps {
     staff: Staff[];
     ambulances?: AmbulanceModel[];
     clients?: Client[];
+    /** Fecha del traslado original cuando el formulario es una copia. */
+    copyOf?: string | null;
+    onDuplicate?: (transfer: Transfer) => void;
 }
 
 export const TransferModal: React.FC<TransferModalProps> = ({
-    isOpen, onClose, onSave, onDelete, transfer, staff, ambulances = [], clients = []
+    isOpen, onClose, onSave, onDelete, transfer, staff, ambulances = [], clients = [], copyOf, onDuplicate
 }) => {
     const [formData, setFormData] = useState<Partial<Transfer>>({
         date: localDate(),
@@ -102,7 +105,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                 <div className="flex items-center justify-between p-4 md:p-6 border-b border-slate-100 bg-slate-50">
                     <h3 className="text-lg md:text-xl font-bold text-slate-800 flex items-center gap-2">
                         <Ambulance className="w-5 h-5 text-indigo-600" />
-                        {transfer?.id ? 'Editar Traslado' : 'Nuevo Traslado'}
+                        {transfer?.id ? 'Editar Traslado' : copyOf ? 'Duplicar traslado' : 'Nuevo Traslado'}
                     </h3>
                     <button onClick={onClose} disabled={isSaving} aria-label="Cerrar traslado" className="p-2 text-slate-500 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-50">
                         <X className="w-5 h-5" />
@@ -111,6 +114,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
 
                 <div className="flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar">
                     {error && <p role="alert" className="mb-3 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
+                    {copyOf && <p role="status" className="mb-3 flex items-start gap-2 rounded-lg bg-indigo-50 p-3 text-sm text-indigo-900"><Copy className="mt-0.5 h-4 w-4 shrink-0" />Copia del traslado del {copyOf.split('-').reverse().join('/')}, puesta una semana después. Revisá fecha, horario y tripulación antes de guardar. No se copian el número de hoja ni las horas reales.</p>}
                     <form id="transfer-form" onSubmit={handleSubmit} className="space-y-6">
                         
                         {/* Status & Header info */}
@@ -283,7 +287,13 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                 </div>
 
                 <div className="p-4 md:p-6 border-t border-slate-100 bg-slate-50 flex flex-col-reverse sm:flex-row justify-between gap-3">
-                    <div className="flex items-center">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                        {transfer?.id && onDuplicate && (
+                            <button type="button" onClick={() => onDuplicate(transfer as Transfer)} disabled={isSaving}
+                                className="flex items-center gap-2 px-4 py-2 text-slate-700 bg-white border border-slate-200 hover:bg-slate-100 rounded-lg text-sm font-medium transition-colors w-full sm:w-auto justify-center">
+                                <Copy className="w-4 h-4" /> Duplicar
+                            </button>
+                        )}
                         {transfer?.id && onDelete && (
                             <button
                                 type="button"
