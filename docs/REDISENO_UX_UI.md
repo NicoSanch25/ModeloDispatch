@@ -31,7 +31,7 @@ Respetan las preferencias registradas en [`AGENTS.md`](../AGENTS.md):
 | 1. Arreglos | Errores 1, 2, 4, 5, 8 y 9 de la revisión | Hecha · PR #1 (`6286d84`), mergeado el 12/10 |
 | 2. Base de diseño | `ModalShell`, avisos y confirmaciones propios, validación en español, transiciones | Hecha · PR #1 (`0986be4`), mergeado el 12/10 |
 | 3. Navegación, listas y sistema visual móvil | Ver detalle abajo | Hecha · PR #3 |
-| 4. Mecánicas operativas | Ver detalle abajo | Casi completa · PR #3 (falta seguro y service de flota) |
+| 4. Mecánicas operativas | Ver detalle abajo | Hecha · PR #3 y PR #6 |
 
 ### Etapa 3 — Navegación, listas y sistema visual móvil
 
@@ -57,9 +57,9 @@ Respetan las preferencias registradas en [`AGENTS.md`](../AGENTS.md):
 
 | # | Mejora | Estado |
 |---|---|---|
-| 4.1 | Franja «Requiere atención»: servicios sin recursos, cruces, vencidos sin cerrar, móviles bloqueados con asignaciones | En curso · la franja ya está arriba del tablero con coberturas sin asignar, VTV y licencias |
+| 4.1 | Franja «Requiere atención»: servicios sin recursos, cruces, vencidos sin cerrar, móviles bloqueados con asignaciones | Hecha · primero lo urgente (rojo) y después lo pendiente (ámbar); con más de cuatro avisos se ven tres y el resto con «Ver N avisos más». Reglas en `src/utils/attention.ts` |
 | 4.2 | Cambio de estado en un toque desde la tarjeta (traslados) y confirmar cobertura en un toque | Hecha · Finalizar traslado, Confirmar y Finalizar cobertura; Traslados filtra Pendientes por defecto |
-| 4.3 | Alertas de vencimientos de flota (VTV, seguro, service por km) con días restantes | En curso · VTV con días restantes en Flota y en el tablero; falta seguro y service |
+| 4.3 | Alertas de vencimientos de flota (VTV, seguro, service por km) con días restantes | Hecha · VTV, seguro y service (por km, por fecha o ambos; avisa a 1.000 km o 30 días) en Flota, detalle del móvil y tablero. El kilometraje toma el mayor entre el del móvil y el último ticket. Migración `202610310007` aplicada el 31/10 |
 | 4.4 | Búsqueda global (servicio, móvil, persona) desde el encabezado | Hecha · botón Buscar, tecla `/` o Ctrl+K (`src/utils/search.ts`) |
 | 4.5 | Actualización en tiempo real entre operadores (Supabase Realtime) | Hecha · migración `202610290005` aplicada el 29/10 |
 
@@ -94,3 +94,4 @@ Después, según prioridad: duplicar servicio y plantillas, vista «hoy por móv
 - **29/10/2026** — Supabase restaurado; migraciones `202610220004` (licencias) y `202610290005` (tiempo real) aplicadas y verificadas. El trabajo vuelve a una sola sesión («Modelo Dispatch · Rediseño UX/UI»).
 - **29/10/2026** — N.3: tickets de combustible. Importe obligatorio (se escribe como en el ticket: «45.000,50»), kilometraje obligatorio al cargar litros y número de ticket opcional; los movimientos anteriores se pueden corregir sin importe. Gasto del mes y por móvil en el resumen, y aviso antes de guardar un kilometraje menor al último registrado del móvil.
 - **31/10/2026** — Publicación: el dominio de producción de Vercel (`modelo-dispatch-7eeh.vercel.app`) respondía «404 DEPLOYMENT_NOT_FOUND» y los sitios de Netlify mostraban «Configuración pendiente» porque no tenían la URL y la clave pública de Supabase. Se agrega `.env.production` con esos datos públicos para que cualquier alojamiento compile la app conectada. El dominio de Vercel hay que revisarlo desde el panel de Vercel.
+- **31/10/2026** — Nico confirma la dirección de producción: **https://modelodispatch.vercel.app** (Vercel). Queda anotada en `AGENTS.md` para no confundirla con `modelo-dispatch-7eeh.vercel.app` ni con los sitios de Netlify.

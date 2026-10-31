@@ -21,11 +21,12 @@ export function licenseStatus(expiration: string | undefined | null, onDate: str
 
 export const needsLicense = (person: Pick<Staff, 'role'>) => person.role === 'Chofer';
 
-/** Texto de un vencimiento (licencia, VTV, seguro...). */
-export function expiryLabel(status: LicenseStatus, noun: string): string {
+/** Texto de un vencimiento (licencia, VTV, seguro...). `masculine` para sustantivos como «Seguro». */
+export function expiryLabel(status: LicenseStatus, noun: string, masculine = false): string {
   if (status.state === 'missing') return `${noun} sin vencimiento cargado`;
   const days = status.days ?? 0;
-  if (status.state === 'expired') return days === -1 ? `${noun} vencida ayer` : `${noun} vencida hace ${-days} días`;
+  const expired = masculine ? 'vencido' : 'vencida';
+  if (status.state === 'expired') return days === -1 ? `${noun} ${expired} ayer` : `${noun} ${expired} hace ${-days} días`;
   if (days === 0) return `${noun} vence hoy`;
   if (status.state === 'soon') return days === 1 ? `${noun} vence mañana` : `${noun} vence en ${days} días`;
   return `${noun} al día`;

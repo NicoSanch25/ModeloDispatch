@@ -5,6 +5,7 @@ import { friendlyError } from '../../utils/requests';
 import { resourceService } from '../../services/resources';
 import { formatDateAR } from '../../utils/formatters';
 import { DateInput } from '../DateInput';
+import { parseKm } from '../../utils/fuel';
 import { ModalShell } from '../ui/ModalShell';
 import { askConfirm, notify } from '../ui/feedback';
 
@@ -52,6 +53,12 @@ export const AmbulanceModal: React.FC<AmbulanceModalProps> = ({ isOpen, onClose,
         e.preventDefault();
         setIsLoading(true);
         const formData = new FormData(e.currentTarget);
+        const nextServiceKm = parseKm(String(formData.get('nextServiceKm') || ''));
+        if (Number.isNaN(nextServiceKm)) {
+            notify.error('El kilometraje del próximo service tiene que ser un número entero (ej: 130000).');
+            setIsLoading(false);
+            return;
+        }
 
         // Construct nested object manually
         const ambulanceData: Partial<Ambulance> = {
@@ -68,6 +75,9 @@ export const AmbulanceModal: React.FC<AmbulanceModalProps> = ({ isOpen, onClose,
                 mileage: formData.get('mileage') as string,
                 vtvExpiration: formData.get('vtvExpiration') ? formData.get('vtvExpiration') as string : null,
                 insurance: formData.get('insurance') as string,
+                insuranceExpiration: (formData.get('insuranceExpiration') as string) || undefined,
+                nextServiceKm: nextServiceKm ?? undefined,
+                nextServiceDate: (formData.get('nextServiceDate') as string) || undefined,
                 mechanicNotes: formData.get('mechanicNotes') as string,
                 tireType: formData.get('tireType') as string,
                 oilType: formData.get('oilType') as string,
@@ -221,10 +231,30 @@ export const AmbulanceModal: React.FC<AmbulanceModalProps> = ({ isOpen, onClose,
                                         <DateInput name="vtvExpiration" aria-label="Vencimiento VTV" defaultValue={editingAmbulance?.maintenance?.vtvExpiration || ''} className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Seguro</label>
-                                        <input name="insurance" defaultValue={editingAmbulance?.maintenance?.insurance} placeholder="Compañía" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Vence el seguro</label>
+                                        <DateInput name="insuranceExpiration" aria-label="Vencimiento del seguro" defaultValue={editingAmbulance?.maintenance?.insuranceExpiration || ''} className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
                                     </div>
                                 </div>
+
+                                <div>
+                                    <label htmlFor="insurance" className="block text-xs font-bold text-slate-500 uppercase mb-1">Compañía de seguro</label>
+                                    <input id="insurance" name="insurance" defaultValue={editingAmbulance?.maintenance?.insurance} placeholder="Compañía" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
+                                </div>
+
+                                <fieldset className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                                    <legend className="px-1 text-xs font-bold text-slate-500 uppercase">Próximo service</legend>
+                                    <p className="text-xs text-slate-500 mb-2">Por kilometraje, por fecha o ambos: avisa lo que llegue primero.</p>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label htmlFor="nextServiceKm" className="text-xs text-slate-500 block mb-1">A los (km)</label>
+                                            <input id="nextServiceKm" name="nextServiceKm" inputMode="numeric" defaultValue={editingAmbulance?.maintenance?.nextServiceKm ?? ''} placeholder="Ej: 130000" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-mono" />
+                                        </div>
+                                        <div>
+                                            <span className="text-xs text-slate-500 block mb-1">Hasta la fecha</span>
+                                            <DateInput name="nextServiceDate" aria-label="Fecha límite del próximo service" defaultValue={editingAmbulance?.maintenance?.nextServiceDate || ''} className="w-full px-3 py-2 border border-slate-300 rounded-lg" />
+                                        </div>
+                                    </div>
+                                </fieldset>
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>

@@ -30,10 +30,12 @@ export interface Ambulance {
     mileage?: string;
     mileageLastUpdate?: string; // Date of last mileage check
     lastServiceDate?: string;
-    nextServiceDate?: string;
+    nextServiceDate?: string; // Fecha límite del próximo service (YYYY-MM-DD)
+    nextServiceKm?: number; // Kilometraje del próximo service
     mechanicNotes?: string;
     vtvExpiration?: string; // Vencimiento VTV
     insurance?: string; // Compañía de Seguro
+    insuranceExpiration?: string; // Vencimiento del seguro (YYYY-MM-DD)
     tireType?: string; // Tipo de Cubierta e.g., "Michelin 225/70 R15"
     oilType?: string; // New: Tipo de Aceite
     batteryLastChange?: string; // Date of last battery change
