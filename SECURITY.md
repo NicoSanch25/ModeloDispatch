@@ -8,7 +8,7 @@ El código local elimina la inyección de `GEMINI_API_KEY` al bundle, compila Ta
 
 El HTML, JavaScript, la clave pública de Supabase y los datos enviados a un usuario autorizado siempre son visibles en su navegador. Deshabilitar Inspect no protege datos. Las claves privadas deben estar exclusivamente en el servidor. Las variables `VITE_*` son públicas, incluso si están en `.env.local`.
 
-Copiar `.env.example` a `.env.local` y configurar la URL y clave pública. Configurar esas mismas variables en el alojamiento antes de compilar. Si alguna compilación anterior llegó a incluir una clave privada de Gemini, revocarla y reemplazarla desde el proveedor.
+Para desarrollo, copiar `.env.example` a `.env.local` y configurar la URL y clave pública. Las versiones publicadas toman la URL y la clave pública (`anon`) de `.env.production`, que está en el repositorio para que cualquier alojamiento compile sin configuración extra; si el alojamiento define las mismas variables, tienen prioridad. Ese archivo sólo admite datos públicos: nunca `service_role`, contraseñas ni tokens privados. Si alguna compilación anterior llegó a incluir una clave privada de Gemini, revocarla y reemplazarla desde el proveedor.
 
 ## Activación en Supabase
 
