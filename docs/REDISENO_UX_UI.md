@@ -63,7 +63,11 @@ Respetan las preferencias registradas en [`AGENTS.md`](../AGENTS.md):
 | 4.4 | Búsqueda global (servicio, móvil, persona) desde el encabezado | Hecha · botón Buscar, tecla `/` o Ctrl+K (`src/utils/search.ts`) |
 | 4.5 | Actualización en tiempo real entre operadores (Supabase Realtime) | Hecha · migración `202610290005` aplicada el 29/10 |
 
-Después, según prioridad: duplicar servicio y plantillas, vista «hoy por móvil», atajos de teclado en escritorio, cola sin conexión e instalación como app (PWA).
+### Etapa 5 — Extras del plan
+
+| # | Mejora | Estado |
+|---|---|---|
+| 5.1 | Duplicar cobertura o traslado (botón en la tarjeta y en el formulario) | Hecha · la copia va a la semana siguiente, queda pendiente y avisa que es una copia. No copia número de hoja, horas reales, kilómetros, observaciones, avisos ni reportes (`src/utils/duplicate.ts`) |
 
 ## Errores de la revisión del 11/10
 

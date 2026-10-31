@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Ambulance as AmbulanceIcon, ArrowRight, Car, Check, Clock, Edit2, MapPin, Search } from 'lucide-react';
+import { Ambulance as AmbulanceIcon, ArrowRight, Car, Check, Clock, Copy, Edit2, MapPin, Search } from 'lucide-react';
 import type { Ambulance, Staff, Transfer } from '../types';
 import { formatDateAR } from '../utils/formatters';
 import { agendaTime, transferWindow } from '../utils/agenda';
@@ -25,6 +25,7 @@ interface TransfersListProps {
   staff: Staff[];
   ambulances: Ambulance[];
   onEdit: (transfer: Transfer) => void;
+  onDuplicate?: (transfer: Transfer) => void;
   /** Cierra el traslado en un toque. */
   onComplete: (transfer: Transfer) => Promise<void>;
 }
@@ -37,7 +38,7 @@ const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u0
  * Lista de traslados: tarjetas en celular y tablet (todo visible, sin desplazamiento lateral)
  * y tabla desde `lg`.
  */
-export const TransfersList: React.FC<TransfersListProps> = ({ transfers: all, staff, ambulances, onEdit, onComplete }) => {
+export const TransfersList: React.FC<TransfersListProps> = ({ transfers: all, staff, ambulances, onEdit, onDuplicate, onComplete }) => {
   const [filter, setFilter] = useState<Filter>('Pending');
   const [query, setQuery] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -129,6 +130,9 @@ export const TransfersList: React.FC<TransfersListProps> = ({ transfers: all, st
                   <Edit2 className="h-4 w-4" aria-hidden="true" /> Editar
                 </button>
                 {finishButton(transfer)}
+                {onDuplicate && <button type="button" onClick={() => onDuplicate(transfer)} className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100" aria-label="Duplicar traslado" title="Duplicar para la semana siguiente">
+                  <Copy className="h-4 w-4" aria-hidden="true" />
+                </button>}
               </div>
             </li>
           );
@@ -162,6 +166,9 @@ export const TransfersList: React.FC<TransfersListProps> = ({ transfers: all, st
                   <button onClick={() => onEdit(transfer)} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Editar" aria-label="Editar traslado">
                     <Edit2 className="w-4 h-4" />
                   </button>
+                  {onDuplicate && <button onClick={() => onDuplicate(transfer)} className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors" title="Duplicar para la semana siguiente" aria-label="Duplicar traslado">
+                    <Copy className="w-4 h-4" />
+                  </button>}
                 </td>
               </tr>
             ))}

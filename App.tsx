@@ -8,7 +8,7 @@ import {
   ArrowRightCircle, ClipboardList, Briefcase, History as HistoryIcon, ArrowRight,
   Fuel, ListPlus, UserPlus, 
   AlertOctagon, Building, FileSpreadsheet, Ban, Zap, Mail,
-  Lock, LogIn, Loader2, Key, Eye, EyeOff, IdCard, Search, ShieldCheck, Wrench
+  Lock, LogIn, Loader2, Key, Eye, EyeOff, IdCard, Search, ShieldCheck, Wrench, Copy
 } from 'lucide-react';
 import {
   
@@ -36,6 +36,7 @@ import { AgendaList } from './src/components/AgendaList';
 import { applyServiceRegistry, buildAgenda, servicesForDay, type AgendaService } from './src/utils/agenda';
 import { conflictedServices } from './src/utils/attention';
 import { currentKm, EXPIRY_CHIP, serviceLabel, serviceStatus } from './src/utils/fleet';
+import { duplicateMatch, duplicateTransfer } from './src/utils/duplicate';
 import { fetchOperationalTable, fetchServiceRegistry, type Service } from './src/services/business';
 import { csvCell } from './src/utils/security';
 
@@ -342,6 +343,13 @@ function MainApp({ session }: { session: any }) {
 
   const [isMatchModalOpen, setIsMatchModalOpen] = useState(false);
   const [editingMatch, setEditingMatch] = useState<Partial<MatchModel> | null>(null);
+  // Fecha del servicio original mientras el formulario abierto es una copia («Duplicar»).
+  const [matchCopyOf, setMatchCopyOf] = useState<string | null>(null);
+  const [transferCopyOf, setTransferCopyOf] = useState<string | null>(null);
+  useEffect(() => { if (!isMatchModalOpen) setMatchCopyOf(null); }, [isMatchModalOpen]);
+  useEffect(() => { if (!isTransferModalOpen) setTransferCopyOf(null); }, [isTransferModalOpen]);
+  const duplicateCoverage = (match: MatchModel) => { setEditingMatch(duplicateMatch(match)); setMatchCopyOf(match.date); setIsMatchModalOpen(true); };
+  const duplicateJourney = (transfer: TransferModel) => { setEditingTransfer(duplicateTransfer(transfer)); setTransferCopyOf(transfer.date); setIsTransferModalOpen(true); };
 
   const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<Partial<StaffModel> | null>(null);
@@ -1272,6 +1280,9 @@ function MainApp({ session }: { session: any }) {
                                     <button onClick={(e) => { e.stopPropagation(); setEditingMatch(match); setIsMatchModalOpen(true); }} className="flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-lg text-slate-600 hover:bg-slate-100" aria-label="Editar cobertura" title="Editar">
                                       <Edit2 className="h-4 w-4" /><span className="hidden md:inline text-sm">Editar</span>
                                     </button>
+                                    <button onClick={(e) => { e.stopPropagation(); duplicateCoverage(match); }} className="flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-lg text-slate-600 hover:bg-slate-100" aria-label="Duplicar cobertura" title="Duplicar para la semana siguiente">
+                                      <Copy className="h-4 w-4" /><span className="hidden md:inline text-sm">Duplicar</span>
+                                    </button>
                                   </>
                                 )}
                                 {activeTab === 'history' && (
@@ -1283,6 +1294,9 @@ function MainApp({ session }: { session: any }) {
                                     )}
                                     <button onClick={(e) => { e.stopPropagation(); setEditingMatch(match); setIsMatchModalOpen(true); }} className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors" title="Ver Detalles / Editar">
                                       <Edit2 className="w-5 h-5" />
+                                    </button>
+                                    <button onClick={(e) => { e.stopPropagation(); duplicateCoverage(match); }} className="flex min-h-11 min-w-11 items-center justify-center text-slate-500 hover:bg-slate-100 rounded-lg transition-colors" aria-label="Duplicar cobertura" title="Duplicar para la semana siguiente">
+                                      <Copy className="w-5 h-5" />
                                     </button>
                                   </>
                                 )}
@@ -1458,6 +1472,7 @@ function MainApp({ session }: { session: any }) {
                     staff={staff}
                     ambulances={ambulances}
                     onEdit={transfer => { setEditingTransfer(transfer); setIsTransferModalOpen(true); }}
+                    onDuplicate={duplicateJourney}
                     onComplete={completeTransfer}
                   />
                 </div>
@@ -1482,12 +1497,17 @@ function MainApp({ session }: { session: any }) {
         onSave={handleSaveTransfer}
         onDelete={handleDeleteTransfer}
         transfer={editingTransfer}
+        copyOf={transferCopyOf}
+        onDuplicate={duplicateJourney}
         staff={staff}
         ambulances={ambulances}
         clients={clients}
       />
       
       <MatchModal
+        key={matchCopyOf ? `copy:${matchCopyOf}` : editingMatch?.id || 'new'}
+        copyOf={matchCopyOf}
+        onDuplicate={duplicateCoverage}
         isOpen={isMatchModalOpen}
         onClose={() => setIsMatchModalOpen(false)}
         onSaveSuccess={loadData}
