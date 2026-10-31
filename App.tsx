@@ -8,7 +8,7 @@ import {
   ArrowRightCircle, ClipboardList, Briefcase, History as HistoryIcon, ArrowRight,
   Fuel, ListPlus, UserPlus, 
   AlertOctagon, Building, FileSpreadsheet, Ban, Zap, Mail,
-  Lock, LogIn, Loader2, Key, Eye, EyeOff, IdCard, Search, ShieldCheck, Wrench, Copy
+  Lock, LogIn, Loader2, Key, Eye, EyeOff, IdCard, Search, ShieldCheck, Wrench, Copy, Keyboard
 } from 'lucide-react';
 import {
   
@@ -37,6 +37,8 @@ import { applyServiceRegistry, buildAgenda, servicesForDay, type AgendaService }
 import { conflictedServices } from './src/utils/attention';
 import { currentKm, EXPIRY_CHIP, serviceLabel, serviceStatus } from './src/utils/fleet';
 import { duplicateMatch, duplicateTransfer } from './src/utils/duplicate';
+import { shortcutAction } from './src/utils/shortcuts';
+import { ShortcutsHelp } from './src/components/ShortcutsHelp';
 import { fetchOperationalTable, fetchServiceRegistry, type Service } from './src/services/business';
 import { csvCell } from './src/utils/security';
 
@@ -391,20 +393,7 @@ function MainApp({ session }: { session: any }) {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const userName: string = session?.user?.user_metadata?.username || session?.user?.email?.split('@')[0] || '';
 
-  // «/» o Ctrl+K abren la búsqueda cuando no se está escribiendo en un campo.
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement;
-      const typing = target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
-      if ((event.key === '/' && !typing) || ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k')) {
-        if (document.querySelector('[aria-modal="true"]')) return;
-        event.preventDefault();
-        setIsSearchOpen(true);
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
 
   // Filters State
   const [filters, setFilters] = useState({
@@ -793,6 +782,25 @@ function MainApp({ session }: { session: any }) {
     // Cada sección arranca desde arriba; tocar la actual también vuelve al inicio.
     window.scrollTo({ top: 0 });
   };
+  // Atajos de teclado (ver src/utils/shortcuts.ts). No actúan con una ventana abierta ni mientras se escribe.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement;
+      const typing = target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
+      const action = shortcutAction(event, typing);
+      if (!action || document.querySelector('[aria-modal="true"]')) return;
+      event.preventDefault();
+      if (action === 'search') setIsSearchOpen(true);
+      else if (action === 'help') setIsShortcutsOpen(true);
+      else if (action === 'coverage') { setEditingMatch({ date: localDate() }); setIsMatchModalOpen(true); }
+      else if (action === 'transfer') { setEditingTransfer({ date: localDate() }); setIsTransferModalOpen(true); }
+      else if (action === 'agenda') { setDailyAgendaDate(localDate()); setIsDailyAgendaOpen(true); }
+      else handleNav(action);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   const showTodayCoverage = () => {
     setFilters({ ...filters, startDate: localDate(), endDate: localDate(), status: 'all', location: '', ambulance: '', outsourced: 'all', clientId: '', staffId: '' });
     handleNav('matches');
@@ -841,6 +849,9 @@ function MainApp({ session }: { session: any }) {
         </nav>
 
         <div className="p-4 space-y-2 border-t border-slate-800/60">
+          <button onClick={() => setIsShortcutsOpen(true)} className="hidden lg:flex w-full items-center gap-2 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors text-sm">
+            <Keyboard className="w-4 h-4" /> Atajos de teclado <kbd className="ml-auto rounded border border-slate-700 px-1.5 text-xs">?</kbd>
+          </button>
           <button onClick={() => setIsChangePasswordOpen(true)} className="w-full flex items-center gap-2 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors text-sm">
             <Key className="w-4 h-4" /> Cambiar Contraseña
           </button>
@@ -1566,6 +1577,7 @@ function MainApp({ session }: { session: any }) {
         <GlobalSearch data={{ matches, transfers, staff, ambulances, locations, clients }} onClose={() => setIsSearchOpen(false)} onSelect={openSearchResult} />
       )}
       {isChangePasswordOpen && <ChangePasswordModal onClose={() => setIsChangePasswordOpen(false)} />}
+      {isShortcutsOpen && <ShortcutsHelp onClose={() => setIsShortcutsOpen(false)} />}
       <StaffHistoryModal isOpen={!!viewingStaff} staff={viewingStaff} matches={matches} ambulances={ambulances} onClose={() => setViewingStaff(null)} />
       {viewingAmbulance && (
         <AmbulanceDetailModal
